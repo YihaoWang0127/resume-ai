@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import type { DragEvent, ChangeEvent } from 'react'
 import { Upload, FileText, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -16,11 +16,34 @@ const ALLOWED = new Set([
   'application/msword',
 ])
 
+const PROGRESS_MESSAGES = [
+  'Extracting text from your resume...',
+  'Identifying your experience and skills...',
+  'Structuring your information...',
+  'Almost ready...',
+]
+
 export default function ResumeUploader({ onParsed }: Props) {
   const [dragging, setDragging] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [msgIndex, setMsgIndex] = useState(0)
+  const [visible, setVisible] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!loading) return
+    setMsgIndex(0)
+    setVisible(true)
+    const interval = setInterval(() => {
+      setVisible(false)
+      setTimeout(() => {
+        setMsgIndex((i) => (i + 1) % PROGRESS_MESSAGES.length)
+        setVisible(true)
+      }, 300)
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [loading])
 
   const process = async (file: File) => {
     if (!ALLOWED.has(file.type)) {
@@ -86,7 +109,12 @@ export default function ResumeUploader({ onParsed }: Props) {
           <Loader2 className="size-12 animate-spin text-primary" />
           <div>
             <p className="font-medium text-foreground">Parsing with Claude AI…</p>
-            <p className="text-sm mt-1">Extracting your resume data</p>
+            <p
+              className="text-sm mt-1 italic text-muted-foreground transition-opacity duration-300"
+              style={{ opacity: visible ? 1 : 0 }}
+            >
+              {PROGRESS_MESSAGES[msgIndex]}
+            </p>
           </div>
         </div>
       ) : (

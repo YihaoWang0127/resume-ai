@@ -21,16 +21,18 @@ def get_client() -> anthropic.Anthropic:
     return _client
 
 
-MODEL = "claude-sonnet-4-6"
-MAX_TOKENS = 8192
+FAST_MODEL = "claude-haiku-4-5"   # fast + cheap — used for parsing
+SMART_MODEL = "claude-sonnet-4-6" # high quality — used for enrich/tailor
+MAX_TOKENS = 8192  # for enrich/tailor
+PARSE_MAX_TOKENS = 4096  # faster for parse
 
 
 def complete(system: str, user: str) -> str:
     """Blocking completion — used for parse where we need the full JSON."""
     client = get_client()
     message = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
+        model=FAST_MODEL,
+        max_tokens=PARSE_MAX_TOKENS,
         system=system,
         messages=[{"role": "user", "content": user}],
     )
@@ -41,7 +43,7 @@ async def stream_text(system: str, user: str) -> AsyncIterator[str]:
     """Async generator that yields text chunks from a streaming response."""
     client = get_client()
     with client.messages.stream(
-        model=MODEL,
+        model=SMART_MODEL,
         max_tokens=MAX_TOKENS,
         system=system,
         messages=[{"role": "user", "content": user}],

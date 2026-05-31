@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Sparkles,
   Briefcase,
@@ -9,6 +9,8 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Wand2,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -44,19 +46,66 @@ function newSkill(): SkillCategory {
   return { category: '', items: [''] }
 }
 
+
+const STREAMING_MESSAGES = [
+  'Analyzing your resume...',
+  'Identifying weak bullet points...',
+  'Rewriting with stronger action verbs...',
+  'Quantifying your achievements...',
+  'Polishing the final output...',
+]
+
 export default function ResumeEditor({ initialResume, onBack }: Props) {
   const [resume, setResume] = useState<ResumeSchema>(initialResume)
   const [tab, setTab] = useState<Tab>('summary')
   const [stream, setStream] = useState<StreamState | null>(null)
   const [tailorOpen, setTailorOpen] = useState(false)
   const [jobDesc, setJobDesc] = useState('')
+  const [tailorSections, setTailorSections] = useState({
+    summary: true, experience: true, education: true, skills: true,
+  })
   const [isExporting, setIsExporting] = useState(false)
   const [streamLoading, setStreamLoading] = useState(false)
   const [panelCollapsed, setPanelCollapsed] = useState(false)
-  const [panelHeight, setPanelHeight] = useState(256)
+  const [panelHeight, setPanelHeight] = useState(200)
   const [flashSections, setFlashSections] = useState<Set<string>>(new Set())
+  const [msgIndex, setMsgIndex] = useState(0)
+  const [streamProgress, setStreamProgress] = useState(0)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [selectedIndustry, setSelectedIndustry] = useState<string>(initialResume.detectedIndustry ?? 'general')
+  const [saveToast, setSaveToast] = useState<{ text: string; ok: boolean } | null>(null)
   const accumRef = useRef('')
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!exportMenuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [exportMenuOpen])
+
+  useEffect(() => {
+    if (!stream || stream.done) {
+      setMsgIndex(0)
+      return
+    }
+    setMsgIndex(0)
+    const id = setInterval(() => setMsgIndex((i) => (i + 1) % STREAMING_MESSAGES.length), 3000)
+    return () => clearInterval(id)
+  }, [stream?.done])
+
+  useEffect(() => {
+    if (!stream) { setStreamProgress(0); return }
+    if (stream.done) { setStreamProgress(100); return }
+    setStreamProgress(0)
+    const id = requestAnimationFrame(() => setStreamProgress(90))
+    return () => cancelAnimationFrame(id)
+  }, [stream?.done])
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -66,7 +115,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
       const delta = dragRef.current.startY - ev.clientY
       const next = Math.min(
         Math.max(dragRef.current.startHeight + delta, 80),
-        window.innerHeight * 0.8,
+        window.innerHeight * 0.6,
       )
       setPanelHeight(next)
     }
@@ -108,10 +157,14 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
   const applyStreamed = () => {
     try {
       let text = accumRef.current.trim()
+      console.log('[applyStreamed] raw streamed text:', text)
       if (text.startsWith('```')) {
         text = text.split('\n').slice(1).join('\n').replace(/```\s*$/, '').trim()
       }
-      const newResume = fromBackend(JSON.parse(text))
+      const parsed: unknown = JSON.parse(text)
+      console.log('[applyStreamed] parsed JSON:', parsed)
+      const newResume = fromBackend(parsed)
+      console.log('[applyStreamed] mapped ResumeSchema:', newResume)
 
       const changes = new Set<string>()
       if (JSON.stringify(resume.metadata) !== JSON.stringify(newResume.metadata)) changes.add('metadata')
@@ -127,9 +180,10 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
         setFlashSections(changes)
         setTimeout(() => setFlashSections(new Set()), 1800)
       }
-    } catch {
+    } catch (err) {
+      console.error('[applyStreamed] failed to parse AI response:', err)
       setStream((s: StreamState | null) =>
-        s ? { ...s, error: 'Could not parse AI response as JSON.' } : null,
+        s ? { ...s, error: 'Could not parse AI response as JSON. Check the console for details.' } : null,
       )
     }
   }
@@ -142,18 +196,43 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
     runStream(() => tailorResume(resume, jobDesc))
   }
 
-  const handleExport = async () => {
+  const handleExport = async (format: 'pdf' | 'docx') => {
+    setExportMenuOpen(false)
     setIsExporting(true)
+    const showToast = (text: string, ok: boolean) => {
+      setSaveToast({ text, ok })
+      setTimeout(() => setSaveToast(null), 3000)
+    }
     try {
-      const blob = await exportResume(resume)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${resume.metadata.fullName || 'resume'}.pdf`.replace(/ /g, '_')
-      a.click()
-      URL.revokeObjectURL(url)
+      const blob = await exportResume(resume, format, selectedIndustry)
+      const baseName = (resume.metadata.fullName || 'resume').replace(/ /g, '_')
+      const filename = `${baseName}.${format}`
+      const picker = (window as any).showSaveFilePicker as ((o: object) => Promise<any>) | undefined
+      if (picker) {
+        const mimeType =
+          format === 'pdf'
+            ? 'application/pdf'
+            : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        const handle = await picker({
+          suggestedName: filename,
+          types: [{ description: format === 'pdf' ? 'PDF Document' : 'Word Document', accept: { [mimeType]: [`.${format}`] } }],
+        })
+        const writable = await handle.createWritable()
+        await writable.write(blob)
+        await writable.close()
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+      showToast('File saved successfully!', true)
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
       console.error(err)
+      showToast('Export failed. Please try again.', false)
     } finally {
       setIsExporting(false)
     }
@@ -314,21 +393,46 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
             <Briefcase className="size-3.5" />
             Tailor for Job
           </Button>
-          <Button size="sm" onClick={handleExport} disabled={isExporting}>
-            {isExporting ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Download className="size-3.5" />
+          <div ref={exportMenuRef} className="relative">
+            <Button
+              size="sm"
+              onClick={() => setExportMenuOpen((o) => !o)}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Download className="size-3.5" />
+              )}
+              Export
+              <ChevronDown className="size-3 ml-0.5" />
+            </Button>
+            {exportMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[190px]">
+                <button
+                  onClick={() => handleExport('pdf')}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left"
+                >
+                  <Download className="size-3.5 text-muted-foreground" />
+                  Save as PDF
+                </button>
+                <button
+                  onClick={() => handleExport('docx')}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left"
+                >
+                  <FileText className="size-3.5 text-muted-foreground" />
+                  Save as Word (.docx)
+                </button>
+              </div>
             )}
-            Export PDF
-          </Button>
+          </div>
         </div>
       </header>
 
       {/* ── main ────────────────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: form */}
-        <div className="w-[420px] shrink-0 flex flex-col border-r border-border overflow-hidden">
+        <div className="relative w-[420px] shrink-0 flex flex-col border-r border-border overflow-hidden">
           {/* Metadata */}
           <div className="shrink-0 border-b border-border p-4 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -399,7 +503,8 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
               <div className="space-y-2">
                 <label className="text-xs text-muted-foreground">Professional summary</label>
                 <textarea
-                  className={cn(field, 'resize-none min-h-[200px]')}
+                  rows={10}
+                  className={cn(field, 'resize-none overflow-y-auto scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-800')}
                   placeholder="A brief professional summary…"
                   value={resume.summary ?? ''}
                   onChange={(e) =>
@@ -615,7 +720,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
           {/* Streaming panel */}
           {stream && (
             <div
-              className="shrink-0 border-t border-border bg-gray-950 flex flex-col"
+              className="absolute bottom-0 left-0 right-0 z-50 border border-gray-600 rounded-t-xl bg-gray-950 flex flex-col"
               style={panelCollapsed ? undefined : { height: panelHeight }}
             >
               {/* Drag handle */}
@@ -629,38 +734,48 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                   <div className="w-6 h-px bg-gray-400" />
                 </div>
               </div>
+              {/* Progress bar */}
+              <div className="shrink-0 h-0.5 bg-gray-800 overflow-hidden">
+                <div
+                  className="h-full bg-green-400 ease-out"
+                  style={{
+                    width: `${streamProgress}%`,
+                    transition: `width ${stream.done ? '0.3s' : '30s'} ease-out`,
+                  }}
+                />
+              </div>
               {/* Header — always visible, never scrolls away */}
               <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2">
-                <span className="text-xs font-medium text-green-400 flex items-center gap-1.5 min-w-0 truncate">
+                <span className="text-xs font-medium flex items-center gap-1.5 min-w-0 truncate">
                   {!stream.done ? (
-                    <>
+                    <span className="flex items-center gap-1.5 text-green-400">
                       <Loader2 className="size-3 animate-spin shrink-0" />
-                      AI is writing…
-                    </>
+                      {STREAMING_MESSAGES[msgIndex]}
+                    </span>
                   ) : stream.error ? (
-                    <span className="text-destructive truncate">{stream.error}</span>
+                    <span className="text-red-400 truncate">✗ Something went wrong</span>
                   ) : (
-                    'Done — review output below'
+                    <span className="text-green-400">✓ Done — your enriched resume is ready!</span>
                   )}
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
                   {stream.done && !stream.error && (
                     <button
                       onClick={applyStreamed}
-                      className="px-2.5 py-1 rounded-md text-xs font-semibold bg-green-400 hover:bg-green-300 text-gray-950 transition-colors"
+                      className="px-3 py-1 rounded-md text-xs font-semibold bg-green-400 hover:bg-green-300 text-gray-950 border border-green-300 transition-colors"
                     >
                       Apply changes
                     </button>
                   )}
                   <button
                     onClick={() => setStream(null)}
-                    className="px-2 py-1 rounded-md text-xs text-gray-400 hover:text-gray-200 hover:bg-white/10 transition-colors"
+                    className="px-3 py-1 rounded-md text-xs text-white bg-red-600 hover:bg-red-500 border border-red-400 transition-colors"
                   >
                     Dismiss
                   </button>
                   <button
                     onClick={() => setPanelCollapsed((c) => !c)}
-                    className="text-gray-500 hover:text-gray-300 transition-colors"
+                    className="p-1 rounded-md border border-gray-600 bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors"
                   >
                     {panelCollapsed ? (
                       <ChevronUp className="size-4" />
@@ -672,7 +787,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
               </div>
               {/* Scrollable output */}
               {!panelCollapsed && (
-                <div className="overflow-y-auto px-3 pb-3">
+                <div className="flex-1 min-h-0 overflow-y-scroll px-3 pb-3 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-900">
                   <StreamingOutput text={stream.text} isStreaming={!stream.done} />
                 </div>
               )}
@@ -688,44 +803,101 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
             </p>
             <ChevronUp className="size-3 text-muted-foreground" />
           </div>
-          <ResumePreview resume={resume} flashSections={flashSections} />
+          <ResumePreview
+            resume={resume}
+            flashSections={flashSections}
+            industry={selectedIndustry}
+            detectedIndustry={resume.detectedIndustry}
+            onIndustryChange={setSelectedIndustry}
+          />
         </div>
       </div>
 
       {/* ── Tailor modal ─────────────────────────────────────────────────────── */}
       {tailorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-background rounded-xl border border-border shadow-2xl w-full max-w-lg p-6 space-y-4 mx-4">
-            <div className="flex items-start justify-between">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-8">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-6">
               <div>
-                <h2 className="font-semibold">Tailor for Job</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Paste the job description and Claude will rewrite your resume to match.
+                <h2 className="text-2xl font-bold text-gray-900">Tailor Resume for Job</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Paste the job description and Claude will rewrite your resume to match
                 </p>
               </div>
               <button
                 onClick={() => setTailorOpen(false)}
-                className="text-muted-foreground hover:text-foreground ml-4 shrink-0"
+                className="text-gray-400 hover:text-gray-600 ml-4 shrink-0 p-1 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <X className="size-4" />
+                <X className="size-5" />
               </button>
             </div>
-            <textarea
-              className={cn(field, 'min-h-[220px] resize-none')}
-              placeholder="Paste the full job description here…"
-              value={jobDesc}
-              onChange={(e) => setJobDesc(e.target.value)}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setTailorOpen(false)}>
+            {/* Job description */}
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Job Description
+              </label>
+              <textarea
+                className="w-full min-h-48 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-shadow"
+                placeholder="Paste the full job description here..."
+                value={jobDesc}
+                onChange={(e) => setJobDesc(e.target.value)}
+              />
+            </div>
+            {/* Section checkboxes */}
+            <div className="mb-6">
+              <p className="text-sm font-semibold text-gray-700 mb-2">Sections to tailor:</p>
+              <div className="flex gap-4">
+                {(['summary', 'experience', 'education', 'skills'] as const).map((s) => (
+                  <label
+                    key={s}
+                    className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={tailorSections[s]}
+                      onChange={(e) =>
+                        setTailorSections((prev) => ({ ...prev, [s]: e.target.checked }))
+                      }
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </label>
+                ))}
+              </div>
+            </div>
+            {/* Footer */}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setTailorOpen(false)}
+                className="px-5 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
                 Cancel
-              </Button>
-              <Button size="sm" onClick={handleTailor} disabled={!jobDesc.trim()}>
-                <Sparkles className="size-3.5" />
+              </button>
+              <button
+                onClick={handleTailor}
+                disabled={!jobDesc.trim()}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+              >
+                <Wand2 className="size-4" />
                 Tailor Resume
-              </Button>
+              </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Save toast ───────────────────────────────────────────────────────── */}
+      {saveToast && (
+        <div
+          className={cn(
+            'fixed bottom-6 right-6 z-[100] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all',
+            saveToast.ok
+              ? 'bg-green-600 text-white'
+              : 'bg-red-600 text-white',
+          )}
+        >
+          {saveToast.ok ? '✓' : '✗'} {saveToast.text}
         </div>
       )}
     </div>

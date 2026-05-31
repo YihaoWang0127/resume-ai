@@ -13,7 +13,7 @@ export default function StreamingOutput({ text, isStreaming }: Props) {
   }, [text])
 
   return (
-    <div className="bg-gray-950 rounded-lg p-4 font-mono text-xs text-green-400 overflow-y-auto max-h-56 border border-gray-800">
+    <div className="bg-gray-950 rounded-lg p-4 font-mono text-xs text-green-400 border border-gray-800">
       <pre className="whitespace-pre-wrap break-all leading-relaxed">
         {text || (
           <span className="text-gray-500 not-italic">

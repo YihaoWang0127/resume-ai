@@ -53,6 +53,7 @@ class ResumeSchema(BaseModel):
     education: list[EducationItem] = Field(default_factory=list)
     skills: list[SkillCategory] = Field(default_factory=list)
     projects: list[ProjectItem] = Field(default_factory=list)
+    detected_industry: Optional[str] = "general"
 
 
 class TailorRequest(BaseModel):

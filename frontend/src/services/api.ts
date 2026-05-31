@@ -53,6 +53,7 @@ export function fromBackend(raw: unknown): ResumeSchema {
       category: str(s.category),
       items: strArr(s.items),
     })),
+    detectedIndustry: optStr(data.detected_industry) || 'general',
   }
 }
 
@@ -130,11 +131,15 @@ export async function tailorResume(
   })
 }
 
-export async function exportResume(resume: ResumeSchema): Promise<Blob> {
+export async function exportResume(
+  resume: ResumeSchema,
+  format: 'pdf' | 'docx' = 'pdf',
+  industry = 'general',
+): Promise<Blob> {
   const res = await fetch(`${BASE}/api/export`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(toBackend(resume)),
+    body: JSON.stringify({ resume: toBackend(resume), format, industry }),
   })
   if (!res.ok) throw new Error(`Export failed: ${res.status}`)
   return res.blob()

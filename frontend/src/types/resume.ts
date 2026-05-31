@@ -34,4 +34,5 @@ export interface ResumeSchema {
   experience: ExperienceItem[]
   education: EducationItem[]
   skills: SkillCategory[]
+  detectedIndustry?: string
 }

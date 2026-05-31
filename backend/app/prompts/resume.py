@@ -3,9 +3,7 @@ from __future__ import annotations
 import json
 from app.models.resume import ResumeSchema
 
-
-PARSE_SYSTEM = """You are an expert resume parser. Extract structured data from raw resume text and return it as valid JSON.
-Always return a complete JSON object matching the schema exactly. If a field is not present, use null or an empty list as appropriate."""
+PARSE_SYSTEM = """Extract resume data into JSON. Return only valid JSON matching the schema exactly. No markdown, no explanation."""
 
 ENRICH_SYSTEM = """You are a professional resume writer and career coach. Your task is to enhance and improve the provided resume.
 Improve bullet points to be achievement-oriented using the STAR method (Situation, Task, Action, Result).
@@ -67,21 +65,22 @@ RESUME_JSON_SCHEMA = """{
       "url": "string or null",
       "bullets": ["string"]
     }
-  ]
+  ],
+  "detected_industry": "one of: tech | finance | creative | healthcare | general"
 }"""
 
 
 def build_parse_prompt(raw_text: str) -> tuple[str, str]:
     """Returns (system_prompt, user_message) for parse."""
-    user = f"""Parse the following resume text into a structured JSON object.
+    user = f"""Extract this resume into JSON. Return ONLY valid JSON, no markdown, no explanation.
 
-REQUIRED JSON SCHEMA:
-{RESUME_JSON_SCHEMA}
+Fields: metadata(name,email,phone,location,linkedin,github,website), summary, experience(company,title,location,start_date,end_date,bullets[]), education(school,degree,field,start_date,end_date,gpa,honors), skills(category,items[]), projects(name,description,technologies[],url,bullets[]), detected_industry
 
-RESUME TEXT:
-{raw_text}
+Use null for missing fields, empty list [] for missing arrays.
+For detected_industry: infer the industry from job titles, employers, skills, and keywords. Return exactly one of: tech | finance | creative | healthcare | general
 
-Return ONLY valid JSON with no markdown fences, no explanation, and no extra text."""
+RESUME:
+{raw_text}"""
     return PARSE_SYSTEM, user
 
 
