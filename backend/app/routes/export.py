@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -12,7 +14,7 @@ router = APIRouter()
 
 class ExportRequest(BaseModel):
     resume: ResumeSchema
-    format: str = "pdf"
+    format: Literal["pdf", "docx"] = "pdf"
     industry: str = "general"
 
 

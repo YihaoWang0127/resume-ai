@@ -21,6 +21,7 @@
 - [Deployment](#deployment)
 - [Environment Variables](#environment-variables)
 - [Claude Prompt Strategy](#claude-prompt-strategy)
+- [Conclusion](#conclusion)
 
 ---
 
@@ -500,4 +501,24 @@ Rewrites resume to match a job description:
 
 ---
 
-*Built in 2 days with Claude Code + Claude API*
+---
+
+## Conclusion
+
+ResumeAI demonstrates how a small, focused AI application can deliver genuine value quickly. By combining Claude's language understanding with a clean full-stack architecture, the project reduces what used to be hours of manual resume tailoring to under two minutes.
+
+Several technical decisions shaped the final result:
+
+- **Two-model strategy** — using Haiku for fast structured extraction and Sonnet for high-quality rewriting keeps costs low without sacrificing output quality where it matters most.
+- **Streaming-first UX** — surfacing token-by-token AI output with cycling progress hints makes the wait feel active rather than opaque, which meaningfully reduces perceived latency.
+- **Pure-Python PDF generation** — switching from WeasyPrint (which requires system-level Pango/Cairo) to ReportLab eliminated the biggest production deployment blocker and made the service fully portable.
+- **Industry-aware styling** — detecting the candidate's industry at parse time and applying matching typography and accent colors to both the live preview and exported files adds polish with zero extra API calls.
+- **No database (intentionally)** — keeping resume state in React `useState` removed an entire infrastructure layer for the MVP, letting the project ship faster without sacrificing the core user experience.
+
+The test suite (42 backend + 39 frontend, all passing) covers the full request lifecycle — from file upload and Claude mocking through streaming response validation and export format enforcement — giving a solid foundation for continued development.
+
+**What's next:** authentication and resume persistence are the natural next step, followed by ATS keyword scoring and cover letter generation. The architecture is designed to support these additions incrementally without requiring a rewrite.
+
+---
+
+*Built with Claude Code + Claude API*
