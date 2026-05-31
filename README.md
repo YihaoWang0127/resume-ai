@@ -18,6 +18,7 @@
 - [API Reference](#api-reference)
 - [Data Schema](#data-schema)
 - [Getting Started](#getting-started)
+- [Testing](#testing)
 - [Deployment](#deployment)
 - [Environment Variables](#environment-variables)
 - [Claude Prompt Strategy](#claude-prompt-strategy)
@@ -392,6 +393,46 @@ echo "VITE_API_URL=http://localhost:8000" > .env.local
 # Start dev server
 npm run dev
 # App running at http://localhost:5173
+```
+
+---
+
+## Testing
+
+### How to Run Tests
+
+**Backend:**
+```bash
+cd backend
+source venv/bin/activate
+pytest -v
+# or
+make test
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm test              # watch mode
+npm run test:coverage  # with coverage report
+```
+
+### How to Add Tests for New Features
+
+When you add a new feature, follow this pattern:
+
+```
+New feature: Cover Letter Generation
+        ↓
+Backend: add tests/test_coverletter.py
+  - test_generate_returns_stream
+  - test_generate_missing_resume → 422
+  - test_generate_prompt_contains_jd
+
+Frontend: add src/__tests__/CoverLetter.test.tsx
+  - test_renders_modal
+  - test_submit_triggers_stream
+  - test_apply_updates_state
 ```
 
 ---
