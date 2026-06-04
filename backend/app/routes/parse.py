@@ -7,7 +7,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.models.resume import ResumeSchema
 from app.prompts.resume import build_parse_prompt
-from app.services.claude import complete
+from app.services.claude import complete, validate_resume
 from app.services.parser import extract_text
 
 router = APIRouter()
@@ -49,6 +49,16 @@ async def parse_resume(file: UploadFile = File(...)) -> ResumeSchema:
 
     if not raw_text.strip():
         raise HTTPException(status_code=422, detail="No text could be extracted from the file.")
+
+    try:
+        validation = validate_resume(raw_text)
+        if not validation.get("is_resume", False):
+            reason = validation.get("reason", "This does not appear to be a resume.")
+            raise HTTPException(status_code=400, detail=f"Not a resume: {reason}")
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # if validation fails, proceed anyway
 
     system, user = build_parse_prompt(raw_text)
     try:

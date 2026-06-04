@@ -70,6 +70,20 @@ RESUME_JSON_SCHEMA = """{
 }"""
 
 
+def build_validation_prompt(text: str) -> tuple[str, str]:
+    system = """You are a document classifier.
+    Analyze the document and determine if it is a resume or CV.
+    Always respond with valid JSON only, no explanation."""
+    user = f"""Is this document a resume or CV?
+
+Reply with ONLY this JSON, nothing else:
+{{"is_resume": true or false, "reason": "one sentence"}}
+
+Document (first 2000 characters):
+{text[:2000]}"""
+    return system, user
+
+
 def build_parse_prompt(raw_text: str) -> tuple[str, str]:
     """Returns (system_prompt, user_message) for parse."""
     user = f"""Extract this resume into JSON. Return ONLY valid JSON, no markdown, no explanation.

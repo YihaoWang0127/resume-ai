@@ -27,6 +27,24 @@ MAX_TOKENS = 8192  # for enrich/tailor
 PARSE_MAX_TOKENS = 4096  # faster for parse
 
 
+def validate_resume(text: str) -> dict:
+    """Fast validation using Haiku — returns {"is_resume": bool, "reason": str}"""
+    import json
+    from app.prompts.resume import build_validation_prompt
+    system, user = build_validation_prompt(text)
+    client = get_client()
+    message = client.messages.create(
+        model=FAST_MODEL,
+        max_tokens=100,
+        system=system,
+        messages=[{"role": "user", "content": user}],
+    )
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    return json.loads(raw)
+
+
 def complete(system: str, user: str) -> str:
     """Blocking completion — used for parse where we need the full JSON."""
     client = get_client()

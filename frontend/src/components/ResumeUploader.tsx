@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import type { DragEvent, ChangeEvent } from 'react'
 import { Upload, Loader2 } from 'lucide-react'
+import { isAxiosError } from 'axios'
 import { parseResume } from '@/services/api'
 import type { ResumeSchema } from '@/types/resume'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,7 @@ export default function ResumeUploader({ onParsed }: Props) {
   const [dragging, setDragging] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
   const [msgIndex, setMsgIndex] = useState(0)
   const [visible, setVisible] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -44,18 +46,42 @@ export default function ResumeUploader({ onParsed }: Props) {
     return () => clearInterval(interval)
   }, [loading])
 
+  const reset = () => {
+    setError(null)
+    setWarning(null)
+  }
+
   const process = async (file: File) => {
     if (!ALLOWED.has(file.type)) {
       setError('Please upload a PDF or DOCX file.')
       return
     }
     setError(null)
+    setWarning(null)
     setLoading(true)
     try {
       const resume = await parseResume(file)
       onParsed(resume)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to parse resume.')
+      if (isAxiosError(err)) {
+        const detail = err.response?.data?.detail as string | undefined
+        const status = err.response?.status
+        if (status === 400) {
+          setWarning(detail ?? 'This does not appear to be a resume.')
+        } else if (status === 422) {
+          setWarning(detail ?? 'Invalid file format. Please upload a PDF or DOCX resume.')
+        } else if (status === 415) {
+          setWarning(detail ?? 'Unsupported file type. Please upload PDF or DOCX only.')
+        } else if (status === 413) {
+          setError(detail ?? 'File too large. Please upload a file under 10MB.')
+        } else if (status === 500 || status === 502) {
+          setError(detail ?? 'Something went wrong. Please try again.')
+        } else {
+          setError(detail ?? 'Upload failed. Please try again.')
+        }
+      } else {
+        setError('Upload failed. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -82,7 +108,9 @@ export default function ResumeUploader({ onParsed }: Props) {
         'flex flex-col items-center justify-center gap-3',
         'bg-card border border-dashed rounded-xl px-6 py-5',
         'transition-all cursor-pointer select-none',
-        error
+        warning
+          ? 'border-amber-500'
+          : error
           ? 'border-red-500'
           : dragging
           ? 'border-primary border-solid bg-primary/5'
@@ -123,6 +151,22 @@ export default function ResumeUploader({ onParsed }: Props) {
               {PROGRESS_MESSAGES[msgIndex]}
             </p>
           </div>
+        </div>
+      ) : warning ? (
+        /* Not-a-resume warning state */
+        <div className="flex flex-col items-center gap-3 text-center">
+          <p className="text-sm font-medium text-amber-400">⚠️ {warning}</p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              reset()
+              inputRef.current?.click()
+            }}
+            className="text-xs text-amber-400 border border-amber-500 rounded px-3 py-1 hover:bg-amber-500/10 transition-colors"
+          >
+            Try a different file
+          </button>
         </div>
       ) : (
         /* Default / drag state */
