@@ -106,11 +106,12 @@ async function fetchStream(
 
 // ── public API ───────────────────────────────────────────────────────────────
 
-export async function parseResume(file: File): Promise<ResumeSchema> {
+export async function parseResume(file: File, signal?: AbortSignal): Promise<ResumeSchema> {
   const form = new FormData()
   form.append('file', file)
   const { data } = await http.post<unknown>('/api/parse', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    signal,
   })
   return fromBackend(data)
 }
