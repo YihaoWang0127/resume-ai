@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest'
 import { setupServer } from 'msw/node'
 import { http, HttpResponse } from 'msw'
-import { parseResume, exportResume, enrichResume, tailorResume } from '@/services/api'
+import { parseResume, exportResume } from '@/services/api'
 import type { ResumeSchema } from '@/types/resume'
 
 const BASE = 'http://localhost:8000'
@@ -38,7 +38,7 @@ describe('parseResume', () => {
       value: unknown,
     ) {
       appended.push([key, value])
-      return originalAppend.call(this, key, value as string | Blob)
+      return originalAppend.call(this, key, value as Blob)
     })
 
     server.use(
