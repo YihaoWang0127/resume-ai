@@ -13,16 +13,16 @@ export default function StreamingOutput({ text, isStreaming }: Props) {
   }, [text])
 
   return (
-    <div className="bg-gray-950 rounded-lg p-4 font-mono text-xs text-green-400 border border-gray-800">
+    <div className="bg-background p-4 font-mono text-xs text-primary border border-border">
       <pre className="whitespace-pre-wrap break-all leading-relaxed">
         {text || (
-          <span className="text-gray-500 not-italic">
+          <span className="text-muted-foreground not-italic">
             Waiting for AI response…
           </span>
         )}
         {isStreaming && (
           <span
-            className="inline-block w-[2px] h-[1em] bg-green-400 ml-0.5 align-text-bottom"
+            className="inline-block w-[2px] h-[1em] bg-primary ml-0.5 align-text-bottom"
             style={{ animation: 'blink 0.8s step-end infinite' }}
           />
         )}

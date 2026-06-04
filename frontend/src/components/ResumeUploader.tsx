@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import type { DragEvent, ChangeEvent } from 'react'
-import { Upload, FileText, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Upload, Loader2 } from 'lucide-react'
 import { parseResume } from '@/services/api'
 import type { ResumeSchema } from '@/types/resume'
 import { cn } from '@/lib/utils'
@@ -77,14 +76,17 @@ export default function ResumeUploader({ onParsed }: Props) {
 
   return (
     <div
-      role="button"
-      tabIndex={0}
       aria-label="Upload resume"
       className={cn(
-        'relative rounded-2xl border-2 border-dashed p-14 text-center transition-colors cursor-pointer select-none',
-        dragging
-          ? 'border-primary bg-primary/5'
-          : 'border-border hover:border-primary/50 hover:bg-muted/40',
+        'relative w-full max-w-lg min-h-[180px] mx-auto',
+        'flex flex-col items-center justify-center gap-3',
+        'bg-card border border-dashed rounded-xl px-6 py-5',
+        'transition-all cursor-pointer select-none',
+        error
+          ? 'border-red-500'
+          : dragging
+          ? 'border-primary border-solid bg-primary/5'
+          : 'border-[#333] hover:border-primary hover:border-solid',
         loading && 'pointer-events-none',
       )}
       onDragOver={(e) => {
@@ -95,6 +97,8 @@ export default function ResumeUploader({ onParsed }: Props) {
       onDrop={onDrop}
       onClick={() => !loading && inputRef.current?.click()}
       onKeyDown={(e) => e.key === 'Enter' && !loading && inputRef.current?.click()}
+      role="button"
+      tabIndex={0}
     >
       <input
         ref={inputRef}
@@ -105,12 +109,15 @@ export default function ResumeUploader({ onParsed }: Props) {
       />
 
       {loading ? (
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <Loader2 className="size-12 animate-spin text-primary" />
+        /* Loading state */
+        <div className="flex flex-col items-center gap-3 text-center">
+          <Loader2 className="size-6 animate-spin text-primary" />
           <div>
-            <p className="font-medium text-foreground">Parsing with Claude AI…</p>
+            <p className="text-sm font-bold text-foreground uppercase tracking-wide">
+              Parsing with Claude AI
+            </p>
             <p
-              className="text-sm mt-1 italic text-muted-foreground transition-opacity duration-300"
+              className="text-xs mt-1 text-muted-foreground transition-opacity duration-300"
               style={{ opacity: visible ? 1 : 0 }}
             >
               {PROGRESS_MESSAGES[msgIndex]}
@@ -118,30 +125,39 @@ export default function ResumeUploader({ onParsed }: Props) {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-4">
-          <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-            {dragging ? (
-              <FileText className="size-8 text-primary" />
-            ) : (
-              <Upload className="size-8 text-primary" />
-            )}
-          </div>
-          <div>
-            <p className="text-lg font-semibold text-foreground">
-              {dragging ? 'Drop to upload' : 'Drop your resume here'}
+        /* Default / drag state */
+        <div className="flex flex-col items-center gap-3 w-full text-center">
+          <Upload className="size-6 text-primary" />
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-foreground">
+              {dragging ? 'Drop to upload' : 'Drag & drop your resume'}
             </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              PDF or DOCX · up to 10 MB
-            </p>
+            <p className="text-xs text-muted-foreground">PDF or DOCX, up to 10MB</p>
           </div>
-          <Button variant="outline" size="sm" className="mt-1 pointer-events-none">
-            Browse files
-          </Button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 w-full">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground">or</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          {/* Browse button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              inputRef.current?.click()
+            }}
+            className="w-full bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest py-2 rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Browse Files
+          </button>
         </div>
       )}
 
       {error && (
-        <p className="mt-5 text-sm text-destructive font-medium">{error}</p>
+        <p className="text-xs text-red-400 font-medium text-center">{error}</p>
       )}
     </div>
   )

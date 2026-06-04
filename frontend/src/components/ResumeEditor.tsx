@@ -33,7 +33,7 @@ interface StreamState {
 }
 
 const field =
-  'w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-ring/50 transition-shadow placeholder:text-muted-foreground'
+  'w-full px-2.5 py-1.5 border border-[#333] bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow placeholder:text-muted-foreground'
 const fieldSm = cn(field, 'text-xs')
 
 function newExp(): ExperienceItem {
@@ -372,53 +372,66 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* ── top bar ─────────────────────────────────────────────────────────── */}
-      <header className="shrink-0 border-b border-border px-4 h-12 flex items-center justify-between gap-3">
+      <header className="shrink-0 border-b border-border px-4 h-12 flex items-center justify-between gap-3 bg-background">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onBack} className="text-muted-foreground">
+          <Button variant="ghost" size="sm" onClick={onBack} className="text-muted-foreground uppercase text-xs tracking-wider">
             ← Back
           </Button>
-          <span className="text-sm font-semibold">Resume AI</span>
+          <span
+            className="hidden sm:block text-sm font-bold tracking-widest uppercase text-foreground"
+            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            Resume AI
+          </span>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={handleEnrich} disabled={streamLoading}>
+          <Button
+            size="sm"
+            onClick={handleEnrich}
+            disabled={streamLoading}
+            className="bg-primary text-primary-foreground uppercase text-xs tracking-wider font-bold rounded-none border-0 hover:bg-primary/90"
+          >
             <Sparkles className="size-3.5" />
-            Enrich with AI
+            <span className="hidden sm:inline">Enrich with AI</span>
           </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={() => setTailorOpen(true)}
             disabled={streamLoading}
+            className="border-primary text-primary uppercase text-xs tracking-wider font-bold rounded-none bg-background hover:bg-primary/10"
           >
             <Briefcase className="size-3.5" />
-            Tailor for Job
+            <span className="hidden sm:inline">Tailor for Job</span>
           </Button>
           <div ref={exportMenuRef} className="relative">
             <Button
               size="sm"
+              variant="outline"
               onClick={() => setExportMenuOpen((o) => !o)}
               disabled={isExporting}
+              className="border-primary text-primary uppercase text-xs tracking-wider font-bold rounded-none bg-background hover:bg-primary/10"
             >
               {isExporting ? (
                 <Loader2 className="size-3.5 animate-spin" />
               ) : (
                 <Download className="size-3.5" />
               )}
-              Export
+              <span className="hidden sm:inline">Export</span>
               <ChevronDown className="size-3 ml-0.5" />
             </Button>
             {exportMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[190px]">
+              <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border py-1 min-w-[190px]">
                 <button
                   onClick={() => handleExport('pdf')}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary text-foreground text-left"
                 >
                   <Download className="size-3.5 text-muted-foreground" />
                   Save as PDF
                 </button>
                 <button
                   onClick={() => handleExport('docx')}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary text-foreground text-left"
                 >
                   <FileText className="size-3.5 text-muted-foreground" />
                   Save as Word (.docx)
@@ -430,12 +443,12 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
       </header>
 
       {/* ── main ────────────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
         {/* Left: form */}
-        <div className="relative w-[420px] shrink-0 flex flex-col border-r border-border overflow-hidden">
+        <div className="relative w-full lg:w-[420px] shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-border overflow-hidden bg-card h-[55vh] lg:h-auto">
           {/* Metadata */}
           <div className="shrink-0 border-b border-border p-4 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
               Contact
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -479,13 +492,13 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
           </div>
 
           {/* Tabs */}
-          <div className="shrink-0 border-b border-border flex">
+          <div className="shrink-0 border-b border-border flex overflow-x-auto">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  'flex-1 py-2 text-xs font-medium transition-colors',
+                  'flex-1 min-w-[72px] py-2 text-xs font-bold uppercase tracking-wider transition-colors',
                   tab === t.id
                     ? 'text-foreground border-b-2 border-primary'
                     : 'text-muted-foreground hover:text-foreground',
@@ -501,10 +514,12 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
             {/* Summary */}
             {tab === 'summary' && (
               <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">Professional summary</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Professional summary
+                </label>
                 <textarea
                   rows={10}
-                  className={cn(field, 'resize-none overflow-y-auto scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-800')}
+                  className={cn(field, 'resize-none overflow-y-auto scrollbar-thin scrollbar-thumb-[#333] scrollbar-track-[#111]')}
                   placeholder="A brief professional summary…"
                   value={resume.summary ?? ''}
                   onChange={(e) =>
@@ -521,14 +536,14 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
             {tab === 'experience' && (
               <div className="space-y-5">
                 {resume.experience.map((exp, i) => (
-                  <div key={i} className="rounded-lg border border-border p-3 space-y-2">
+                  <div key={i} className="border border-border p-3 space-y-2 bg-background">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-muted-foreground">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         Position {i + 1}
                       </span>
                       <button
                         onClick={() => removeExp(i)}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        className="text-muted-foreground hover:text-red-400 transition-colors"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -563,7 +578,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                       <label className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                         <input
                           type="checkbox"
-                          className="rounded"
+                          className="accent-primary"
                           checked={exp.current}
                           onChange={(e) => {
                             setExp(i, 'current', e.target.checked)
@@ -575,10 +590,10 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                     </div>
 
                     <div className="space-y-1.5">
-                      <p className="text-xs text-muted-foreground">Bullets</p>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Bullets</p>
                       {exp.bullets.map((b, bi) => (
                         <div key={bi} className="flex gap-1.5 items-start">
-                          <span className="mt-1.5 text-muted-foreground text-xs">•</span>
+                          <span className="mt-1.5 text-primary text-xs">•</span>
                           <input
                             className={cn(fieldSm, 'flex-1')}
                             placeholder="Achievement or responsibility…"
@@ -588,7 +603,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                           {exp.bullets.length > 1 && (
                             <button
                               onClick={() => removeBullet(i, bi)}
-                              className="mt-1 text-muted-foreground hover:text-destructive"
+                              className="mt-1 text-muted-foreground hover:text-red-400"
                             >
                               <X className="size-3" />
                             </button>
@@ -597,14 +612,19 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                       ))}
                       <button
                         onClick={() => addBullet(i)}
-                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                        className="text-xs text-primary hover:underline flex items-center gap-1 uppercase tracking-wide font-bold"
                       >
                         <Plus className="size-3" /> Add bullet
                       </button>
                     </div>
                   </div>
                 ))}
-                <Button variant="outline" size="sm" className="w-full" onClick={addExp}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-border text-muted-foreground uppercase text-xs tracking-wider rounded-none hover:border-primary hover:text-primary"
+                  onClick={addExp}
+                >
                   <Plus className="size-3.5" /> Add position
                 </Button>
               </div>
@@ -614,14 +634,14 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
             {tab === 'education' && (
               <div className="space-y-4">
                 {resume.education.map((edu, i) => (
-                  <div key={i} className="rounded-lg border border-border p-3 space-y-2">
+                  <div key={i} className="border border-border p-3 space-y-2 bg-background">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-muted-foreground">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         Education {i + 1}
                       </span>
                       <button
                         onClick={() => removeEdu(i)}
-                        className="text-muted-foreground hover:text-destructive"
+                        className="text-muted-foreground hover:text-red-400"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -654,7 +674,12 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                     </div>
                   </div>
                 ))}
-                <Button variant="outline" size="sm" className="w-full" onClick={addEdu}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-border text-muted-foreground uppercase text-xs tracking-wider rounded-none hover:border-primary hover:text-primary"
+                  onClick={addEdu}
+                >
                   <Plus className="size-3.5" /> Add education
                 </Button>
               </div>
@@ -664,17 +689,17 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
             {tab === 'skills' && (
               <div className="space-y-4">
                 {resume.skills.map((group, gi) => (
-                  <div key={gi} className="rounded-lg border border-border p-3 space-y-2">
+                  <div key={gi} className="border border-border p-3 space-y-2 bg-background">
                     <div className="flex items-center justify-between">
                       <input
-                        className={cn(field, 'font-medium')}
+                        className={cn(field, 'font-bold')}
                         placeholder="Category (e.g. Languages)"
                         value={group.category}
                         onChange={(e) => setSkillCat(gi, e.target.value)}
                       />
                       <button
                         onClick={() => removeSkillGroup(gi)}
-                        className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
+                        className="ml-2 shrink-0 text-muted-foreground hover:text-red-400"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -683,10 +708,10 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                       {group.items.map((item, ii) => (
                         <div
                           key={ii}
-                          className="flex items-center gap-1 bg-muted rounded-md px-2 py-0.5"
+                          className="flex items-center gap-1 bg-secondary border border-border px-2 py-0.5"
                         >
                           <input
-                            className="bg-transparent text-xs outline-none w-24 placeholder:text-muted-foreground"
+                            className="bg-transparent text-xs outline-none w-24 text-foreground placeholder:text-muted-foreground"
                             placeholder="Skill"
                             value={item}
                             onChange={(e) => setSkillItem(gi, ii, e.target.value)}
@@ -694,7 +719,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                           {group.items.length > 1 && (
                             <button
                               onClick={() => removeSkillItem(gi, ii)}
-                              className="text-muted-foreground hover:text-destructive"
+                              className="text-muted-foreground hover:text-red-400"
                             >
                               <X className="size-3" />
                             </button>
@@ -703,14 +728,19 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                       ))}
                       <button
                         onClick={() => addSkillItem(gi)}
-                        className="text-xs text-primary hover:underline flex items-center gap-0.5 px-2 py-0.5"
+                        className="text-xs text-primary hover:underline flex items-center gap-0.5 px-2 py-0.5 uppercase tracking-wide font-bold"
                       >
                         <Plus className="size-3" /> Add
                       </button>
                     </div>
                   </div>
                 ))}
-                <Button variant="outline" size="sm" className="w-full" onClick={addSkillGroup}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-border text-muted-foreground uppercase text-xs tracking-wider rounded-none hover:border-primary hover:text-primary"
+                  onClick={addSkillGroup}
+                >
                   <Plus className="size-3.5" /> Add category
                 </Button>
               </div>
@@ -720,7 +750,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
           {/* Streaming panel */}
           {stream && (
             <div
-              className="absolute bottom-0 left-0 right-0 z-50 border border-gray-600 rounded-t-xl bg-gray-950 flex flex-col"
+              className="absolute bottom-0 left-0 right-0 z-50 border border-border bg-card flex flex-col"
               style={panelCollapsed ? undefined : { height: panelHeight }}
             >
               {/* Drag handle */}
@@ -735,9 +765,9 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                 </div>
               </div>
               {/* Progress bar */}
-              <div className="shrink-0 h-0.5 bg-gray-800 overflow-hidden">
+              <div className="shrink-0 h-0.5 bg-secondary overflow-hidden">
                 <div
-                  className="h-full bg-green-400 ease-out"
+                  className="h-full bg-primary ease-out"
                   style={{
                     width: `${streamProgress}%`,
                     transition: `width ${stream.done ? '0.3s' : '30s'} ease-out`,
@@ -746,36 +776,36 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
               </div>
               {/* Header — always visible, never scrolls away */}
               <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2">
-                <span className="text-xs font-medium flex items-center gap-1.5 min-w-0 truncate">
+                <span className="text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 min-w-0 truncate">
                   {!stream.done ? (
-                    <span className="flex items-center gap-1.5 text-green-400">
+                    <span className="flex items-center gap-1.5 text-primary">
                       <Loader2 className="size-3 animate-spin shrink-0" />
                       {STREAMING_MESSAGES[msgIndex]}
                     </span>
                   ) : stream.error ? (
                     <span className="text-red-400 truncate">✗ Something went wrong</span>
                   ) : (
-                    <span className="text-green-400">✓ Done — your enriched resume is ready!</span>
+                    <span className="text-primary">✓ Done — your enriched resume is ready!</span>
                   )}
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
                   {stream.done && !stream.error && (
                     <button
                       onClick={applyStreamed}
-                      className="px-3 py-1 rounded-md text-xs font-semibold bg-green-400 hover:bg-green-300 text-gray-950 border border-green-300 transition-colors"
+                      className="px-3 py-1 text-xs font-bold uppercase tracking-wide bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
                     >
                       Apply changes
                     </button>
                   )}
                   <button
                     onClick={() => setStream(null)}
-                    className="px-3 py-1 rounded-md text-xs text-white bg-red-600 hover:bg-red-500 border border-red-400 transition-colors"
+                    className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-white bg-red-600 hover:bg-red-500 transition-colors"
                   >
                     Dismiss
                   </button>
                   <button
                     onClick={() => setPanelCollapsed((c) => !c)}
-                    className="p-1 rounded-md border border-gray-600 bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors"
+                    className="p-1 border border-border bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
                   >
                     {panelCollapsed ? (
                       <ChevronUp className="size-4" />
@@ -787,7 +817,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
               </div>
               {/* Scrollable output */}
               {!panelCollapsed && (
-                <div className="flex-1 min-h-0 overflow-y-scroll px-3 pb-3 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-900">
+                <div className="flex-1 min-h-0 overflow-y-scroll px-3 pb-3 scrollbar-thin scrollbar-thumb-[#333] scrollbar-track-[#0a0a0a]">
                   <StreamingOutput text={stream.text} isStreaming={!stream.done} />
                 </div>
               )}
@@ -796,9 +826,12 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
         </div>
 
         {/* Right: preview */}
-        <div className="flex-1 overflow-auto bg-muted/30 p-6">
+        <div className="flex-1 overflow-auto bg-[#0d0d0d] p-4 lg:p-6">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <p
+              className="text-xs font-bold text-primary uppercase tracking-widest"
+              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+            >
               Live Preview
             </p>
             <ChevronUp className="size-3 text-muted-foreground" />
@@ -815,30 +848,35 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
 
       {/* ── Tailor modal ─────────────────────────────────────────────────────── */}
       {tailorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-2xl mx-4 p-8">
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Tailor Resume for Job</h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <h2
+                  className="text-xl font-bold text-foreground uppercase tracking-wide"
+                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                >
+                  Tailor Resume for Job
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
                   Paste the job description and Claude will rewrite your resume to match
                 </p>
               </div>
               <button
                 onClick={() => setTailorOpen(false)}
-                className="text-gray-400 hover:text-gray-600 ml-4 shrink-0 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                className="text-muted-foreground hover:text-foreground ml-4 shrink-0 p-1 hover:bg-secondary transition-colors"
               >
                 <X className="size-5" />
               </button>
             </div>
             {/* Job description */}
             <div className="mb-5">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
                 Job Description
               </label>
               <textarea
-                className="w-full min-h-48 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-shadow"
+                className="w-full min-h-48 border border-[#333] bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
                 placeholder="Paste the full job description here..."
                 value={jobDesc}
                 onChange={(e) => setJobDesc(e.target.value)}
@@ -846,12 +884,14 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
             </div>
             {/* Section checkboxes */}
             <div className="mb-6">
-              <p className="text-sm font-semibold text-gray-700 mb-2">Sections to tailor:</p>
+              <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                Sections to tailor:
+              </p>
               <div className="flex gap-4">
                 {(['summary', 'experience', 'education', 'skills'] as const).map((s) => (
                   <label
                     key={s}
-                    className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none uppercase tracking-wide"
                   >
                     <input
                       type="checkbox"
@@ -859,7 +899,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
                       onChange={(e) =>
                         setTailorSections((prev) => ({ ...prev, [s]: e.target.checked }))
                       }
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="accent-primary"
                     />
                     {s.charAt(0).toUpperCase() + s.slice(1)}
                   </label>
@@ -870,14 +910,14 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setTailorOpen(false)}
-                className="px-5 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                className="px-5 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleTailor}
                 disabled={!jobDesc.trim()}
-                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-xs font-bold uppercase tracking-wide transition-colors"
               >
                 <Wand2 className="size-4" />
                 Tailor Resume
@@ -891,9 +931,9 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
       {saveToast && (
         <div
           className={cn(
-            'fixed bottom-6 right-6 z-[100] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all',
+            'fixed bottom-6 right-6 z-[100] flex items-center gap-2 px-4 py-3 shadow-lg text-xs font-bold uppercase tracking-wide transition-all',
             saveToast.ok
-              ? 'bg-green-600 text-white'
+              ? 'bg-primary text-primary-foreground'
               : 'bg-red-600 text-white',
           )}
         >

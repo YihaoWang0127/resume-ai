@@ -1,8 +1,19 @@
 import { useState } from 'react'
-import { FileText, Sparkles, Wand2 } from 'lucide-react'
+import { FileText, Sparkles } from 'lucide-react'
 import ResumeUploader from '@/components/ResumeUploader'
 import ResumeEditor from '@/components/ResumeEditor'
 import type { ResumeSchema } from '@/types/resume'
+
+const FEATURE_CHIPS = [
+  '✦ AI ENRICHMENT',
+  '✦ JD TAILORING',
+  '✦ ATS OPTIMIZATION',
+  '✦ STYLE DETECTION',
+  '✦ LIVE PREVIEW',
+  '✦ PDF & DOCX EXPORT',
+  '✦ ONE-CLICK DOWNLOAD',
+  '✦ POWERED BY CLAUDE',
+]
 
 export default function Home() {
   const [resume, setResume] = useState<ResumeSchema | null>(null)
@@ -14,55 +25,63 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Nav */}
-      <nav className="border-b border-border px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="size-7 rounded-lg bg-primary flex items-center justify-center">
+      <nav className="shrink-0 border-b border-border px-6 h-14 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="size-7 bg-primary rounded flex items-center justify-center">
             <FileText className="size-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-sm tracking-tight">Resume AI</span>
+          <span
+            className="font-bold text-sm tracking-widest uppercase text-foreground"
+            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            Resume AI
+          </span>
         </div>
-        <span className="text-xs text-muted-foreground">Powered by Claude</span>
+        <span className="text-xs text-muted-foreground uppercase tracking-widest">
+          Powered by Claude
+        </span>
       </nav>
 
       {/* Hero */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
-        <div className="w-full max-w-2xl space-y-10">
-          {/* Headline */}
-          <div className="text-center space-y-4">
-            <div className="inline-flex items-center gap-2 bg-muted rounded-full px-4 py-1.5 text-sm text-muted-foreground">
-              <Sparkles className="size-3.5 text-primary" />
+      <main className="flex-1 px-6 pt-10">
+        <div className="w-full max-w-2xl mx-auto">
+
+          {/* Headline + Subtitle */}
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 border border-primary/40 rounded-full px-4 py-1.5 text-xs text-primary uppercase tracking-widest">
+              <Sparkles className="size-3.5" />
               AI-powered resume builder
             </div>
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
-              Your resume,{' '}
-              <span className="text-primary">elevated by AI</span>
+            <h1
+              className="text-6xl lg:text-7xl xl:text-8xl font-bold tracking-tight leading-none mt-4"
+              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+            >
+              <span className="block text-foreground uppercase">Your Resume.</span>
+              <span className="block text-primary uppercase">Elevated.</span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-md mx-auto">
-              Upload your PDF or DOCX. Claude parses it, enriches every bullet, and tailors it to any job in seconds.
+            <p className="text-sm text-muted-foreground mt-4">
+              AI-powered resume enrichment, tailoring, and export — in seconds.
             </p>
           </div>
 
-          {/* Feature chips */}
-          <div className="flex flex-wrap justify-center gap-3">
-            {[
-              { icon: Wand2, text: 'AI-powered enrichment' },
-              { icon: Sparkles, text: 'Job description tailoring' },
-              { icon: FileText, text: 'One-click PDF export' },
-            ].map(({ icon: Icon, text }) => (
+          {/* Feature chips — always 2 columns */}
+          <div className="grid grid-cols-2 gap-2 max-w-2xl mx-auto mt-8">
+            {FEATURE_CHIPS.map((chip) => (
               <div
-                key={text}
-                className="flex items-center gap-2 bg-muted/60 border border-border rounded-full px-4 py-1.5 text-sm"
+                key={chip}
+                className="flex items-center border border-primary/60 bg-background px-3 py-2 text-xs text-primary uppercase font-medium tracking-wider rounded-lg whitespace-nowrap"
               >
-                <Icon className="size-3.5 text-muted-foreground" />
-                <span className="text-muted-foreground">{text}</span>
+                {chip}
               </div>
             ))}
           </div>
 
           {/* Uploader */}
-          <ResumeUploader onParsed={setResume} />
+          <div className="mt-8">
+            <ResumeUploader onParsed={setResume} />
+          </div>
 
-          <p className="text-center text-xs text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground mt-4">
             Your data stays in your browser session and is never stored.
           </p>
         </div>

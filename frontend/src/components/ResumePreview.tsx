@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import type { EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
 
 interface Props {
@@ -62,28 +63,27 @@ export default function ResumePreview({
     <div>
       {/* Style switcher */}
       {onIndustryChange && (
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="text-xs text-muted-foreground font-medium shrink-0">Preview Style:</span>
+        <div className="flex items-center gap-2 mb-3 flex-wrap lg:flex-nowrap overflow-x-auto pb-1">
+          <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest shrink-0">Style:</span>
           {STYLE_OPTIONS.map((opt) => {
-            const p = PRESETS[opt.id]
             const isActive = industry === opt.id
             const isDetected = detectedIndustry === opt.id
             return (
               <div key={opt.id} className="flex items-center gap-1">
                 <button
                   onClick={() => onIndustryChange(opt.id)}
-                  className="text-xs px-2.5 py-0.5 rounded-full font-medium transition-colors border"
-                  style={
+                  className={cn(
+                    'text-xs px-2.5 py-0.5 font-bold uppercase tracking-wider border transition-colors',
                     isActive
-                      ? { backgroundColor: p.accent, color: 'white', borderColor: p.accent }
-                      : { backgroundColor: 'transparent', color: p.accent, borderColor: p.accent }
-                  }
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-primary border-primary hover:bg-primary/10',
+                  )}
                 >
                   {opt.label}
                 </button>
                 {isDetected && (
-                  <span className="text-[10px] text-green-600 font-medium whitespace-nowrap">
-                    ✓ AI detected
+                  <span className="text-[10px] text-primary font-bold whitespace-nowrap uppercase">
+                    ✓ AI
                   </span>
                 )}
               </div>
