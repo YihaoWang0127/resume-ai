@@ -16,7 +16,7 @@ const FEATURE_CHIPS = [
 ]
 
 export default function Home() {
-  const { user, isGuest, signOut } = useAuth()
+  const { user, loading, isGuest, signOut, openAuthModal } = useAuth()
   const navigate = useNavigate()
 
   const handleParsed = (resume: ResumeSchema) => {
@@ -40,29 +40,31 @@ export default function Home() {
         </div>
 
         {/* Auth area */}
-        {isGuest ? (
-          <button
-            type="button"
-            onClick={() => navigate('/auth')}
-            className="text-xs font-bold uppercase tracking-wider text-primary border border-primary px-4 py-1.5 hover:bg-primary/10 transition-colors"
-          >
-            Sign up to save resumes
-          </button>
-        ) : (
-          <div className="flex items-center gap-3">
-            {user?.email && (
-              <span className="hidden sm:block text-xs text-muted-foreground truncate max-w-[200px]">
-                {user.email}
-              </span>
-            )}
+        {!loading && (
+          isGuest ? (
             <button
               type="button"
-              onClick={signOut}
-              className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              onClick={openAuthModal}
+              className="text-xs font-bold uppercase tracking-wider text-primary border border-primary px-4 py-1.5 hover:bg-primary/10 transition-colors"
             >
-              Sign out
+              Sign up to save resumes
             </button>
-          </div>
+          ) : user ? (
+            <div className="flex items-center gap-3">
+              {user.email && (
+                <span className="hidden sm:block text-xs text-muted-foreground truncate max-w-[200px]">
+                  {user.email}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={signOut}
+                className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : null
         )}
       </nav>
 
@@ -100,9 +102,16 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Uploader */}
-          <div className="mt-8">
+          {/* Uploader — intercepted when no session */}
+          <div className="relative mt-8">
             <ResumeUploader onParsed={handleParsed} />
+            {!loading && !user && (
+              <div
+                className="absolute inset-0 cursor-pointer"
+                onClick={openAuthModal}
+                onDragOver={(e) => { e.preventDefault(); openAuthModal() }}
+              />
+            )}
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-4">

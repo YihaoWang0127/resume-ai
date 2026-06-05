@@ -12,7 +12,6 @@ import {
   Wand2,
   FileText,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
@@ -24,6 +23,7 @@ import StreamingOutput from './StreamingOutput'
 interface Props {
   initialResume: ResumeSchema
   onBack: () => void
+  onSignUp?: () => void
 }
 
 type Tab = 'summary' | 'experience' | 'education' | 'skills'
@@ -57,9 +57,8 @@ const STREAMING_MESSAGES = [
   'Polishing the final output...',
 ]
 
-export default function ResumeEditor({ initialResume, onBack }: Props) {
+export default function ResumeEditor({ initialResume, onBack, onSignUp }: Props) {
   const { user, isGuest, signOut } = useAuth()
-  const navigate = useNavigate()
   const [resume, setResume] = useState<ResumeSchema>(initialResume)
   const [tab, setTab] = useState<Tab>('summary')
   const [stream, setStream] = useState<StreamState | null>(null)
@@ -468,7 +467,7 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
           </p>
           <button
             type="button"
-            onClick={() => navigate('/auth')}
+            onClick={() => onSignUp?.()}
             className="shrink-0 text-xs font-bold uppercase tracking-wider text-primary border border-primary px-3 py-1 hover:bg-primary/10 transition-colors"
           >
             Sign Up
