@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { FileText, Sparkles } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import ResumeUploader from '@/components/ResumeUploader'
-import ResumeEditor from '@/components/ResumeEditor'
+import { useAuth } from '@/contexts/AuthContext'
 import type { ResumeSchema } from '@/types/resume'
 
 const FEATURE_CHIPS = [
@@ -16,10 +16,11 @@ const FEATURE_CHIPS = [
 ]
 
 export default function Home() {
-  const [resume, setResume] = useState<ResumeSchema | null>(null)
+  const { user, isGuest, signOut } = useAuth()
+  const navigate = useNavigate()
 
-  if (resume) {
-    return <ResumeEditor initialResume={resume} onBack={() => setResume(null)} />
+  const handleParsed = (resume: ResumeSchema) => {
+    navigate('/editor', { state: { resume } })
   }
 
   return (
@@ -37,9 +38,32 @@ export default function Home() {
             Resume AI
           </span>
         </div>
-        <span className="text-xs text-muted-foreground uppercase tracking-widest">
-          Powered by Claude
-        </span>
+
+        {/* Auth area */}
+        {isGuest ? (
+          <button
+            type="button"
+            onClick={() => navigate('/auth')}
+            className="text-xs font-bold uppercase tracking-wider text-primary border border-primary px-4 py-1.5 hover:bg-primary/10 transition-colors"
+          >
+            Sign up to save resumes
+          </button>
+        ) : (
+          <div className="flex items-center gap-3">
+            {user?.email && (
+              <span className="hidden sm:block text-xs text-muted-foreground truncate max-w-[200px]">
+                {user.email}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={signOut}
+              className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
@@ -78,7 +102,7 @@ export default function Home() {
 
           {/* Uploader */}
           <div className="mt-8">
-            <ResumeUploader onParsed={setResume} />
+            <ResumeUploader onParsed={handleParsed} />
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-4">

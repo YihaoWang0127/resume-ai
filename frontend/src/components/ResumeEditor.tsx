@@ -12,10 +12,12 @@ import {
   Wand2,
   FileText,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
 import { enrichResume, exportResume, fromBackend, tailorResume } from '@/services/api'
+import { useAuth } from '@/contexts/AuthContext'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
 
@@ -56,6 +58,8 @@ const STREAMING_MESSAGES = [
 ]
 
 export default function ResumeEditor({ initialResume, onBack }: Props) {
+  const { user, isGuest, signOut } = useAuth()
+  const navigate = useNavigate()
   const [resume, setResume] = useState<ResumeSchema>(initialResume)
   const [tab, setTab] = useState<Tab>('summary')
   const [stream, setStream] = useState<StreamState | null>(null)
@@ -439,8 +443,38 @@ export default function ResumeEditor({ initialResume, onBack }: Props) {
               </div>
             )}
           </div>
+
+          <div className="h-4 w-px bg-border mx-1" />
+          {!isGuest && user?.email && (
+            <span className="hidden md:block text-xs text-muted-foreground truncate max-w-[140px]">
+              {user.email}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={signOut}
+            className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Sign out
+          </button>
         </div>
       </header>
+
+      {/* Guest banner */}
+      {isGuest && (
+        <div className="shrink-0 border-b border-yellow-900/40 bg-yellow-950/20 px-4 py-2 flex items-center justify-between gap-4">
+          <p className="text-xs text-yellow-400/90">
+            You're browsing as guest. Sign up to save your resumes.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/auth')}
+            className="shrink-0 text-xs font-bold uppercase tracking-wider text-primary border border-primary px-3 py-1 hover:bg-primary/10 transition-colors"
+          >
+            Sign Up
+          </button>
+        </div>
+      )}
 
       {/* ── main ────────────────────────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
