@@ -59,6 +59,11 @@ Total: Under 2 minutes to a job-ready, tailored resume
 | **Export PDF** | ReportLab-generated PDF with industry-matched styling |
 | **Export DOCX** | python-docx Word document export |
 | **Native Save As** | Browser File System Access API for choosing save location |
+| **Authentication** | Email sign-up / sign-in via Supabase Auth |
+| **Guest Mode** | Try the app without an account — anonymous Supabase session |
+| **Resume Persistence** | Authenticated resumes saved to Supabase database (full CRUD) |
+| **Dashboard** | View, edit, download, and delete all your saved resumes |
+| **Auth Modal** | Overlay prompt with blur — auto-shows after 10 s for unauthenticated visitors |
 
 ---
 
@@ -69,28 +74,23 @@ Total: Under 2 minutes to a job-ready, tailored resume
 │                        User Browser                             │
 │                   React + Vite (TypeScript)                     │
 │              https://resume-ai-helper.vercel.app                │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │  REST API (JSON + Streaming SSE)
-                      │  CORS: allow Vercel origin
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      FastAPI Backend                            │
-│                    Python 3.11 + Uvicorn                        │
-│           https://resume-ai-helper-jrqf.onrender.com           │
-│                                                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │ POST /parse  │  │POST /enrich  │  │   POST /tailor       │  │
-│  │ pdfplumber   │  │  Streaming   │  │   Streaming          │  │
-│  │ python-docx  │  │  Claude API  │  │   Claude API         │  │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                   POST /export                           │   │
-│  │         ReportLab (PDF) + python-docx (DOCX)            │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │  HTTPS API calls
-                      ▼
+└──────────┬──────────────────────────────────────┬──────────────┘
+           │  REST API (JSON + Streaming SSE)      │  Supabase JS SDK
+           │  CORS: allow Vercel origin            │  (auth + database)
+           ▼                                       ▼
+┌──────────────────────────┐         ┌─────────────────────────────┐
+│     FastAPI Backend      │         │         Supabase             │
+│   Python 3.11 + Uvicorn  │         │                             │
+│  resume-ai-helper-jrqf   │         │  ┌─────────────────────┐    │
+│      .onrender.com       │         │  │  Auth (email +      │    │
+│                          │         │  │  anonymous guest)   │    │
+│  POST /parse             │         │  └─────────────────────┘    │
+│  POST /enrich (stream)   │         │  ┌─────────────────────┐    │
+│  POST /tailor (stream)   │         │  │  resumes table      │    │
+│  POST /export            │         │  │  (CRUD + RLS)       │    │
+└──────────┬───────────────┘         └─────────────────────────────┘
+           │  HTTPS API calls
+           ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                   Anthropic Claude API                          │
 │  Parse:   claude-haiku-4-5   (fast, cheap, structured extract) │
@@ -107,7 +107,8 @@ Total: Under 2 minutes to a job-ready, tailored resume
 | **Streaming responses** | Native `fetch` + `ReadableStream` on frontend — Axios doesn't support browser streaming |
 | **ReportLab over WeasyPrint** | Pure Python PDF generation — no system dependencies (pango, cairo) needed on Render |
 | **Monorepo** | Single GitHub repo with `frontend/` and `backend/` — easier to manage for solo dev |
-| **No database** | MVP scope — resume state lives in React `useState`, no persistence needed yet |
+| **Supabase for auth + DB** | Managed Postgres + Auth in one SDK; anonymous sessions enable guest mode with zero friction |
+| **Guest mode via anonymous auth** | Lets users experience the full AI flow before committing to an account; session upgrades on sign-up |
 | **Industry detection in parse** | Zero extra API cost — adds one field to the existing parse prompt |
 
 ---
@@ -118,15 +119,16 @@ Total: Under 2 minutes to a job-ready, tailored resume
 
 | Layer | Technology | Version |
 |---|---|---|
-| Framework | React | 18 |
-| Build Tool | Vite | 8 |
-| Language | TypeScript | 5 (strict) |
+| Framework | React | 19 |
+| Build Tool | Vite | latest |
+| Language | TypeScript | 6 (strict) |
 | Styling | Tailwind CSS | 3 |
 | Components | shadcn/ui + Radix | latest |
 | HTTP Client | Axios | latest |
 | Streaming | Native Fetch + ReadableStream | — |
+| Auth + Database | Supabase JS SDK | 2 |
 | Forms | React Hook Form + Zod | latest |
-| Routing | React Router DOM | latest |
+| Routing | React Router DOM | 7 |
 | Icons | Lucide React | latest |
 
 ### Backend
@@ -150,6 +152,7 @@ Total: Under 2 minutes to a job-ready, tailored resume
 |---|---|---|
 | Frontend Hosting | Vercel (free) | Auto-deploy from GitHub on push |
 | Backend Hosting | Render (free tier) | Python web service, spins down on idle |
+| Auth + Database | Supabase | Email auth, anonymous sessions, Postgres resumes table |
 | Version Control | GitHub (public) | Source of truth |
 | AI API | Anthropic | Claude Haiku + Sonnet |
 
@@ -163,19 +166,27 @@ resume-ai/                              ← GitHub repo root
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── ui/                     ← shadcn/ui primitives
+│   │   │   ├── AuthModal.tsx           ← sign-in/sign-up overlay with blur
+│   │   │   ├── Navbar.tsx              ← top nav with user dropdown + sign-out
 │   │   │   ├── ResumeUploader.tsx      ← drag & drop file upload
 │   │   │   ├── ResumeEditor.tsx        ← main editor (form + streaming panel)
 │   │   │   ├── ResumePreview.tsx       ← live resume preview + style switcher
 │   │   │   └── StreamingOutput.tsx     ← token-by-token AI output display
+│   │   ├── contexts/
+│   │   │   └── AuthContext.tsx         ← Supabase auth state + guest mode
+│   │   ├── lib/
+│   │   │   └── supabase.ts             ← Supabase client initialisation
 │   │   ├── pages/
 │   │   │   ├── Home.tsx                ← landing page with upload CTA
+│   │   │   ├── Dashboard.tsx           ← saved resumes CRUD dashboard
 │   │   │   └── Editor.tsx              ← full editor page
 │   │   ├── services/
-│   │   │   └── api.ts                  ← Axios + fetch API calls
+│   │   │   ├── api.ts                  ← Axios + fetch API calls (FastAPI)
+│   │   │   └── resumes.ts              ← Supabase CRUD for saved resumes
 │   │   ├── types/
 │   │   │   └── resume.ts               ← TypeScript interfaces
-│   │   └── App.tsx                     ← React Router routes
-│   ├── .env.local                      ← VITE_API_URL (local)
+│   │   └── App.tsx                     ← React Router routes + AuthProvider
+│   ├── .env.local                      ← VITE_API_URL + VITE_SUPABASE_* (local)
 │   └── package.json
 │
 ├── backend/                            ← FastAPI app
@@ -387,8 +398,12 @@ cd frontend
 # Install dependencies
 npm install
 
-# Set API URL
-echo "VITE_API_URL=http://localhost:8000" > .env.local
+# Set API URL and Supabase credentials
+cat > .env.local <<EOF
+VITE_API_URL=http://localhost:8000
+VITE_SUPABASE_URL=https://<your-project>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
+EOF
 
 # Start dev server
 npm run dev
@@ -481,6 +496,8 @@ VITE_API_URL = https://your-render-url.onrender.com
 | Variable | Description | Required |
 |---|---|---|
 | `VITE_API_URL` | Backend API base URL | ✅ |
+| `VITE_SUPABASE_URL` | Supabase project URL | ✅ |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key | ✅ |
 
 ---
 
@@ -520,7 +537,9 @@ Rewrites resume to match a job description:
 
 ## Roadmap
 
-- [ ] User authentication + resume persistence (Supabase)
+- [x] User authentication + resume persistence (Supabase)
+- [x] Guest mode (anonymous sessions)
+- [x] Dashboard with full resume CRUD
 - [ ] Multiple resume versions per user
 - [ ] Cover letter generation
 - [ ] ATS keyword scoring (before/after comparison)
@@ -536,6 +555,7 @@ Rewrites resume to match a job description:
 - [FastAPI](https://fastapi.tiangolo.com) — Python web framework
 - [React](https://react.dev) — Frontend framework
 - [shadcn/ui](https://ui.shadcn.com) — UI components
+- [Supabase](https://supabase.com) — Auth + Postgres database
 - [ReportLab](https://www.reportlab.com) — PDF generation
 - [Vercel](https://vercel.com) — Frontend hosting
 - [Render](https://render.com) — Backend hosting
@@ -554,11 +574,12 @@ Several technical decisions shaped the final result:
 - **Streaming-first UX** — surfacing token-by-token AI output with cycling progress hints makes the wait feel active rather than opaque, which meaningfully reduces perceived latency.
 - **Pure-Python PDF generation** — switching from WeasyPrint (which requires system-level Pango/Cairo) to ReportLab eliminated the biggest production deployment blocker and made the service fully portable.
 - **Industry-aware styling** — detecting the candidate's industry at parse time and applying matching typography and accent colors to both the live preview and exported files adds polish with zero extra API calls.
-- **No database (intentionally)** — keeping resume state in React `useState` removed an entire infrastructure layer for the MVP, letting the project ship faster without sacrificing the core user experience.
+- **Supabase for auth + persistence** — a single SDK handles email auth, anonymous guest sessions, and Postgres-backed resume storage, eliminating the need to build or host any auth infrastructure.
+- **Guest mode via anonymous auth** — users can experience the full AI flow immediately; their session upgrades transparently when they create an account, with no data lost.
 
-The test suite (42 backend + 39 frontend, all passing) covers the full request lifecycle — from file upload and Claude mocking through streaming response validation and export format enforcement — giving a solid foundation for continued development.
+The test suite (42 backend + 94 frontend, all passing) covers the full request lifecycle — from file upload and Claude mocking through auth context, dashboard CRUD, streaming response validation, and export format enforcement — giving a solid foundation for continued development.
 
-**What's next:** authentication and resume persistence are the natural next step, followed by ATS keyword scoring and cover letter generation. The architecture is designed to support these additions incrementally without requiring a rewrite.
+**What's next:** ATS keyword scoring and cover letter generation are the natural next steps. The architecture is designed to support these additions incrementally without requiring a rewrite.
 
 ---
 
