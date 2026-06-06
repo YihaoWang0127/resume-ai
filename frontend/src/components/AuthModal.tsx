@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
-import type { FormEvent } from 'react'
-import { X, FileText } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
+import { X, FileText, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 
 type Tab = 'signin' | 'signup'
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function AuthModal() {
   const {
@@ -19,9 +21,9 @@ export default function AuthModal() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [emailValidated, setEmailValidated] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Reset all internal state each time the modal opens so stale loading /
-  // error / field values from a previous session never bleed through.
   useEffect(() => {
     if (showAuthModal) {
       setLoading(false)
@@ -30,6 +32,8 @@ export default function AuthModal() {
       setEmail('')
       setPassword('')
       setTab('signin')
+      setEmailValidated(false)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [showAuthModal])
 
@@ -64,12 +68,20 @@ export default function AuthModal() {
     )
   }
 
-  // ── Auth form (no user, or guest upgrading) ────────────────────────────────
+  // ── Auth form (unauthenticated or guest upgrading) ─────────────────────────
 
   const switchTab = (t: Tab) => {
     setTab(t)
     setError(null)
     setSuccess(null)
+    setEmailValidated(false)
+  }
+
+  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value)
+    setEmailValidated(false)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setEmailValidated(true), 300)
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -83,8 +95,7 @@ export default function AuthModal() {
         closeAuthModal()
       } else {
         await signUpWithEmail(email, password)
-        setSuccess('Check your email to confirm your account!')
-        closeAuthModal()
+        setSuccess(email)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
@@ -94,11 +105,7 @@ export default function AuthModal() {
   }
 
   const handleGuest = async () => {
-    // Already a guest — nothing to do, just close.
-    if (isGuest) {
-      closeAuthModal()
-      return
-    }
+    if (isGuest) { closeAuthModal(); return }
     setError(null)
     setLoading(true)
     try {
@@ -111,13 +118,28 @@ export default function AuthModal() {
     }
   }
 
-  const inputCls =
+  const emailIsValid = EMAIL_REGEX.test(email)
+  const showEmailError = emailValidated && email !== '' && !emailIsValid
+  const showEmailValid = emailValidated && emailIsValid
+
+  const emailInputCls = cn(
+    'w-full px-4 py-3 bg-[#0a0a0a] border rounded-lg text-sm text-foreground',
+    'placeholder:text-muted-foreground outline-none focus:ring-1 transition-colors',
+    showEmailError
+      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30'
+      : showEmailValid
+      ? 'border-[#00FF87] focus:border-[#00FF87] focus:ring-[#00FF87]/30'
+      : 'border-[#333] focus:border-primary focus:ring-primary/30',
+  )
+
+  const passwordInputCls =
     'w-full px-4 py-3 bg-[#0a0a0a] border border-[#333] rounded-lg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors'
+
+  const submitDisabled = loading || (emailValidated && email !== '' && !emailIsValid)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
       <div className="w-full max-w-md bg-[#111111] border border-[#222] rounded-xl p-8 relative">
-        {/* X button — only shown when user has a session (guest upgrading) */}
         {user && (
           <button
             type="button"
@@ -131,76 +153,100 @@ export default function AuthModal() {
 
         <Logo />
 
-        {/* Tabs */}
-        <div className="flex border-b border-[#222] mb-6">
-          {(['signin', 'signup'] as Tab[]).map((t) => (
+        {/* ── Sign-up success card ─────────────────────────────────────── */}
+        {success ? (
+          <div className="flex flex-col items-center text-center py-2">
+            <CheckCircle className="size-14 text-[#00FF87] mb-4" strokeWidth={1.5} />
+            <h2 className="text-white text-xl font-bold mb-3">Check your email!</h2>
+            <p className="text-gray-400 text-sm mb-1">We sent a verification link to:</p>
+            <p className="text-white text-sm font-medium mb-4 break-all">{success}</p>
+            <p className="text-gray-400 text-xs mb-8">
+              Click the link in the email to verify your account, then sign in.
+            </p>
             <button
-              key={t}
               type="button"
-              onClick={() => switchTab(t)}
-              className={cn(
-                'flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors',
-                tab === t
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
+              onClick={closeAuthModal}
+              className="w-full py-3 bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors"
             >
-              {t === 'signin' ? 'Sign In' : 'Sign Up'}
+              OK, GOT IT
             </button>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <>
+            {/* Tabs */}
+            <div className="flex border-b border-[#222] mb-6">
+              {(['signin', 'signup'] as Tab[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => switchTab(t)}
+                  className={cn(
+                    'flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors',
+                    tab === t
+                      ? 'text-primary border-b-2 border-primary'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t === 'signin' ? 'Sign In' : 'Sign Up'}
+                </button>
+              ))}
+            </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            required
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={inputCls}
-          />
-          <input
-            type="password"
-            required
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={inputCls}
-          />
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <input
+                  type="email"
+                  required
+                  placeholder="Email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  className={emailInputCls}
+                />
+                {showEmailError && (
+                  <p className="mt-1.5 text-xs text-red-400">Please enter a valid email address</p>
+                )}
+              </div>
+              <input
+                type="password"
+                required
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={passwordInputCls}
+              />
 
-          {error && (
-            <p className="text-xs text-red-400 font-medium">{error}</p>
-          )}
-          {success && (
-            <p className="text-xs text-primary font-medium">{success}</p>
-          )}
+              {error && (
+                <p className="text-xs text-red-400 font-medium">{error}</p>
+              )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? '...' : tab === 'signin' ? 'Sign In' : 'Create Account'}
-          </button>
-        </form>
+              <button
+                type="submit"
+                disabled={submitDisabled}
+                className="w-full py-3 bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? '...' : tab === 'signin' ? 'Sign In' : 'Create Account'}
+              </button>
+            </form>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 h-px bg-[#222]" />
-          <span className="text-xs text-muted-foreground">or</span>
-          <div className="flex-1 h-px bg-[#222]" />
-        </div>
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-[#222]" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <div className="flex-1 h-px bg-[#222]" />
+            </div>
 
-        {/* Guest */}
-        <button
-          type="button"
-          onClick={handleGuest}
-          disabled={loading}
-          className="w-full py-3 bg-black border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Continue as Guest
-        </button>
+            {/* Guest */}
+            <button
+              type="button"
+              onClick={handleGuest}
+              disabled={loading}
+              className="w-full py-3 bg-black border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Continue as Guest
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

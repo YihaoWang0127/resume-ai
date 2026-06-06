@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AuthModal from '@/components/AuthModal'
 
@@ -36,8 +36,7 @@ beforeEach(() => {
   setupAuth()
 })
 
-// Helper: the Sign In / Sign Up tab buttons are type="button";
-// the form submit is type="submit". Use selector to disambiguate.
+// Helpers — disambiguate tab buttons (type="button") from the form submit
 const tabButton = (name: string) => screen.getByText(name, { selector: 'button[type="button"]' })
 const submitButton = () => screen.getByText(/^(Sign In|Create Account)$/, { selector: 'button[type="submit"]' })
 
@@ -88,7 +87,6 @@ describe('AuthModal — tab switching', () => {
     await user.click(tabButton('Sign Up'))
     await user.click(tabButton('Sign In'))
 
-    // Submit button reverts to "Sign In" label
     expect(screen.getByText('Sign In', { selector: 'button[type="submit"]' })).toBeInTheDocument()
   })
 })
@@ -145,10 +143,7 @@ describe('AuthModal — form submission', () => {
     await user.type(screen.getByPlaceholderText('Password'), 'wrong')
     await user.click(submitButton())
 
-    // After the error the submit button should be re-enabled (not showing "...")
-    await waitFor(() =>
-      expect(submitButton().textContent).toBe('Sign In')
-    )
+    await waitFor(() => expect(submitButton().textContent).toBe('Sign In'))
   })
 
   it('calls signInAsGuest when Continue as Guest is clicked', async () => {
@@ -171,6 +166,142 @@ describe('AuthModal — form submission', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /continue as guest/i })).not.toBeDisabled()
     )
+  })
+})
+
+// ── sign-up success card ──────────────────────────────────────────────────────
+
+describe('AuthModal — sign-up success', () => {
+  async function doSignUp() {
+    signUpWithEmail.mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(tabButton('Sign Up'))
+    await user.type(screen.getByPlaceholderText('Email'), 'new@example.com')
+    await user.type(screen.getByPlaceholderText('Password'), 'password123')
+    await user.click(submitButton())
+    return user
+  }
+
+  it('shows "Check your email!" heading after sign-up', async () => {
+    await doSignUp()
+    await waitFor(() =>
+      expect(screen.getByText('Check your email!')).toBeInTheDocument()
+    )
+  })
+
+  it('shows the email address used for sign-up', async () => {
+    await doSignUp()
+    await waitFor(() =>
+      expect(screen.getByText('new@example.com')).toBeInTheDocument()
+    )
+  })
+
+  it('does not close the modal automatically after sign-up', async () => {
+    await doSignUp()
+    await waitFor(() => expect(screen.getByText('Check your email!')).toBeInTheDocument())
+    expect(closeAuthModal).not.toHaveBeenCalled()
+  })
+
+  it('hides the form and shows the success card', async () => {
+    await doSignUp()
+    await waitFor(() => expect(screen.getByText('Check your email!')).toBeInTheDocument())
+    expect(screen.queryByPlaceholderText('Email')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /continue as guest/i })).not.toBeInTheDocument()
+  })
+
+  it('"OK, GOT IT" button closes the modal', async () => {
+    await doSignUp()
+    const user = userEvent.setup()
+    await waitFor(() => screen.getByText('OK, GOT IT'))
+    await user.click(screen.getByRole('button', { name: /ok, got it/i }))
+    expect(closeAuthModal).toHaveBeenCalled()
+  })
+})
+
+// ── email validation ──────────────────────────────────────────────────────────
+// Use fireEvent.change (synchronous) + act(vi.advanceTimersByTime) to avoid
+// the deadlock that occurs when userEvent.type()'s internal delays interact
+// with vi.useFakeTimers().
+
+describe('AuthModal — email validation', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    setupAuth()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function setup() {
+    render(<AuthModal />)
+    return screen.getByPlaceholderText('Email')
+  }
+
+  function typeEmail(input: HTMLElement, value: string) {
+    fireEvent.change(input, { target: { value } })
+  }
+
+  function fireDebounce() {
+    act(() => { vi.advanceTimersByTime(300) })
+  }
+
+  it('shows no validation state when email field is empty', () => {
+    setup()
+    fireDebounce()
+    expect(screen.queryByText('Please enter a valid email address')).not.toBeInTheDocument()
+  })
+
+  it('shows error text for invalid email after debounce', () => {
+    const emailInput = setup()
+    typeEmail(emailInput, 'notanemail')
+    fireDebounce()
+    expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument()
+  })
+
+  it('does not show error for a valid email', () => {
+    const emailInput = setup()
+    typeEmail(emailInput, 'valid@example.com')
+    fireDebounce()
+    expect(screen.queryByText('Please enter a valid email address')).not.toBeInTheDocument()
+  })
+
+  it('does not show error while user is still typing (before debounce fires)', () => {
+    const emailInput = setup()
+    typeEmail(emailInput, 'partial@')
+    // Debounce NOT advanced — error must not appear yet
+    expect(screen.queryByText('Please enter a valid email address')).not.toBeInTheDocument()
+  })
+
+  it('disables submit button when email is invalid after debounce', () => {
+    const emailInput = setup()
+    typeEmail(emailInput, 'bad')
+    fireDebounce()
+    expect(submitButton()).toBeDisabled()
+  })
+
+  it('submit button is enabled for a valid email', () => {
+    const emailInput = setup()
+    typeEmail(emailInput, 'good@example.com')
+    fireDebounce()
+    expect(submitButton()).not.toBeDisabled()
+  })
+
+  it('submit button is enabled when field is empty (no content to validate)', () => {
+    setup()
+    fireDebounce()
+    expect(submitButton()).not.toBeDisabled()
+  })
+
+  it('clears validation error when switching tabs', () => {
+    const emailInput = setup()
+    typeEmail(emailInput, 'bad')
+    fireDebounce()
+    expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument()
+    fireEvent.click(tabButton('Sign Up'))
+    expect(screen.queryByText('Please enter a valid email address')).not.toBeInTheDocument()
   })
 })
 
@@ -258,7 +389,6 @@ describe('AuthModal — close behaviour', () => {
   it('clicking the backdrop does not call closeAuthModal', async () => {
     const user = userEvent.setup()
     const { container } = render(<AuthModal />)
-    // The outer backdrop div has no click handler — clicking it should do nothing
     const backdrop = container.querySelector('.fixed.inset-0')!
     await user.click(backdrop)
     expect(closeAuthModal).not.toHaveBeenCalled()
