@@ -110,6 +110,42 @@ Return ONLY the improved resume as valid JSON matching the exact same schema. No
     return ENRICH_SYSTEM, user
 
 
+def build_cover_letter_prompt(
+    resume_json: str,
+    job_description: str,
+    company_name: str,
+    tone: str = "professional",
+) -> tuple[str, str]:
+    system = """You are an expert career coach who writes compelling cover letters. Write a personalized cover letter that:
+- Opens with a strong, attention-grabbing hook
+- Highlights 2-3 most relevant achievements from the resume
+- Shows genuine interest in the company and role
+- Mirrors keywords from the job description naturally
+- Has a clear call to action at the end
+- Is concise: 250-400 words, 3-4 paragraphs
+- Matches the requested tone exactly
+
+Tone guidelines:
+- professional: formal, polished, traditional business tone
+- enthusiastic: energetic, passionate, excited about the role
+- concise: punchy, direct, no fluff, gets to the point fast
+
+Return ONLY the cover letter body text. No "Dear Hiring Manager", no signature, no markdown. Just the body paragraphs separated by blank lines."""
+
+    user = f"""Write a cover letter using:
+
+CANDIDATE RESUME (JSON):
+{resume_json}
+
+JOB DESCRIPTION:
+{job_description}
+
+COMPANY: {company_name}
+TONE: {tone}"""
+
+    return system, user
+
+
 def build_tailor_prompt(resume: ResumeSchema, job_description: str) -> tuple[str, str]:
     """Returns (system_prompt, user_message) for tailor."""
     resume_json = resume.model_dump_json(indent=2)

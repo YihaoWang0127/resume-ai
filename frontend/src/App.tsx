@@ -3,6 +3,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import Home from '@/pages/Home'
 import Editor from '@/pages/Editor'
 import Dashboard from '@/pages/Dashboard'
+import CoverLetterEditor from '@/pages/CoverLetterEditor'
 import NotFound from '@/pages/NotFound'
 import AuthModal from '@/components/AuthModal'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -14,6 +15,8 @@ function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/editor" element={<Editor />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/cover-letter/new" element={<CoverLetterEditor />} />
+        <Route path="/cover-letter/:id" element={<CoverLetterEditor />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AuthModal />

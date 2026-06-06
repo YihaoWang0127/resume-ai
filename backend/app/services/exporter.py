@@ -158,6 +158,83 @@ def generate_pdf(resume: ResumeSchema, industry: str = "general") -> bytes:
     return buf.read()
 
 
+def generate_cover_letter_pdf(content: str, company_name: str) -> bytes:
+    from datetime import date
+    from io import BytesIO
+    from reportlab.lib.colors import HexColor, black
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=letter,
+        leftMargin=1.0 * inch,
+        rightMargin=1.0 * inch,
+        topMargin=1.0 * inch,
+        bottomMargin=1.0 * inch,
+    )
+
+    gray = HexColor("#444444")
+    s_date = ParagraphStyle("date",  fontName="Helvetica", fontSize=10, leading=14, textColor=gray, spaceAfter=16)
+    s_body = ParagraphStyle("body",  fontName="Helvetica", fontSize=11, leading=16, textColor=black, spaceAfter=12)
+
+    story: list = []
+    story.append(Paragraph(date.today().strftime("%B %d, %Y"), s_date))
+
+    for para in content.strip().split("\n\n"):
+        para = para.strip()
+        if para:
+            story.append(Paragraph(_x(para), s_body))
+
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Best regards,", s_body))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
+
+
+def generate_cover_letter_docx(content: str, company_name: str) -> bytes:
+    from datetime import date
+    from io import BytesIO
+    from docx import Document
+    from docx.shared import Pt, RGBColor, Inches
+
+    doc = Document()
+
+    for section in doc.sections:
+        section.top_margin = Inches(1.0)
+        section.bottom_margin = Inches(1.0)
+        section.left_margin = Inches(1.0)
+        section.right_margin = Inches(1.0)
+
+    for p in doc.paragraphs:
+        p._element.getparent().remove(p._element)
+
+    date_p = doc.add_paragraph(date.today().strftime("%B %d, %Y"))
+    date_p.runs[0].font.size = Pt(10)
+    date_p.runs[0].font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+    doc.add_paragraph()
+
+    for para in content.strip().split("\n\n"):
+        para = para.strip()
+        if para:
+            p = doc.add_paragraph(para)
+            p.runs[0].font.size = Pt(11)
+
+    doc.add_paragraph()
+    closing = doc.add_paragraph("Best regards,")
+    closing.runs[0].font.size = Pt(11)
+
+    buf = BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+
 def generate_docx(resume: ResumeSchema, industry: str = "general") -> bytes:
     from io import BytesIO
     from docx import Document

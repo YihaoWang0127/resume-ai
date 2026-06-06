@@ -132,6 +132,46 @@ export async function tailorResume(
   })
 }
 
+export async function generateCoverLetter(
+  resume: ResumeSchema,
+  jobDescription: string,
+  companyName: string,
+  tone: 'professional' | 'enthusiastic' | 'concise',
+  signal?: AbortSignal,
+): Promise<ReadableStream<Uint8Array>> {
+  const res = await fetch(`${BASE}/api/cover-letter`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      resume: toBackend(resume),
+      job_description: jobDescription,
+      company_name: companyName,
+      tone,
+    }),
+    signal,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`${res.status} ${res.statusText}: ${text}`)
+  }
+  if (!res.body) throw new Error('No response stream received')
+  return res.body
+}
+
+export async function exportCoverLetter(
+  content: string,
+  companyName: string,
+  format: 'pdf' | 'docx' | 'txt',
+): Promise<Blob> {
+  const res = await fetch(`${BASE}/api/cover-letter/export`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, company_name: companyName, format }),
+  })
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`)
+  return res.blob()
+}
+
 export async function exportResume(
   resume: ResumeSchema,
   format: 'pdf' | 'docx' = 'pdf',

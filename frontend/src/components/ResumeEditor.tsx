@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Sparkles,
   Briefcase,
@@ -12,6 +13,7 @@ import {
   Wand2,
   FileText,
   Save,
+  Mail,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -61,8 +63,11 @@ const STREAMING_MESSAGES = [
   'Polishing the final output...',
 ]
 
+type CoverLetterTone = 'professional' | 'enthusiastic' | 'concise'
+
 export default function ResumeEditor({ initialResume, initialResumeId, onBack, onSignUp }: Props) {
   const { user, isGuest } = useAuth()
+  const navigate = useNavigate()
   const [resume, setResume] = useState<ResumeSchema>(initialResume)
   const [tab, setTab] = useState<Tab>('summary')
   const [stream, setStream] = useState<StreamState | null>(null)
@@ -83,6 +88,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [saveToast, setSaveToast] = useState<{ text: string; ok: boolean } | null>(null)
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(initialResumeId ?? null)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [coverLetterOpen, setCoverLetterOpen] = useState(false)
+  const [clCompany, setClCompany] = useState('')
+  const [clJobDesc, setClJobDesc] = useState('')
+  const [clTone, setClTone] = useState<CoverLetterTone>('professional')
   const [saveTitle, setSaveTitle] = useState(
     () => `Resume - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   )
@@ -448,6 +457,16 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         >
           <Briefcase className="size-3.5" />
           <span className="hidden sm:inline">Tailor for Job</span>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setCoverLetterOpen(true)}
+          disabled={streamLoading}
+          className="border-primary text-primary uppercase text-xs tracking-wider font-bold rounded-none bg-background hover:bg-primary/10"
+        >
+          <Mail className="size-3.5" />
+          <span className="hidden sm:inline">Cover Letter</span>
         </Button>
         <div ref={exportMenuRef} className="relative">
           <Button
@@ -929,6 +948,114 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           />
         </div>
       </div>
+
+      {/* ── Cover Letter modal ──────────────────────────────────────────────── */}
+      {coverLetterOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-2xl mx-4 p-8">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2
+                  className="text-xl font-bold text-foreground uppercase tracking-wide"
+                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                >
+                  Generate Cover Letter
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Claude will write a personalized cover letter based on your resume and the job
+                </p>
+              </div>
+              <button
+                onClick={() => setCoverLetterOpen(false)}
+                className="text-muted-foreground hover:text-foreground ml-4 shrink-0 p-1 hover:bg-secondary transition-colors"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Company Name */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                Company Name <span className="text-red-400">*</span>
+              </label>
+              <input
+                autoFocus
+                className="w-full border border-[#333] bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow"
+                placeholder="e.g. Google, Stripe, Acme Corp"
+                value={clCompany}
+                onChange={(e) => setClCompany(e.target.value)}
+              />
+            </div>
+
+            {/* Job Description */}
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                Job Description <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                className="w-full min-h-32 border border-[#333] bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
+                placeholder="Paste the job description here..."
+                value={clJobDesc}
+                onChange={(e) => setClJobDesc(e.target.value)}
+              />
+            </div>
+
+            {/* Tone selector */}
+            <div className="mb-6">
+              <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                Tone
+              </p>
+              <div className="flex gap-3">
+                {(['professional', 'enthusiastic', 'concise'] as CoverLetterTone[]).map((t) => (
+                  <label
+                    key={t}
+                    className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none uppercase tracking-wide"
+                  >
+                    <input
+                      type="radio"
+                      name="cl-tone"
+                      value={t}
+                      checked={clTone === t}
+                      onChange={() => setClTone(t)}
+                      className="accent-primary"
+                    />
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setCoverLetterOpen(false)}
+                className="px-5 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setCoverLetterOpen(false)
+                  navigate('/cover-letter/new', {
+                    state: {
+                      companyName: clCompany,
+                      jobDescription: clJobDesc,
+                      tone: clTone,
+                      resume,
+                      from: '/editor',
+                    },
+                  })
+                }}
+                disabled={!clCompany.trim() || !clJobDesc.trim()}
+                className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-xs font-bold uppercase tracking-wide transition-colors"
+              >
+                <Mail className="size-4" />
+                Generate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Tailor modal ─────────────────────────────────────────────────────── */}
       {tailorOpen && (

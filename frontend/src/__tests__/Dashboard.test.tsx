@@ -8,7 +8,8 @@ import type { ResumeSchema } from '@/types/resume'
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('@/services/resumes', () => ({ listResumes: vi.fn(), deleteResume: vi.fn() }))
-vi.mock('@/services/api', () => ({ exportResume: vi.fn() }))
+vi.mock('@/services/coverLetters', () => ({ listCoverLetters: vi.fn(), deleteCoverLetter: vi.fn() }))
+vi.mock('@/services/api', () => ({ exportResume: vi.fn(), exportCoverLetter: vi.fn() }))
 vi.mock('@/components/Navbar', () => ({ default: () => <nav data-testid="navbar" /> }))
 vi.mock('@/components/ResumeUploader', () => ({
   default: ({ onParsed }: { onParsed: (r: ResumeSchema) => void }) => (
@@ -22,11 +23,14 @@ vi.mock('@/components/ResumeUploader', () => ({
 
 import { useAuth } from '@/contexts/AuthContext'
 import { listResumes, deleteResume } from '@/services/resumes'
+import { listCoverLetters, deleteCoverLetter } from '@/services/coverLetters'
 import Dashboard from '@/pages/Dashboard'
 
 const mockUseAuth = vi.mocked(useAuth)
 const mockListResumes = vi.mocked(listResumes)
 const mockDeleteResume = vi.mocked(deleteResume)
+const mockListCoverLetters = vi.mocked(listCoverLetters)
+const mockDeleteCoverLetter = vi.mocked(deleteCoverLetter)
 
 // Navigate mock — capture calls
 const mockNavigate = vi.fn()
@@ -66,6 +70,19 @@ const savedResume2 = {
   updated_at: '2024-01-20T00:00:00Z',
 }
 
+const savedCoverLetter1 = {
+  id: 'cl1',
+  user_id: 'u1',
+  resume_id: 'r1',
+  title: 'Cover Letter for Stripe',
+  content: 'I am excited to apply...',
+  company_name: 'Stripe',
+  job_description: 'Senior engineer...',
+  tone: 'professional',
+  created_at: '2024-01-05T00:00:00Z',
+  updated_at: '2024-01-18T00:00:00Z',
+}
+
 const defaultAuth = {
   user: { id: 'u1', email: 'user@test.com', is_anonymous: false },
   session: null,
@@ -95,15 +112,19 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockUseAuth.mockReturnValue(defaultAuth as any)
   mockListResumes.mockResolvedValue([savedResume1, savedResume2] as any)
+  mockListCoverLetters.mockResolvedValue([savedCoverLetter1] as any)
   mockDeleteResume.mockResolvedValue(undefined)
+  mockDeleteCoverLetter.mockResolvedValue(undefined)
 })
 
 // ── rendering ─────────────────────────────────────────────────────────────────
 
 describe('Dashboard — rendering', () => {
-  it('renders the "My Resumes" heading', () => {
+  it('renders the "My Resumes" heading', async () => {
     renderDashboard()
-    expect(screen.getByRole('heading', { name: /my resumes/i })).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /my resumes/i })).toBeInTheDocument()
+    )
   })
 
   it('renders resume cards from listResumes data', async () => {
@@ -116,19 +137,46 @@ describe('Dashboard — rendering', () => {
     renderDashboard()
     await waitFor(() => expect(screen.getByText('New Resume')).toBeInTheDocument())
 
-    // New Resume card should be the last card-like element in the grid
     const cards = screen.getAllByRole('button').filter(b => b.tagName === 'BUTTON')
     const newResumeCard = cards.find(b => b.textContent?.includes('New Resume'))
     expect(newResumeCard).toBeInTheDocument()
   })
 
   it('shows a loading spinner while fetching', () => {
-    // listResumes never resolves — keeps spinner visible
     mockListResumes.mockReturnValue(new Promise(() => {}) as any)
     renderDashboard()
-    // Spinner element (svg role=img or class animate-spin)
     const svg = document.querySelector('.animate-spin')
     expect(svg).toBeTruthy()
+  })
+
+  it('renders the "My Cover Letters" heading', async () => {
+    renderDashboard()
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /my cover letters/i })).toBeInTheDocument()
+    )
+  })
+
+  it('renders cover letter cards from listCoverLetters data', async () => {
+    renderDashboard()
+    await waitFor(() =>
+      expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument()
+    )
+    expect(screen.getByText('Stripe')).toBeInTheDocument()
+  })
+
+  it('shows the New Cover Letter card', async () => {
+    renderDashboard()
+    await waitFor(() =>
+      expect(screen.getByText('New Cover Letter')).toBeInTheDocument()
+    )
+  })
+
+  it('shows count badges for both sections', async () => {
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
+    // Resume count badge: 2, cover letter count badge: 1
+    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 })
 
@@ -151,6 +199,18 @@ describe('Dashboard — navigation', () => {
     })
   })
 
+  it('Edit button on cover letter navigates to /cover-letter/:id', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument())
+
+    // Cover letter Edit buttons come after resume Edit buttons; find the last one
+    const editButtons = screen.getAllByRole('button', { name: /edit/i })
+    await user.click(editButtons[editButtons.length - 1])
+
+    expect(mockNavigate).toHaveBeenCalledWith('/cover-letter/cl1', { state: { from: '/dashboard' } })
+  })
+
   it('redirects guest users to home', () => {
     mockUseAuth.mockReturnValue({ ...defaultAuth, isGuest: true } as any)
     renderDashboard()
@@ -164,10 +224,8 @@ describe('Dashboard — navigation', () => {
   })
 })
 
-// ── delete flow ───────────────────────────────────────────────────────────────
+// ── delete flow (resumes) ─────────────────────────────────────────────────────
 
-// Card delete buttons have text-red-500; the modal confirm button has bg-red-600.
-// We query by class to avoid SVG+text content splitting issues.
 const getCardDeleteButtons = () =>
   Array.from(document.querySelectorAll<HTMLElement>('button[class*="red-500"]'))
 const getModalConfirmButton = () =>
@@ -177,7 +235,6 @@ describe('Dashboard — delete flow', () => {
   it('clicking Delete shows the confirmation modal', async () => {
     const user = userEvent.setup()
     renderDashboard()
-    // Use the proven "edit" pattern to wait for cards, then grab delete buttons
     await waitFor(() => expect(screen.getAllByRole('button', { name: /edit/i }).length).toBeGreaterThan(0))
 
     await user.click(getCardDeleteButtons()[0])
@@ -213,6 +270,38 @@ describe('Dashboard — delete flow', () => {
   })
 })
 
+// ── delete flow (cover letters) ───────────────────────────────────────────────
+
+describe('Dashboard — cover letter delete flow', () => {
+  it('clicking delete on a cover letter shows the cover letter confirmation modal', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument())
+
+    // Cover letter delete button is the last red-500 button
+    const deleteBtns = getCardDeleteButtons()
+    await user.click(deleteBtns[deleteBtns.length - 1])
+
+    expect(screen.getByRole('heading', { name: /delete cover letter/i })).toBeInTheDocument()
+    expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument()
+  })
+
+  it('confirms cover letter deletion and removes card from the list', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument())
+
+    const deleteBtns = getCardDeleteButtons()
+    await user.click(deleteBtns[deleteBtns.length - 1])
+    await user.click(getModalConfirmButton())
+
+    await waitFor(() => expect(mockDeleteCoverLetter).toHaveBeenCalledWith(savedCoverLetter1.id))
+    await waitFor(() =>
+      expect(screen.queryByText('Cover Letter for Stripe')).not.toBeInTheDocument()
+    )
+  })
+})
+
 // ── export dropdown ───────────────────────────────────────────────────────────
 
 describe('Dashboard — export dropdown', () => {
@@ -225,5 +314,19 @@ describe('Dashboard — export dropdown', () => {
 
     expect(screen.getByText('Save as PDF')).toBeInTheDocument()
     expect(screen.getByText('Save as Word (.docx)')).toBeInTheDocument()
+  })
+
+  it('cover letter Export button opens a dropdown with PDF, DOCX, TXT options', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument())
+
+    // Last Export button belongs to the cover letter card
+    const exportBtns = screen.getAllByRole('button', { name: /export/i })
+    await user.click(exportBtns[exportBtns.length - 1])
+
+    expect(screen.getByText('PDF')).toBeInTheDocument()
+    expect(screen.getByText('DOCX')).toBeInTheDocument()
+    expect(screen.getByText('TXT')).toBeInTheDocument()
   })
 })
