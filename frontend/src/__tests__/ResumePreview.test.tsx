@@ -122,7 +122,7 @@ describe('ResumePreview — style switcher', () => {
     expect(screen.queryByText('Tech')).not.toBeInTheDocument()
   })
 
-  it('shows "✓ AI detected" badge next to the detected industry', () => {
+  it('shows "✓ AI" badge next to the detected industry', () => {
     render(
       <ResumePreview
         resume={mockResume}
@@ -131,7 +131,7 @@ describe('ResumePreview — style switcher', () => {
         onIndustryChange={vi.fn()}
       />,
     )
-    expect(screen.getByText(/AI detected/i)).toBeInTheDocument()
+    expect(screen.getByText(/✓ AI/)).toBeInTheDocument()
   })
 
   it('does not show AI detected badge when detectedIndustry is not set', () => {
@@ -173,7 +173,7 @@ describe('ResumePreview — style switcher', () => {
     expect(onChange).toHaveBeenCalledWith('tech')
   })
 
-  it('renders "Preview Style:" label', () => {
+  it('renders "Style:" label', () => {
     render(
       <ResumePreview
         resume={mockResume}
@@ -181,7 +181,7 @@ describe('ResumePreview — style switcher', () => {
         onIndustryChange={vi.fn()}
       />,
     )
-    expect(screen.getByText('Preview Style:')).toBeInTheDocument()
+    expect(screen.getByText('Style:')).toBeInTheDocument()
   })
 })
 

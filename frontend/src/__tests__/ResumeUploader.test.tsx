@@ -43,12 +43,12 @@ beforeEach(() => {
 describe('ResumeUploader', () => {
   it('renders drop zone text', () => {
     render(<ResumeUploader onParsed={vi.fn()} />)
-    expect(screen.getByText('Drop your resume here')).toBeInTheDocument()
+    expect(screen.getByText('Drag & drop your resume')).toBeInTheDocument()
   })
 
   it('renders browse files button', () => {
     render(<ResumeUploader onParsed={vi.fn()} />)
-    expect(screen.getByText('Browse files')).toBeInTheDocument()
+    expect(screen.getByText('Browse Files')).toBeInTheDocument()
   })
 
   it('renders file type and size hint', () => {
@@ -56,23 +56,27 @@ describe('ResumeUploader', () => {
     expect(screen.getByText(/PDF or DOCX/i)).toBeInTheDocument()
   })
 
-  it('accepts a PDF file and calls onParsed', async () => {
+  it('accepts a PDF file and calls onParsed after Upload Now', async () => {
+    const user = userEvent.setup()
     const onParsed = vi.fn()
     mockParseResume.mockResolvedValue(mockResume)
 
     const { container } = render(<ResumeUploader onParsed={onParsed} />)
-    await userEvent.upload(getFileInput(container), makePdfFile())
+    await user.upload(getFileInput(container), makePdfFile())
+    await user.click(screen.getByText('Upload Now →'))
 
     await waitFor(() => expect(onParsed).toHaveBeenCalledWith(mockResume))
     expect(mockParseResume).toHaveBeenCalledTimes(1)
   })
 
-  it('accepts a DOCX file and calls onParsed', async () => {
+  it('accepts a DOCX file and calls onParsed after Upload Now', async () => {
+    const user = userEvent.setup()
     const onParsed = vi.fn()
     mockParseResume.mockResolvedValue(mockResume)
 
     const { container } = render(<ResumeUploader onParsed={onParsed} />)
-    await userEvent.upload(getFileInput(container), makeDocxFile())
+    await user.upload(getFileInput(container), makeDocxFile())
+    await user.click(screen.getByText('Upload Now →'))
 
     await waitFor(() => expect(onParsed).toHaveBeenCalledWith(mockResume))
   })
@@ -94,39 +98,43 @@ describe('ResumeUploader', () => {
     expect(mockParseResume).not.toHaveBeenCalled()
   })
 
-  it('shows loading spinner and "Parsing with Claude AI…" while uploading', async () => {
+  it('shows "Parsing with Claude AI" heading while uploading', async () => {
     // Never resolves so loading state stays visible
     mockParseResume.mockImplementation(() => new Promise(() => {}))
 
+    const user = userEvent.setup()
     const { container } = render(<ResumeUploader onParsed={vi.fn()} />)
-    await userEvent.upload(getFileInput(container), makePdfFile())
+    await user.upload(getFileInput(container), makePdfFile())
+    await user.click(screen.getByText('Upload Now →'))
 
     await waitFor(() =>
-      expect(screen.getByText('Parsing with Claude AI…')).toBeInTheDocument(),
+      expect(screen.getByText('Parsing with Claude AI')).toBeInTheDocument(),
     )
   })
 
   it('shows first progress hint while loading', async () => {
     mockParseResume.mockImplementation(() => new Promise(() => {}))
 
+    const user = userEvent.setup()
     const { container } = render(<ResumeUploader onParsed={vi.fn()} />)
-    await userEvent.upload(getFileInput(container), makePdfFile())
+    await user.upload(getFileInput(container), makePdfFile())
+    await user.click(screen.getByText('Upload Now →'))
 
     await waitFor(() =>
-      expect(
-        screen.getByText('Extracting text from your resume...'),
-      ).toBeInTheDocument(),
+      expect(screen.getByText('Extracting text from your resume...')).toBeInTheDocument(),
     )
   })
 
-  it('shows parse error when API call fails', async () => {
+  it('shows generic error message when API call fails', async () => {
     mockParseResume.mockRejectedValue(new Error('Network error'))
 
+    const user = userEvent.setup()
     const { container } = render(<ResumeUploader onParsed={vi.fn()} />)
-    await userEvent.upload(getFileInput(container), makePdfFile())
+    await user.upload(getFileInput(container), makePdfFile())
+    await user.click(screen.getByText('Upload Now →'))
 
     await waitFor(() =>
-      expect(screen.getByText('Network error')).toBeInTheDocument(),
+      expect(screen.getByText('Upload failed. Please try again.')).toBeInTheDocument(),
     )
   })
 
