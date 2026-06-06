@@ -1,6 +1,7 @@
-import { FileText, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import ResumeUploader from '@/components/ResumeUploader'
+import Navbar from '@/components/Navbar'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ResumeSchema } from '@/types/resume'
 
@@ -16,57 +17,16 @@ const FEATURE_CHIPS = [
 ]
 
 export default function Home() {
-  const { user, loading, isGuest, signOut, openAuthModal } = useAuth()
+  const { user, loading, openAuthModal } = useAuth()
   const navigate = useNavigate()
 
   const handleParsed = (resume: ResumeSchema) => {
-    navigate('/editor', { state: { resume } })
+    navigate('/editor', { state: { resume, from: '/' } })
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Nav */}
-      <nav className="shrink-0 border-b border-border px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="size-7 bg-primary rounded flex items-center justify-center">
-            <FileText className="size-4 text-primary-foreground" />
-          </div>
-          <span
-            className="font-bold text-sm tracking-widest uppercase text-foreground"
-            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-          >
-            Resume AI
-          </span>
-        </div>
-
-        {/* Auth area */}
-        {!loading && (
-          isGuest ? (
-            <button
-              type="button"
-              onClick={openAuthModal}
-              className="text-xs font-bold uppercase tracking-wider text-primary border border-primary px-4 py-1.5 hover:bg-primary/10 transition-colors"
-            >
-              Sign up to save resumes
-            </button>
-          ) : user ? (
-            <div className="flex items-center gap-3">
-              {user.email && (
-                <span className="hidden sm:block text-xs text-muted-foreground truncate max-w-[200px]">
-                  {user.email}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={signOut}
-                className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Sign out
-              </button>
-            </div>
-          ) : null
-        )}
-      </nav>
+      <Navbar />
 
       {/* Hero */}
       <main className="flex-1 px-6 pt-10">

@@ -12,8 +12,12 @@ export default function EditorPage() {
 
   if (!user) return <Navigate to="/" replace />
 
-  const resume = (location.state as { resume?: ResumeSchema } | null)?.resume
+  const state = location.state as { resume?: ResumeSchema; resumeId?: string; from?: string } | null
+  const resume = state?.resume
+  const resumeId = state?.resumeId
+  const from = state?.from ?? '/'
+
   if (!resume) return <Navigate to="/" replace />
 
-  return <ResumeEditor initialResume={resume} onBack={() => navigate('/')} onSignUp={openAuthModal} />
+  return <ResumeEditor initialResume={resume} initialResumeId={resumeId} onBack={() => navigate(from)} onSignUp={openAuthModal} />
 }

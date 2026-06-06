@@ -11,17 +11,21 @@ import {
   Loader2,
   Wand2,
   FileText,
+  Save,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
 import { enrichResume, exportResume, fromBackend, tailorResume } from '@/services/api'
+import { saveResume, updateResume } from '@/services/resumes'
 import { useAuth } from '@/contexts/AuthContext'
+import Navbar from '@/components/Navbar'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
 
 interface Props {
   initialResume: ResumeSchema
+  initialResumeId?: string | null
   onBack: () => void
   onSignUp?: () => void
 }
@@ -57,8 +61,8 @@ const STREAMING_MESSAGES = [
   'Polishing the final output...',
 ]
 
-export default function ResumeEditor({ initialResume, onBack, onSignUp }: Props) {
-  const { user, isGuest, signOut } = useAuth()
+export default function ResumeEditor({ initialResume, initialResumeId, onBack, onSignUp }: Props) {
+  const { user, isGuest } = useAuth()
   const [resume, setResume] = useState<ResumeSchema>(initialResume)
   const [tab, setTab] = useState<Tab>('summary')
   const [stream, setStream] = useState<StreamState | null>(null)
@@ -77,6 +81,12 @@ export default function ResumeEditor({ initialResume, onBack, onSignUp }: Props)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const [selectedIndustry, setSelectedIndustry] = useState<string>(initialResume.detectedIndustry ?? 'general')
   const [saveToast, setSaveToast] = useState<{ text: string; ok: boolean } | null>(null)
+  const [currentResumeId, setCurrentResumeId] = useState<string | null>(initialResumeId ?? null)
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [saveTitle, setSaveTitle] = useState(
+    () => `Resume - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  )
+  const [isSaving, setIsSaving] = useState(false)
   const accumRef = useRef('')
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null)
   const exportMenuRef = useRef<HTMLDivElement>(null)
@@ -241,6 +251,50 @@ export default function ResumeEditor({ initialResume, onBack, onSignUp }: Props)
     }
   }
 
+  // ── save / update ──────────────────────────────────────────────────────────
+  const handleSaveClick = () => {
+    if (isGuest || !user) { onSignUp?.(); return }
+    setSaveDialogOpen(true)
+  }
+
+  const handleSaveConfirm = async () => {
+    if (!saveTitle.trim()) return
+    setIsSaving(true)
+    const showToast = (text: string, ok: boolean) => {
+      setSaveToast({ text, ok })
+      setTimeout(() => setSaveToast(null), 3000)
+    }
+    try {
+      const saved = await saveResume(resume, saveTitle.trim())
+      setCurrentResumeId(saved.id)
+      setSaveDialogOpen(false)
+      showToast('Resume saved!', true)
+    } catch (err) {
+      console.error(err)
+      showToast('Save failed. Please try again.', false)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleUpdate = async () => {
+    if (!currentResumeId) return
+    setIsSaving(true)
+    const showToast = (text: string, ok: boolean) => {
+      setSaveToast({ text, ok })
+      setTimeout(() => setSaveToast(null), 3000)
+    }
+    try {
+      await updateResume(currentResumeId, resume)
+      showToast('Resume updated!', true)
+    } catch (err) {
+      console.error(err)
+      showToast('Update failed. Please try again.', false)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   // ── metadata ───────────────────────────────────────────────────────────────
   const setMeta = (k: keyof ResumeSchema['metadata'], v: string) =>
     setResume((r: ResumeSchema): ResumeSchema => ({
@@ -375,89 +429,86 @@ export default function ResumeEditor({ initialResume, onBack, onSignUp }: Props)
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* ── top bar ─────────────────────────────────────────────────────────── */}
-      <header className="shrink-0 border-b border-border px-4 h-12 flex items-center justify-between gap-3 bg-background">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onBack} className="text-muted-foreground uppercase text-xs tracking-wider">
-            ← Back
-          </Button>
-          <span
-            className="hidden sm:block text-sm font-bold tracking-widest uppercase text-foreground"
-            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-          >
-            Resume AI
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={handleEnrich}
-            disabled={streamLoading}
-            className="bg-primary text-primary-foreground uppercase text-xs tracking-wider font-bold rounded-none border-0 hover:bg-primary/90"
-          >
-            <Sparkles className="size-3.5" />
-            <span className="hidden sm:inline">Enrich with AI</span>
-          </Button>
+      <Navbar onBack={onBack}>
+        <Button
+          size="sm"
+          onClick={handleEnrich}
+          disabled={streamLoading}
+          className="bg-primary text-primary-foreground uppercase text-xs tracking-wider font-bold rounded-none border-0 hover:bg-primary/90"
+        >
+          <Sparkles className="size-3.5" />
+          <span className="hidden sm:inline">Enrich with AI</span>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setTailorOpen(true)}
+          disabled={streamLoading}
+          className="border-primary text-primary uppercase text-xs tracking-wider font-bold rounded-none bg-background hover:bg-primary/10"
+        >
+          <Briefcase className="size-3.5" />
+          <span className="hidden sm:inline">Tailor for Job</span>
+        </Button>
+        <div ref={exportMenuRef} className="relative">
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setTailorOpen(true)}
-            disabled={streamLoading}
+            onClick={() => setExportMenuOpen((o) => !o)}
+            disabled={isExporting}
             className="border-primary text-primary uppercase text-xs tracking-wider font-bold rounded-none bg-background hover:bg-primary/10"
           >
-            <Briefcase className="size-3.5" />
-            <span className="hidden sm:inline">Tailor for Job</span>
-          </Button>
-          <div ref={exportMenuRef} className="relative">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setExportMenuOpen((o) => !o)}
-              disabled={isExporting}
-              className="border-primary text-primary uppercase text-xs tracking-wider font-bold rounded-none bg-background hover:bg-primary/10"
-            >
-              {isExporting ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Download className="size-3.5" />
-              )}
-              <span className="hidden sm:inline">Export</span>
-              <ChevronDown className="size-3 ml-0.5" />
-            </Button>
-            {exportMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border py-1 min-w-[190px]">
-                <button
-                  onClick={() => handleExport('pdf')}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary text-foreground text-left"
-                >
-                  <Download className="size-3.5 text-muted-foreground" />
-                  Save as PDF
-                </button>
-                <button
-                  onClick={() => handleExport('docx')}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary text-foreground text-left"
-                >
-                  <FileText className="size-3.5 text-muted-foreground" />
-                  Save as Word (.docx)
-                </button>
-              </div>
+            {isExporting ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Download className="size-3.5" />
             )}
-          </div>
-
-          <div className="h-4 w-px bg-border mx-1" />
-          {!isGuest && user?.email && (
-            <span className="hidden md:block text-xs text-muted-foreground truncate max-w-[140px]">
-              {user.email}
-            </span>
+            <span className="hidden sm:inline">Export</span>
+            <ChevronDown className="size-3 ml-0.5" />
+          </Button>
+          {exportMenuOpen && (
+            <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border py-1 min-w-[190px]">
+              <button
+                onClick={() => handleExport('pdf')}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary text-foreground text-left"
+              >
+                <Download className="size-3.5 text-muted-foreground" />
+                Save as PDF
+              </button>
+              <button
+                onClick={() => handleExport('docx')}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary text-foreground text-left"
+              >
+                <FileText className="size-3.5 text-muted-foreground" />
+                Save as Word (.docx)
+              </button>
+            </div>
           )}
-          <button
-            type="button"
-            onClick={signOut}
-            className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Sign out
-          </button>
         </div>
-      </header>
+        {currentResumeId ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleUpdate}
+            disabled={isSaving}
+            className="border-primary text-primary uppercase text-xs tracking-wider font-bold rounded-none bg-background hover:bg-primary/10"
+          >
+            {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+            <span className="hidden sm:inline">Update</span>
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSaveClick}
+            disabled={isSaving}
+            className="border-primary text-primary uppercase text-xs tracking-wider font-bold rounded-none bg-background hover:bg-primary/10"
+          >
+            {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+            <span className="hidden sm:inline">Save</span>
+          </Button>
+        )}
+        <div className="h-4 w-px bg-border" />
+      </Navbar>
 
       {/* Guest banner */}
       {isGuest && (
@@ -954,6 +1005,57 @@ export default function ResumeEditor({ initialResume, onBack, onSignUp }: Props)
               >
                 <Wand2 className="size-4" />
                 Tailor Resume
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Save dialog ─────────────────────────────────────────────────────── */}
+      {saveDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-card border border-border w-full max-w-sm mx-4 p-6">
+            <div className="flex items-start justify-between mb-4">
+              <h2
+                className="text-base font-bold text-foreground uppercase tracking-wide"
+                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                Save Resume
+              </h2>
+              <button
+                onClick={() => setSaveDialogOpen(false)}
+                className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary transition-colors"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                Title
+              </label>
+              <input
+                autoFocus
+                className="w-full px-3 py-2 border border-[#333] bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow"
+                value={saveTitle}
+                onChange={(e) => setSaveTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveConfirm() }}
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setSaveDialogOpen(false)}
+                disabled={isSaving}
+                className="px-4 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveConfirm}
+                disabled={isSaving || !saveTitle.trim()}
+                className="flex items-center gap-2 px-5 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-xs font-bold uppercase tracking-wide transition-colors"
+              >
+                {isSaving && <Loader2 className="size-3.5 animate-spin" />}
+                Save
               </button>
             </div>
           </div>
