@@ -12,6 +12,7 @@ const signInWithEmail = vi.fn()
 const signUpWithEmail = vi.fn()
 const signInAsGuest = vi.fn()
 const closeAuthModal = vi.fn()
+const signOut = vi.fn()
 
 function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
   mockUseAuth.mockReturnValue({
@@ -25,7 +26,7 @@ function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
     signInWithEmail,
     signUpWithEmail,
     signInAsGuest,
-    signOut: vi.fn(),
+    signOut,
     ...overrides,
   } as any)
 }
@@ -135,6 +136,21 @@ describe('AuthModal — form submission', () => {
     )
   })
 
+  it('resets loading after a sign-in error', async () => {
+    signInWithEmail.mockRejectedValue(new Error('Invalid login credentials'))
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.type(screen.getByPlaceholderText('Email'), 'bad@example.com')
+    await user.type(screen.getByPlaceholderText('Password'), 'wrong')
+    await user.click(submitButton())
+
+    // After the error the submit button should be re-enabled (not showing "...")
+    await waitFor(() =>
+      expect(submitButton().textContent).toBe('Sign In')
+    )
+  })
+
   it('calls signInAsGuest when Continue as Guest is clicked', async () => {
     signInAsGuest.mockResolvedValue(undefined)
     const user = userEvent.setup()
@@ -143,6 +159,90 @@ describe('AuthModal — form submission', () => {
     await user.click(screen.getByRole('button', { name: /continue as guest/i }))
 
     await waitFor(() => expect(signInAsGuest).toHaveBeenCalled())
+  })
+
+  it('resets loading after a guest sign-in error', async () => {
+    signInAsGuest.mockRejectedValue(new Error('Guest sign-in failed'))
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByRole('button', { name: /continue as guest/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /continue as guest/i })).not.toBeDisabled()
+    )
+  })
+})
+
+// ── guest user ────────────────────────────────────────────────────────────────
+
+describe('AuthModal — guest user', () => {
+  it('shows the auth form (not the already-signed-in view) for a guest user', () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    render(<AuthModal />)
+    expect(screen.getByPlaceholderText('Email')).toBeInTheDocument()
+    expect(screen.queryByText("You're already signed in")).not.toBeInTheDocument()
+  })
+
+  it('shows close button for a guest user (they have a session)', () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    render(<AuthModal />)
+    expect(screen.getByLabelText('Close')).toBeInTheDocument()
+  })
+
+  it('clicking Continue as Guest just closes the modal when already a guest', async () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByRole('button', { name: /continue as guest/i }))
+
+    expect(closeAuthModal).toHaveBeenCalled()
+    expect(signInAsGuest).not.toHaveBeenCalled()
+  })
+})
+
+// ── already signed in (non-guest) ────────────────────────────────────────────
+
+describe('AuthModal — already signed in', () => {
+  beforeEach(() => {
+    setupAuth({ user: { id: 'u1', email: 'u@x.com' } as any, isGuest: false })
+  })
+
+  it('shows "You\'re already signed in" message', () => {
+    render(<AuthModal />)
+    expect(screen.getByText("You're already signed in")).toBeInTheDocument()
+  })
+
+  it('shows the user email', () => {
+    render(<AuthModal />)
+    expect(screen.getByText('u@x.com')).toBeInTheDocument()
+  })
+
+  it('shows a Continue button that closes the modal', async () => {
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByRole('button', { name: /^continue$/i }))
+
+    expect(closeAuthModal).toHaveBeenCalled()
+  })
+
+  it('shows a Sign Out button that calls signOut and closes the modal', async () => {
+    signOut.mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByRole('button', { name: /sign out/i }))
+
+    await waitFor(() => expect(signOut).toHaveBeenCalled())
+    await waitFor(() => expect(closeAuthModal).toHaveBeenCalled())
+  })
+
+  it('does not render the auth form', () => {
+    render(<AuthModal />)
+    expect(screen.queryByPlaceholderText('Email')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /continue as guest/i })).not.toBeInTheDocument()
   })
 })
 
@@ -153,12 +253,6 @@ describe('AuthModal — close behaviour', () => {
     setupAuth({ user: null })
     render(<AuthModal />)
     expect(screen.queryByLabelText('Close')).not.toBeInTheDocument()
-  })
-
-  it('shows close button when user already has a session', () => {
-    setupAuth({ user: { id: 'u1', email: 'u@x.com' } as any })
-    render(<AuthModal />)
-    expect(screen.getByLabelText('Close')).toBeInTheDocument()
   })
 
   it('clicking the backdrop does not call closeAuthModal', async () => {
