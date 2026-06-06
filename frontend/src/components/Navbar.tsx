@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, ChevronDown, LayoutDashboard, LogOut, ArrowLeft } from 'lucide-react'
+import { FileText, ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface Props {
@@ -64,13 +64,14 @@ export default function Navbar({ onBack, children }: Props) {
       <div className="flex items-center gap-2">
         {children}
         {!loading && (
-          isGuest ? (
+          isGuest || !user ? (
             <button
               type="button"
               onClick={openAuthModal}
-              className="text-xs font-bold uppercase tracking-wider text-primary border border-primary px-4 py-1.5 hover:bg-primary/10 transition-colors"
+              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary border border-primary px-4 py-1.5 hover:bg-primary/10 transition-colors"
             >
-              Sign up to save resumes
+              <User className="size-3.5" />
+              Sign In
             </button>
           ) : user ? (
             <div ref={userMenuRef} className="relative">
