@@ -118,7 +118,7 @@ describe('ResumeEditor — save button', () => {
 // Helper: get the save dialog container after opening it
 async function openSaveDialog(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: /^save$/i }))
-  return screen.getByRole('heading', { name: /save resume/i }).closest('div.bg-card')!
+  return screen.getByRole('heading', { name: /save resume/i }).closest('div.bg-card') as HTMLElement
 }
 
 // ── save dialog ───────────────────────────────────────────────────────────────
