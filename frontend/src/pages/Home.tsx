@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react'
 import { Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import ResumeUploader from '@/components/ResumeUploader'
@@ -5,20 +6,33 @@ import Navbar from '@/components/Navbar'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ResumeSchema } from '@/types/resume'
 
-const FEATURE_CHIPS = [
-  '✦ AI ENRICHMENT',
-  '✦ JD TAILORING',
-  '✦ ATS OPTIMIZATION',
-  '✦ STYLE DETECTION',
-  '✦ LIVE PREVIEW',
-  '✦ PDF & DOCX EXPORT',
-  '✦ ONE-CLICK DOWNLOAD',
-  '✦ POWERED BY CLAUDE',
+const FEATURES = [
+  { label: 'AI ENRICHMENT', desc: 'AI rewrites every bullet point with strong action verbs, quantified impact, and ATS-friendly keywords.' },
+  { label: 'JD TAILORING', desc: "Paste any job description and AI rewrites your resume to match the role's keywords and requirements." },
+  { label: 'ATS OPTIMIZATION', desc: 'Automatically injects relevant keywords so your resume passes Applicant Tracking Systems.' },
+  { label: 'STYLE DETECTION', desc: 'AI detects your industry (Tech, Finance, Creative, Healthcare) and applies matching typography.' },
+  { label: 'LIVE PREVIEW', desc: 'See your resume update in real-time as you edit, with 5 industry style presets to switch between.' },
+  { label: 'PDF & DOCX EXPORT', desc: 'Export your polished resume as PDF or Word document with native Save As dialog.' },
+  { label: 'ONE-CLICK DOWNLOAD', desc: 'Download your resume or cover letter instantly in your preferred format.' },
+  { label: 'POWERED BY CLAUDE', desc: "Built on Anthropic's Claude AI — the most capable AI for nuanced, professional writing." },
 ]
 
 export default function Home() {
   const { user, loading, openAuthModal } = useAuth()
   const navigate = useNavigate()
+  const [expandedFeature, setExpandedFeature] = useState<number | null>(null)
+  const chipsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (expandedFeature === null) return
+    const handler = (e: MouseEvent) => {
+      if (chipsRef.current && !chipsRef.current.contains(e.target as Node)) {
+        setExpandedFeature(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [expandedFeature])
 
   const handleParsed = (resume: ResumeSchema) => {
     navigate('/editor', { state: { resume, from: '/' } })
@@ -39,8 +53,7 @@ export default function Home() {
               AI-powered resume builder
             </div>
             <h1
-              className="text-6xl lg:text-7xl xl:text-8xl font-bold tracking-tight leading-none mt-4"
-              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+              className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-none mt-4"
             >
               <span className="block text-foreground uppercase">Your Resume.</span>
               <span className="block text-primary uppercase">Elevated.</span>
@@ -50,16 +63,54 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Feature chips — always 2 columns */}
-          <div className="grid grid-cols-2 gap-2 max-w-2xl mx-auto mt-8">
-            {FEATURE_CHIPS.map((chip) => (
-              <div
-                key={chip}
-                className="flex items-center border border-primary/60 bg-background px-3 py-2 text-xs text-primary uppercase font-medium tracking-wider rounded-lg whitespace-nowrap"
-              >
-                {chip}
-              </div>
-            ))}
+          {/* Feature chips — always 2 columns, click to expand */}
+          <div ref={chipsRef} className="grid grid-cols-2 gap-2 max-w-2xl mx-auto mt-8">
+            {FEATURES.map((feature, i) => {
+              const isLeft = i % 2 === 0
+              const row = Math.floor(i / 2)
+              const popupVStyle: React.CSSProperties = row === 0
+                ? { top: 0 }
+                : row === 1
+                ? { top: '-25%' }
+                : row === 2
+                ? { bottom: '-25%' }
+                : { bottom: 0 }
+              const arrowV: React.CSSProperties = row < 2 ? { top: '10px' } : { bottom: '10px' }
+              return (
+                <div key={feature.label} className="relative">
+                  <button
+                    onClick={() => setExpandedFeature(expandedFeature === i ? null : i)}
+                    className="w-full flex items-center border border-primary/60 bg-background px-3 py-2 text-xs text-primary uppercase font-medium tracking-wider rounded-lg whitespace-nowrap hover:bg-primary/5 transition-colors"
+                  >
+                    ✦ {feature.label}
+                  </button>
+                  {expandedFeature === i && (
+                    <div
+                      style={{
+                        animation: isLeft ? 'chipFadeInLeft 0.15s ease' : 'chipFadeInRight 0.15s ease',
+                        ...popupVStyle,
+                      }}
+                      className={`absolute z-10 w-56 bg-card border border-border rounded-lg p-3 text-sm text-primary shadow-md ${
+                        isLeft ? 'right-full mr-1' : 'left-full ml-1'
+                      }`}
+                    >
+                      {isLeft ? (
+                        <>
+                          <div style={{ position: 'absolute', right: '-9px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '8px solid hsl(var(--border))' }} />
+                          <div style={{ position: 'absolute', right: '-7px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '8px solid hsl(var(--card))' }} />
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ position: 'absolute', left: '-9px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderRight: '8px solid hsl(var(--border))' }} />
+                          <div style={{ position: 'absolute', left: '-7px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderRight: '8px solid hsl(var(--card))' }} />
+                        </>
+                      )}
+                      {feature.desc}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           {/* Uploader — intercepted when no session */}
@@ -74,11 +125,10 @@ export default function Home() {
             )}
           </div>
 
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            Your data stays in your browser session and is never stored.
-          </p>
         </div>
       </main>
+
+      <style>{`@keyframes chipFadeInLeft { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } } @keyframes chipFadeInRight { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }`}</style>
     </div>
   )
 }
