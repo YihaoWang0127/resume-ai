@@ -43,9 +43,9 @@ export default function AuthModal() {
   if (user && !isGuest) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-        <div className="w-full max-w-md bg-[#111111] border border-[#222] rounded-xl p-8 relative">
+        <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 relative">
           <Logo />
-          <p className="text-white text-lg font-semibold mb-1">You're already signed in</p>
+          <p className="text-foreground text-lg font-semibold mb-1">You're already signed in</p>
           <p className="text-sm text-muted-foreground mb-6">{user.email}</p>
           <div className="flex gap-3">
             <button
@@ -58,7 +58,7 @@ export default function AuthModal() {
             <button
               type="button"
               onClick={async () => { await signOut(); closeAuthModal() }}
-              className="flex-1 py-3 bg-black border border-[#333] text-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-[#222] transition-colors"
+              className="flex-1 py-3 bg-background border border-border text-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-secondary transition-colors"
             >
               Sign Out
             </button>
@@ -123,23 +123,23 @@ export default function AuthModal() {
   const showEmailValid = emailValidated && emailIsValid
 
   const emailInputCls = cn(
-    'w-full px-4 py-3 bg-[#0a0a0a] border rounded-lg text-sm text-foreground',
+    'w-full px-4 py-3 bg-background border rounded-lg text-sm text-foreground',
     'placeholder:text-muted-foreground outline-none focus:ring-1 transition-colors',
     showEmailError
       ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30'
       : showEmailValid
-      ? 'border-[#00FF87] focus:border-[#00FF87] focus:ring-[#00FF87]/30'
-      : 'border-[#333] focus:border-primary focus:ring-primary/30',
+      ? 'border-primary focus:border-primary focus:ring-primary/30'
+      : 'border-border focus:border-primary focus:ring-primary/30',
   )
 
   const passwordInputCls =
-    'w-full px-4 py-3 bg-[#0a0a0a] border border-[#333] rounded-lg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors'
+    'w-full px-4 py-3 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors'
 
   const submitDisabled = loading || (emailValidated && email !== '' && !emailIsValid)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md bg-[#111111] border border-[#222] rounded-xl p-8 relative">
+      <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 relative">
         {user && (
           <button
             type="button"
@@ -156,11 +156,11 @@ export default function AuthModal() {
         {/* ── Sign-up success card ─────────────────────────────────────── */}
         {success ? (
           <div className="flex flex-col items-center text-center py-2">
-            <CheckCircle className="size-14 text-[#00FF87] mb-4" strokeWidth={1.5} />
-            <h2 className="text-white text-xl font-bold mb-3">Check your email!</h2>
-            <p className="text-gray-400 text-sm mb-1">We sent a verification link to:</p>
-            <p className="text-white text-sm font-medium mb-4 break-all">{success}</p>
-            <p className="text-gray-400 text-xs mb-8">
+            <CheckCircle className="size-14 text-primary mb-4" strokeWidth={1.5} />
+            <h2 className="text-foreground text-xl font-bold mb-3">Check your email!</h2>
+            <p className="text-muted-foreground text-sm mb-1">We sent a verification link to:</p>
+            <p className="text-foreground text-sm font-medium mb-4 break-all">{success}</p>
+            <p className="text-muted-foreground text-xs mb-8">
               Click the link in the email to verify your account, then sign in.
             </p>
             <button
@@ -174,7 +174,7 @@ export default function AuthModal() {
         ) : (
           <>
             {/* Tabs */}
-            <div className="flex border-b border-[#222] mb-6">
+            <div className="flex border-b border-border mb-6">
               {(['signin', 'signup'] as Tab[]).map((t) => (
                 <button
                   key={t}
@@ -231,9 +231,9 @@ export default function AuthModal() {
 
             {/* Divider */}
             <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-[#222]" />
+              <div className="flex-1 h-px bg-border" />
               <span className="text-xs text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-[#222]" />
+              <div className="flex-1 h-px bg-border" />
             </div>
 
             {/* Guest */}
@@ -241,7 +241,7 @@ export default function AuthModal() {
               type="button"
               onClick={handleGuest}
               disabled={loading}
-              className="w-full py-3 bg-black border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-3 bg-background border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Continue as Guest
             </button>

@@ -162,7 +162,7 @@ export default function Dashboard() {
                 {resumes.map((r) => (
                   <div
                     key={r.id}
-                    className="bg-[#111] border border-primary/40 rounded-xl p-5 flex flex-col min-h-[200px] hover:border-primary/70 transition-colors"
+                    className="bg-card border border-primary/40 rounded-xl p-5 flex flex-col min-h-[200px] hover:border-primary/70 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-foreground text-sm truncate">{r.title}</p>
@@ -230,12 +230,12 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setUploadModalOpen(true)}
-                  className="bg-[#0d0d0d] border-2 border-dashed border-gray-600 rounded-xl flex flex-col items-center justify-center gap-3 min-h-[200px] hover:border-[#00FF87] hover:bg-[#00FF87]/5 hover:scale-[1.02] transition-all duration-200 group"
+                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-3 min-h-[200px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
                 >
-                  <div className="size-10 rounded-full border-2 border-dashed border-gray-600 group-hover:border-[#00FF87] flex items-center justify-center transition-colors">
-                    <Plus className="size-5 text-gray-500 group-hover:text-[#00FF87] transition-colors" />
+                  <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center transition-colors">
+                    <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-gray-500 group-hover:text-[#00FF87] transition-colors">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">
                     New Resume
                   </span>
                 </button>
@@ -266,7 +266,7 @@ export default function Dashboard() {
                 {coverLetters.map((cl) => (
                   <div
                     key={cl.id}
-                    className="bg-[#111] border border-primary/40 rounded-xl p-5 flex flex-col min-h-[200px] hover:border-primary/70 transition-colors"
+                    className="bg-card border border-primary/40 rounded-xl p-5 flex flex-col min-h-[200px] hover:border-primary/70 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-foreground text-sm truncate">{cl.title}</p>
@@ -332,12 +332,12 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setNewClStep('options')}
-                  className="bg-[#0d0d0d] border-2 border-dashed border-gray-600 rounded-xl flex flex-col items-center justify-center gap-3 min-h-[200px] hover:border-[#00FF87] hover:bg-[#00FF87]/5 hover:scale-[1.02] transition-all duration-200 group"
+                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-3 min-h-[200px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
                 >
-                  <div className="size-10 rounded-full border-2 border-dashed border-gray-600 group-hover:border-[#00FF87] flex items-center justify-center transition-colors">
-                    <Plus className="size-5 text-gray-500 group-hover:text-[#00FF87] transition-colors" />
+                  <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center transition-colors">
+                    <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-gray-500 group-hover:text-[#00FF87] transition-colors text-center px-2">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors text-center px-2">
                     New Cover Letter
                   </span>
                 </button>
@@ -411,7 +411,7 @@ export default function Dashboard() {
       {/* ── New Cover Letter modal ─────────────────────────────────────────── */}
       {newClStep !== 'closed' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md bg-[#111] border border-[#222] rounded-xl p-8 relative">
+          <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 relative">
 
             {/* Close */}
             <button
@@ -463,10 +463,10 @@ export default function Dashboard() {
                       closeNewClModal()
                       navigate('/cover-letter/new', { state: { content: '', from: '/dashboard' } })
                     }}
-                    className="w-full text-left p-5 border border-[#333] rounded-lg hover:border-[#555] hover:bg-white/[0.02] transition-colors group"
+                    className="w-full text-left p-5 border border-border rounded-lg hover:border-muted-foreground hover:bg-muted/30 transition-colors group"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="size-10 rounded-lg bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0 group-hover:border-[#555] transition-colors">
+                      <div className="size-10 rounded-lg bg-secondary border border-border flex items-center justify-center shrink-0 group-hover:border-muted-foreground transition-colors">
                         <PenLine className="size-5 text-muted-foreground" />
                       </div>
                       <div>
@@ -524,7 +524,7 @@ export default function Dashboard() {
                         key={r.id}
                         type="button"
                         onClick={() => { setNewClResume(r); setNewClStep('generate-form') }}
-                        className="w-full text-left px-4 py-3 border border-[#2a2a2a] rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                        className="w-full text-left px-4 py-3 border border-border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors"
                       >
                         <p className="text-sm font-bold text-foreground truncate">{r.title}</p>
                         <div className="flex items-center gap-2 mt-1">
@@ -583,7 +583,7 @@ export default function Dashboard() {
                       placeholder="e.g. Google, Stripe, Acme Corp"
                       value={newClCompany}
                       onChange={(e) => setNewClCompany(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-[#333] bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors"
+                      className="w-full px-3 py-2.5 border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors"
                     />
                   </div>
 
@@ -596,7 +596,7 @@ export default function Dashboard() {
                       placeholder="Paste the job description here..."
                       value={newClJobDesc}
                       onChange={(e) => setNewClJobDesc(e.target.value)}
-                      className="w-full min-h-24 px-3 py-2.5 border border-[#333] bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary resize-none transition-colors"
+                      className="w-full min-h-24 px-3 py-2.5 border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary resize-none transition-colors"
                     />
                   </div>
 
@@ -612,7 +612,7 @@ export default function Dashboard() {
                           className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${
                             newClTone === t
                               ? 'bg-primary text-primary-foreground'
-                              : 'border border-[#333] text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                              : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
                           }`}
                         >
                           {t}
@@ -627,7 +627,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={closeNewClModal}
-                    className="px-4 py-2 border border-[#333] text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors"
+                    className="px-4 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors"
                   >
                     Cancel
                   </button>

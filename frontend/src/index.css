@@ -4,26 +4,26 @@
 
 @layer base {
   :root {
-    /* StockX dark theme */
-    --background: 0 0% 4%;          /* #0a0a0a */
-    --foreground: 0 0% 100%;        /* #ffffff */
-    --card: 0 0% 7%;                /* #111111 */
-    --card-foreground: 0 0% 100%;
-    --popover: 0 0% 7%;             /* #111111 */
-    --popover-foreground: 0 0% 100%;
-    --primary: 152 100% 50%;        /* #00FF87 */
-    --primary-foreground: 0 0% 4%;  /* near-black text on green */
-    --secondary: 0 0% 13%;          /* #222222 */
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 13%;              /* #222222 */
-    --muted-foreground: 0 0% 53%;   /* #888888 */
-    --accent: 152 100% 50%;         /* #00FF87 */
-    --accent-foreground: 0 0% 4%;
+    /* Apple light/blue theme */
+    --background: 240 33% 99%;          /* #FBFBFD */
+    --foreground: 240 3% 12%;           /* #1D1D1F */
+    --card: 240 11% 97%;                /* #F5F5F7 */
+    --card-foreground: 240 3% 12%;      /* #1D1D1F */
+    --popover: 240 11% 97%;             /* #F5F5F7 */
+    --popover-foreground: 240 3% 12%;   /* #1D1D1F */
+    --primary: 210 100% 45%;            /* #0071E3 */
+    --primary-foreground: 0 0% 100%;    /* white */
+    --secondary: 240 6% 90%;
+    --secondary-foreground: 240 3% 12%;
+    --muted: 240 6% 90%;
+    --muted-foreground: 240 2% 54%;     /* #86868B */
+    --accent: 210 100% 45%;             /* #0071E3 */
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 13%;             /* #222222 */
-    --input: 0 0% 20%;              /* #333333 */
-    --ring: 152 100% 50%;           /* #00FF87 */
+    --border: 240 6% 83%;               /* #D2D2D7 */
+    --input: 240 5% 88%;
+    --ring: 210 100% 45%;               /* #0071E3 */
     /* Rounded corners */
     --radius: 0.5rem;
     --radius-xs: 0.25rem;

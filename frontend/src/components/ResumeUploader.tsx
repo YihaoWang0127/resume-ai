@@ -137,7 +137,7 @@ export default function ResumeUploader({ onParsed }: Props) {
       className={cn(
         'relative w-full max-w-lg min-h-[180px] mx-auto',
         'flex flex-col items-center justify-center gap-3',
-        'bg-[#111111] border border-dashed rounded-xl px-6 py-5',
+        'bg-card border border-dashed rounded-xl px-6 py-5',
         'transition-all select-none',
         uploading
           ? 'border-primary pointer-events-none'
@@ -149,7 +149,7 @@ export default function ResumeUploader({ onParsed }: Props) {
           ? 'border-red-500 cursor-default'
           : dragging
           ? 'border-primary border-solid bg-primary/5 cursor-pointer'
-          : 'border-[#333] hover:border-primary hover:border-solid cursor-pointer',
+          : 'border-border hover:border-primary hover:border-solid cursor-pointer',
       )}
       onDragOver={(e) => {
         e.preventDefault()
@@ -173,7 +173,7 @@ export default function ResumeUploader({ onParsed }: Props) {
       {uploading ? (
         /* Uploading state */
         <div className="flex flex-col items-center gap-3 text-center w-full">
-          <div className="w-full h-1.5 bg-[#222] rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
             <div className="h-full w-full bg-primary animate-pulse rounded-full" />
           </div>
           <div>
@@ -218,7 +218,7 @@ export default function ResumeUploader({ onParsed }: Props) {
                 resetAll()
                 inputRef.current?.click()
               }}
-              className="flex-1 text-sm font-bold py-2 rounded-lg border border-primary text-primary bg-black hover:bg-primary/10 transition-colors"
+              className="flex-1 text-sm font-bold py-2 rounded-lg border border-primary text-primary bg-background hover:bg-primary/10 transition-colors"
             >
               Change File
             </button>

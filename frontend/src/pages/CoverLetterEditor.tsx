@@ -289,7 +289,7 @@ export default function CoverLetterEditor() {
               onChange={(e) => setContent(e.target.value)}
               disabled={regenerating}
               placeholder={regenerating ? 'Generating…' : 'Your cover letter will appear here. You can edit it directly.'}
-              className="flex-1 w-full bg-[#111] border border-border rounded-lg p-4 text-sm text-foreground leading-relaxed resize-none outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground disabled:opacity-60"
+              className="flex-1 w-full bg-card border border-border rounded-lg p-4 text-sm text-foreground leading-relaxed resize-none outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground disabled:opacity-60"
             />
             <div className="flex justify-between text-[11px] text-muted-foreground px-1">
               <span>{wordCount(content)} words</span>
@@ -299,7 +299,7 @@ export default function CoverLetterEditor() {
         </div>
 
         {/* RIGHT — Preview panel (60%) */}
-        <div className="flex-1 overflow-y-auto bg-[#0d0d0d] flex justify-center py-10 px-6">
+        <div className="flex-1 overflow-y-auto bg-muted flex justify-center py-10 px-6">
           <div className="w-full max-w-[620px] bg-white rounded-sm shadow-2xl shadow-black/60 px-12 py-10 min-h-[880px]">
 
             {/* Date */}

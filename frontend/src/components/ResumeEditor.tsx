@@ -41,7 +41,7 @@ interface StreamState {
 }
 
 const field =
-  'w-full px-2.5 py-1.5 border border-[#333] bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow placeholder:text-muted-foreground'
+  'w-full px-2.5 py-1.5 border border-border bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow placeholder:text-muted-foreground'
 const fieldSm = cn(field, 'text-xs')
 
 function newExp(): ExperienceItem {
@@ -622,7 +622,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </label>
                 <textarea
                   rows={10}
-                  className={cn(field, 'resize-none overflow-y-auto scrollbar-thin scrollbar-thumb-[#333] scrollbar-track-[#111]')}
+                  className={cn(field, 'resize-none overflow-y-auto scrollbar-thin scrollbar-thumb-[#D2D2D7] scrollbar-track-[#F5F5F7]')}
                   placeholder="A brief professional summary…"
                   value={resume.summary ?? ''}
                   onChange={(e) =>
@@ -853,7 +853,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           {/* Streaming panel */}
           {stream && (
             <div
-              className="absolute bottom-0 left-0 right-0 z-50 border border-border bg-card flex flex-col"
+              className="absolute bottom-0 left-0 right-0 z-50 border border-gray-700 bg-gray-900 flex flex-col"
               style={panelCollapsed ? undefined : { height: panelHeight }}
             >
               {/* Drag handle */}
@@ -868,7 +868,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </div>
               </div>
               {/* Progress bar */}
-              <div className="shrink-0 h-0.5 bg-secondary overflow-hidden">
+              <div className="shrink-0 h-0.5 bg-gray-700 overflow-hidden">
                 <div
                   className="h-full bg-primary ease-out"
                   style={{
@@ -908,7 +908,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   </button>
                   <button
                     onClick={() => setPanelCollapsed((c) => !c)}
-                    className="p-1 border border-border bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
+                    className="p-1 border border-gray-600 bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors"
                   >
                     {panelCollapsed ? (
                       <ChevronUp className="size-4" />
@@ -929,7 +929,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         </div>
 
         {/* Right: preview */}
-        <div className="flex-1 overflow-auto bg-[#0d0d0d] p-4 lg:p-6">
+        <div className="flex-1 overflow-auto bg-muted p-4 lg:p-6">
           <div className="flex items-center justify-between mb-4">
             <p
               className="text-xs font-bold text-primary uppercase tracking-widest"
@@ -980,7 +980,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               </label>
               <input
                 autoFocus
-                className="w-full border border-[#333] bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow"
+                className="w-full border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow"
                 placeholder="e.g. Google, Stripe, Acme Corp"
                 value={clCompany}
                 onChange={(e) => setClCompany(e.target.value)}
@@ -993,7 +993,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 Job Description <span className="text-red-400">*</span>
               </label>
               <textarea
-                className="w-full min-h-32 border border-[#333] bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
+                className="w-full min-h-32 border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
                 placeholder="Paste the job description here..."
                 value={clJobDesc}
                 onChange={(e) => setClJobDesc(e.target.value)}
@@ -1087,7 +1087,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 Job Description
               </label>
               <textarea
-                className="w-full min-h-48 border border-[#333] bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
+                className="w-full min-h-48 border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
                 placeholder="Paste the full job description here..."
                 value={jobDesc}
                 onChange={(e) => setJobDesc(e.target.value)}
@@ -1162,7 +1162,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               </label>
               <input
                 autoFocus
-                className="w-full px-3 py-2 border border-[#333] bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow"
+                className="w-full px-3 py-2 border border-border bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow"
                 value={saveTitle}
                 onChange={(e) => setSaveTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveConfirm() }}
