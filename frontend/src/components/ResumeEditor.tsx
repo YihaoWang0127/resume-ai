@@ -16,6 +16,8 @@ import {
   Mail,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import Modal from '@/components/Modal'
+import ExportMenu from '@/components/ExportMenu'
 import { cn } from '@/lib/utils'
 import type { EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
 import { enrichResume, exportResume, fromBackend, tailorResume } from '@/services/api'
@@ -485,7 +487,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             <ChevronDown className="size-3 ml-0.5" />
           </Button>
           {exportMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border py-1 min-w-[190px]">
+            <ExportMenu rounded="none" className="min-w-[190px]">
               <button
                 onClick={() => handleExport('pdf')}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary text-foreground text-left"
@@ -500,7 +502,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <FileText className="size-3.5 text-muted-foreground" />
                 Save as Word (.docx)
               </button>
-            </div>
+            </ExportMenu>
           )}
         </div>
         {currentResumeId ? (
@@ -646,7 +648,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       </span>
                       <button
                         onClick={() => removeExp(i)}
-                        className="text-muted-foreground hover:text-red-400 transition-colors"
+                        className="text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -706,7 +708,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           {exp.bullets.length > 1 && (
                             <button
                               onClick={() => removeBullet(i, bi)}
-                              className="mt-1 text-muted-foreground hover:text-red-400"
+                              className="mt-1 text-muted-foreground hover:text-destructive"
                             >
                               <X className="size-3" />
                             </button>
@@ -744,7 +746,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       </span>
                       <button
                         onClick={() => removeEdu(i)}
-                        className="text-muted-foreground hover:text-red-400"
+                        className="text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -802,7 +804,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       />
                       <button
                         onClick={() => removeSkillGroup(gi)}
-                        className="ml-2 shrink-0 text-muted-foreground hover:text-red-400"
+                        className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -822,7 +824,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           {group.items.length > 1 && (
                             <button
                               onClick={() => removeSkillItem(gi, ii)}
-                              className="text-muted-foreground hover:text-red-400"
+                              className="text-muted-foreground hover:text-destructive"
                             >
                               <X className="size-3" />
                             </button>
@@ -853,22 +855,22 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           {/* Streaming panel */}
           {stream && (
             <div
-              className="absolute bottom-0 left-0 right-0 z-50 border border-gray-700 bg-gray-900 flex flex-col"
+              className="absolute bottom-0 left-0 right-0 z-50 border-t border-border bg-background shadow-[0_-8px_24px_-12px_rgba(0,113,227,0.25)] flex flex-col"
               style={panelCollapsed ? undefined : { height: panelHeight }}
             >
               {/* Drag handle */}
               <div
                 onMouseDown={handleDragStart}
-                className="shrink-0 flex items-center justify-center h-3 cursor-ns-resize hover:bg-white/5 group"
+                className="shrink-0 flex items-center justify-center h-3 cursor-ns-resize hover:bg-foreground/5 group"
               >
                 <div className="flex flex-col gap-[3px] opacity-25 group-hover:opacity-60 transition-opacity">
-                  <div className="w-6 h-px bg-gray-400" />
-                  <div className="w-6 h-px bg-gray-400" />
-                  <div className="w-6 h-px bg-gray-400" />
+                  <div className="w-6 h-px bg-muted-foreground" />
+                  <div className="w-6 h-px bg-muted-foreground" />
+                  <div className="w-6 h-px bg-muted-foreground" />
                 </div>
               </div>
               {/* Progress bar */}
-              <div className="shrink-0 h-0.5 bg-gray-700 overflow-hidden">
+              <div className="shrink-0 h-0.5 bg-border overflow-hidden">
                 <div
                   className="h-full bg-primary ease-out"
                   style={{
@@ -886,7 +888,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       {STREAMING_MESSAGES[msgIndex]}
                     </span>
                   ) : stream.error ? (
-                    <span className="text-red-400 truncate">✗ Something went wrong</span>
+                    <span className="text-destructive truncate">✗ Something went wrong</span>
                   ) : (
                     <span className="text-primary">✓ Done — your enriched resume is ready!</span>
                   )}
@@ -902,13 +904,13 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   )}
                   <button
                     onClick={() => setStream(null)}
-                    className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-white bg-red-600 hover:bg-red-500 transition-colors"
+                    className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-destructive-foreground bg-destructive hover:bg-destructive/90 transition-colors"
                   >
                     Dismiss
                   </button>
                   <button
                     onClick={() => setPanelCollapsed((c) => !c)}
-                    className="p-1 border border-gray-600 bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors"
+                    className="p-1 border border-border bg-secondary text-muted-foreground hover:bg-secondary/70 hover:text-foreground transition-colors"
                   >
                     {panelCollapsed ? (
                       <ChevronUp className="size-4" />
@@ -920,7 +922,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               </div>
               {/* Scrollable output */}
               {!panelCollapsed && (
-                <div className="flex-1 min-h-0 overflow-y-scroll px-3 pb-3 scrollbar-thin scrollbar-thumb-[#333] scrollbar-track-[#0a0a0a]">
+                <div className="flex-1 min-h-0 overflow-y-scroll px-3 pb-3 scrollbar-thin scrollbar-thumb-[#D2D2D7] scrollbar-track-transparent">
                   <StreamingOutput text={stream.text} isStreaming={!stream.done} />
                 </div>
               )}
@@ -931,10 +933,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         {/* Right: preview */}
         <div className="flex-1 overflow-auto bg-muted p-4 lg:p-6">
           <div className="flex items-center justify-between mb-4">
-            <p
-              className="text-xs font-bold text-primary uppercase tracking-widest"
-              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-            >
+            <p className="text-xs font-bold text-primary uppercase tracking-widest font-display">
               Live Preview
             </p>
             <ChevronUp className="size-3 text-muted-foreground" />
@@ -950,14 +949,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       </div>
 
       {/* ── Cover Letter modal ──────────────────────────────────────────────── */}
-      {coverLetterOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-card border border-border w-full max-w-2xl mx-4 p-8">
+      <Modal open={coverLetterOpen}>
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h2
                   className="text-xl font-bold text-foreground uppercase tracking-wide"
-                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                 >
                   Generate Cover Letter
                 </h2>
@@ -976,7 +972,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             {/* Company Name */}
             <div className="mb-4">
               <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
-                Company Name <span className="text-red-400">*</span>
+                Company Name <span className="text-destructive">*</span>
               </label>
               <input
                 autoFocus
@@ -990,7 +986,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             {/* Job Description */}
             <div className="mb-5">
               <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
-                Job Description <span className="text-red-400">*</span>
+                Job Description <span className="text-destructive">*</span>
               </label>
               <textarea
                 className="w-full min-h-32 border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
@@ -1053,20 +1049,15 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 Generate
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Tailor modal ─────────────────────────────────────────────────────── */}
-      {tailorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-card border border-border w-full max-w-2xl mx-4 p-8">
+      <Modal open={tailorOpen}>
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h2
                   className="text-xl font-bold text-foreground uppercase tracking-wide"
-                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                 >
                   Tailor Resume for Job
                 </h2>
@@ -1134,18 +1125,13 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 Tailor Resume
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Save dialog ─────────────────────────────────────────────────────── */}
-      {saveDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-card border border-border w-full max-w-sm mx-4 p-6">
+      <Modal open={saveDialogOpen} className="max-w-sm p-6">
             <div className="flex items-start justify-between mb-4">
               <h2
                 className="text-base font-bold text-foreground uppercase tracking-wide"
-                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               >
                 Save Resume
               </h2>
@@ -1185,9 +1171,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 Save
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Save toast ───────────────────────────────────────────────────────── */}
       {saveToast && (
@@ -1196,7 +1180,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             'fixed bottom-6 right-6 z-[100] flex items-center gap-2 px-4 py-3 shadow-lg text-xs font-bold uppercase tracking-wide transition-all',
             saveToast.ok
               ? 'bg-primary text-primary-foreground'
-              : 'bg-red-600 text-white',
+              : 'bg-destructive text-destructive-foreground',
           )}
         >
           {saveToast.ok ? '✓' : '✗'} {saveToast.text}

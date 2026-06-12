@@ -1,0 +1,95 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
+import Navbar from '@/components/Navbar'
+
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+
+import { useAuth } from '@/contexts/AuthContext'
+const mockUseAuth = vi.mocked(useAuth)
+
+const signOut = vi.fn()
+const openAuthModal = vi.fn()
+
+function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
+  mockUseAuth.mockReturnValue({
+    user: null,
+    session: null,
+    loading: false,
+    isGuest: false,
+    showAuthModal: false,
+    openAuthModal,
+    closeAuthModal: vi.fn(),
+    signInWithEmail: vi.fn(),
+    signUpWithEmail: vi.fn(),
+    signInAsGuest: vi.fn(),
+    signOut,
+    ...overrides,
+  } as any)
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  setupAuth()
+})
+
+function renderNavbar() {
+  return render(<Navbar />, { wrapper: MemoryRouter })
+}
+
+describe('Navbar — signed out', () => {
+  it('shows a Sign In button', () => {
+    renderNavbar()
+    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
+  })
+
+  it('does not show a user menu', () => {
+    renderNavbar()
+    expect(screen.queryByRole('button', { name: /settings/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('Navbar — signed in', () => {
+  it('shows initials in the avatar fallback when there is no avatar image', () => {
+    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
+    renderNavbar()
+    expect(screen.getByText('JS')).toBeInTheDocument()
+  })
+
+  it('shows the display name from user_metadata.full_name', () => {
+    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
+    renderNavbar()
+    expect(screen.getByText('Jane Smith')).toBeInTheDocument()
+  })
+
+  it('falls back to the email as the display name when full_name is missing', () => {
+    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any })
+    renderNavbar()
+    expect(screen.getByText('jane@example.com')).toBeInTheDocument()
+    expect(screen.getByText('J')).toBeInTheDocument()
+  })
+
+  it('opens the user menu showing My Resumes, Settings and Sign Out', async () => {
+    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByText('Jane Smith'))
+
+    expect(screen.getByText('My Resumes')).toBeInTheDocument()
+    expect(screen.getByText('Settings')).toBeInTheDocument()
+    expect(screen.getByText('Sign Out')).toBeInTheDocument()
+  })
+
+  it('calls signOut when Sign Out is clicked', async () => {
+    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByText('Jane Smith'))
+    await user.click(screen.getByText('Sign Out'))
+
+    expect(signOut).toHaveBeenCalled()
+  })
+})

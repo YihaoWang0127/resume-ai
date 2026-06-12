@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { Download, ChevronDown, Loader2, Save, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import Navbar from '@/components/Navbar'
+import ExportMenu from '@/components/ExportMenu'
 import { generateCoverLetter, exportCoverLetter } from '@/services/api'
 import { saveCoverLetter, updateCoverLetter, getCoverLetter } from '@/services/coverLetters'
 import { cn } from '@/lib/utils'
@@ -196,8 +197,7 @@ export default function CoverLetterEditor() {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="flex-1 min-w-0 bg-transparent text-foreground font-bold text-sm uppercase tracking-widest outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors py-0.5 truncate"
-          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          className="flex-1 min-w-0 bg-transparent text-foreground font-display font-bold text-sm uppercase tracking-widest outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors py-0.5 truncate"
         />
 
         <div className="flex items-center gap-2 shrink-0">
@@ -238,7 +238,7 @@ export default function CoverLetterEditor() {
               <ChevronDown className={cn('size-3 transition-transform', exportOpen && 'rotate-180')} />
             </button>
             {exportOpen && (
-              <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-border rounded-lg py-1 shadow-lg shadow-black/40 min-w-[140px]">
+              <ExportMenu className="min-w-[140px]">
                 {(['pdf', 'docx', 'txt'] as const).map((fmt) => (
                   <button
                     key={fmt}
@@ -248,7 +248,7 @@ export default function CoverLetterEditor() {
                     {fmt.toUpperCase()}
                   </button>
                 ))}
-              </div>
+              </ExportMenu>
             )}
           </div>
         </div>
@@ -300,7 +300,7 @@ export default function CoverLetterEditor() {
 
         {/* RIGHT — Preview panel (60%) */}
         <div className="flex-1 overflow-y-auto bg-muted flex justify-center py-10 px-6">
-          <div className="w-full max-w-[620px] bg-white rounded-sm shadow-2xl shadow-black/60 px-12 py-10 min-h-[880px]">
+          <div className="w-full max-w-[620px] bg-white rounded-sm shadow-paper px-12 py-10 min-h-[880px]">
 
             {/* Date */}
             <p className="text-gray-400 text-xs mb-8 font-mono">{todayLong()}</p>

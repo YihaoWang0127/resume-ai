@@ -33,6 +33,28 @@
     --radius-xl: 0.75rem;
     --radius-2xl: 1rem;
   }
+  .dark {
+    /* Apple dark/blue theme */
+    --background: 240 6% 10%;           /* #17171A */
+    --foreground: 0 0% 98%;             /* #FAFAFA */
+    --card: 240 5% 15%;                 /* #232326 */
+    --card-foreground: 0 0% 98%;
+    --popover: 240 5% 15%;              /* #232326 */
+    --popover-foreground: 0 0% 98%;
+    --primary: 210 100% 56%;            /* #0A84FF */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4% 20%;            /* #2E2E33 */
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 4% 20%;
+    --muted-foreground: 240 3% 64%;     /* #9C9CA3 */
+    --accent: 210 100% 56%;             /* #0A84FF */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 4% 24%;               /* #39393F */
+    --input: 240 4% 24%;
+    --ring: 210 100% 56%;               /* #0A84FF */
+  }
   * {
     @apply border-border;
   }

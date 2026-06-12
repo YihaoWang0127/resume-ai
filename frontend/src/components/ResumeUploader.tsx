@@ -228,7 +228,7 @@ export default function ResumeUploader({ onParsed }: Props) {
                 e.stopPropagation()
                 upload()
               }}
-              className="flex-1 text-sm font-bold py-2 rounded-lg bg-primary text-black hover:bg-primary/90 transition-colors"
+              className="flex-1 text-sm font-bold py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               Upload Now →
             </button>

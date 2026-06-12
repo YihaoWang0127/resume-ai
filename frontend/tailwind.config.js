@@ -1,11 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+      },
       colors: {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
@@ -45,6 +49,10 @@ module.exports = {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+      },
+      boxShadow: {
+        dropdown: '0 12px 28px -8px rgba(0, 113, 227, 0.28), 0 4px 10px -4px rgba(0, 113, 227, 0.15)',
+        paper: '0 25px 60px -15px rgba(0, 113, 227, 0.25), 0 10px 25px -10px rgba(15, 23, 42, 0.08)',
       },
     },
   },

@@ -94,7 +94,7 @@ export default function ResumePreview({
 
       {/* Resume card */}
       <div
-        className="bg-white text-gray-900 shadow-md mx-auto"
+        className="bg-white text-gray-900 shadow-paper mx-auto"
         style={{
           '--accent': preset.accent,
           width: '100%',

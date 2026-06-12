@@ -7,7 +7,31 @@ import { listCoverLetters, deleteCoverLetter, type CoverLetter } from '@/service
 import { exportResume, exportCoverLetter } from '@/services/api'
 import Navbar from '@/components/Navbar'
 import ResumeUploader from '@/components/ResumeUploader'
+import Modal from '@/components/Modal'
+import ExportMenu from '@/components/ExportMenu'
+import EmptyState from '@/components/EmptyState'
 import type { ResumeSchema } from '@/types/resume'
+
+function SkeletonCards() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="rounded-xl border border-border bg-card p-5 min-h-[200px] flex flex-col animate-pulse">
+          <div className="flex-1 min-w-0 space-y-3">
+            <div className="h-4 w-3/4 bg-muted rounded" />
+            <div className="h-4 w-16 bg-muted rounded-full" />
+            <div className="h-3 w-1/2 bg-muted rounded" />
+          </div>
+          <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+            <div className="h-8 flex-1 bg-muted rounded" />
+            <div className="h-8 flex-1 bg-muted rounded" />
+            <div className="h-8 w-10 bg-muted rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const { user, loading, isGuest } = useAuth()
@@ -133,9 +157,16 @@ export default function Dashboard() {
       <main className="flex-1 px-6 py-10 max-w-5xl mx-auto w-full">
 
         {fetching ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-6 animate-spin text-primary" />
-          </div>
+          <>
+            <section className="mb-12">
+              <div className="h-7 w-40 bg-muted rounded animate-pulse mb-6" />
+              <SkeletonCards />
+            </section>
+            <section>
+              <div className="h-7 w-48 bg-muted rounded animate-pulse mb-6" />
+              <SkeletonCards />
+            </section>
+          </>
         ) : (
           <>
             {/* ── MY RESUMES ─────────────────────────────────────────────────── */}
@@ -143,7 +174,6 @@ export default function Dashboard() {
               <div className="flex items-center gap-3 mb-6">
                 <h2
                   className="text-2xl font-bold uppercase tracking-wider text-foreground"
-                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                 >
                   My Resumes
                 </h2>
@@ -153,11 +183,14 @@ export default function Dashboard() {
               </div>
 
               {resumes.length === 0 ? (
-                <p className="text-sm text-muted-foreground mb-4">
-                  No saved resumes yet. Upload one to get started.
-                </p>
-              ) : null}
-
+                <EmptyState
+                  icon={FileText}
+                  title="No resumes yet"
+                  description="Upload your existing resume and let Claude rewrite it with stronger bullet points, quantified impact, and ATS-friendly keywords."
+                  actionLabel="Upload Resume"
+                  onAction={() => setUploadModalOpen(true)}
+                />
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {resumes.map((r) => (
                   <div
@@ -197,7 +230,7 @@ export default function Dashboard() {
                         {exportOpenId === r.id && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setExportOpenId(null)} />
-                            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded py-1 shadow-lg shadow-black/40 w-44">
+                            <ExportMenu align="center" side="top" rounded="sm" className="w-44">
                               <button
                                 onClick={() => handleResumeDownload(r, 'pdf')}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-secondary text-foreground text-left whitespace-nowrap"
@@ -212,7 +245,7 @@ export default function Dashboard() {
                                 <FileText className="size-3.5 shrink-0 text-muted-foreground" />
                                 Save as Word (.docx)
                               </button>
-                            </div>
+                            </ExportMenu>
                           </>
                         )}
                       </div>
@@ -240,6 +273,7 @@ export default function Dashboard() {
                   </span>
                 </button>
               </div>
+              )}
             </section>
 
             {/* ── MY COVER LETTERS ────────────────────────────────────────────── */}
@@ -247,7 +281,6 @@ export default function Dashboard() {
               <div className="flex items-center gap-3 mb-6">
                 <h2
                   className="text-2xl font-bold uppercase tracking-wider text-foreground"
-                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                 >
                   My Cover Letters
                 </h2>
@@ -257,11 +290,14 @@ export default function Dashboard() {
               </div>
 
               {coverLetters.length === 0 ? (
-                <p className="text-sm text-muted-foreground mb-4">
-                  No cover letters yet. Open a resume and click "Cover Letter" to generate one.
-                </p>
-              ) : null}
-
+                <EmptyState
+                  icon={Mail}
+                  title="No cover letters yet"
+                  description="Generate a cover letter from one of your resumes, tailored to a specific job in seconds."
+                  actionLabel="New Cover Letter"
+                  onAction={() => setNewClStep('options')}
+                />
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {coverLetters.map((cl) => (
                   <div
@@ -304,7 +340,7 @@ export default function Dashboard() {
                         {clExportOpenId === cl.id && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setClExportOpenId(null)} />
-                            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded py-1 shadow-lg shadow-black/40 w-40">
+                            <ExportMenu align="center" side="top" rounded="sm" className="w-40">
                               {(['pdf', 'docx', 'txt'] as const).map((fmt) => (
                                 <button
                                   key={fmt}
@@ -314,7 +350,7 @@ export default function Dashboard() {
                                   {fmt.toUpperCase()}
                                 </button>
                               ))}
-                            </div>
+                            </ExportMenu>
                           </>
                         )}
                       </div>
@@ -342,19 +378,17 @@ export default function Dashboard() {
                   </span>
                 </button>
               </div>
+              )}
             </section>
           </>
         )}
       </main>
 
       {/* ── Upload resume modal ─────────────────────────────────────────────── */}
-      {uploadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-card border border-border rounded-xl w-full max-w-lg">
+      <Modal open={uploadModalOpen} overlayClassName="p-4" className="rounded-xl max-w-lg p-0">
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
               <h2
                 className="text-base font-bold text-foreground uppercase tracking-wide"
-                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               >
                 Upload Resume
               </h2>
@@ -368,23 +402,18 @@ export default function Dashboard() {
             <div className="p-6">
               <ResumeUploader onParsed={handleNewResumeParsed} />
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Delete Resume confirmation ──────────────────────────────────────── */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-card border border-border w-full max-w-sm mx-4 p-6">
+      <Modal open={!!deleteTarget} className="max-w-sm p-6">
             <h2
               className="text-base font-bold text-foreground uppercase tracking-wide mb-2"
-              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
             >
               Delete Resume
             </h2>
             <p className="text-sm text-muted-foreground mb-6">
               Are you sure you want to delete{' '}
-              <span className="text-foreground font-medium">"{deleteTarget.title}"</span>?
+              <span className="text-foreground font-medium">"{deleteTarget?.title}"</span>?
               This cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
@@ -404,14 +433,10 @@ export default function Dashboard() {
                 Delete
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── New Cover Letter modal ─────────────────────────────────────────── */}
-      {newClStep !== 'closed' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 relative">
+      <Modal open={newClStep !== 'closed'} overlayClassName="bg-black/60 px-4" className="max-w-md rounded-xl relative">
 
             {/* Close */}
             <button
@@ -428,7 +453,6 @@ export default function Dashboard() {
               <>
                 <h2
                   className="text-lg font-bold text-foreground uppercase tracking-wide mb-1"
-                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                 >
                   Create Cover Letter
                 </h2>
@@ -497,7 +521,6 @@ export default function Dashboard() {
                   </button>
                   <h2
                     className="text-lg font-bold text-foreground uppercase tracking-wide"
-                    style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                   >
                     Choose a Resume
                   </h2>
@@ -556,7 +579,6 @@ export default function Dashboard() {
                   </button>
                   <h2
                     className="text-lg font-bold text-foreground uppercase tracking-wide"
-                    style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                   >
                     Generate Cover Letter
                   </h2>
@@ -654,23 +676,18 @@ export default function Dashboard() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Delete Cover Letter confirmation ────────────────────────────────── */}
-      {clDeleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-card border border-border w-full max-w-sm mx-4 p-6">
+      <Modal open={!!clDeleteTarget} className="max-w-sm p-6">
             <h2
               className="text-base font-bold text-foreground uppercase tracking-wide mb-2"
-              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
             >
               Delete Cover Letter
             </h2>
             <p className="text-sm text-muted-foreground mb-6">
               Are you sure you want to delete{' '}
-              <span className="text-foreground font-medium">"{clDeleteTarget.title}"</span>?
+              <span className="text-foreground font-medium">"{clDeleteTarget?.title}"</span>?
               This cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
@@ -690,9 +707,7 @@ export default function Dashboard() {
                 Delete
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   )
 }

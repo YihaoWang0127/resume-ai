@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lsof -i :5173 -sTCP:LISTEN -t)",
+      "Bash(lsof -i :3000 -sTCP:LISTEN -t)",
+      "Bash(curl -s http://localhost:5173 -o /dev/null -w \"%{http_code}\\\\n\")"
+    ]
+  }
+}

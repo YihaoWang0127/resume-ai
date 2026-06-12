@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User } from 'lucide-react'
+import { FileText, ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { getInitials } from '@/lib/utils'
 
 interface Props {
   onBack?: () => void
@@ -26,6 +28,10 @@ export default function Navbar({ onBack, children }: Props) {
     return () => document.removeEventListener('mousedown', handler)
   }, [userMenuOpen])
 
+  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? ''
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined
+  const displayName = fullName.trim() || user?.email || ''
+
   return (
     <nav className="shrink-0 border-b border-border px-6 h-14 flex items-center justify-between bg-background">
       {/* Left: logo + optional back */}
@@ -38,10 +44,7 @@ export default function Navbar({ onBack, children }: Props) {
           <div className="size-7 bg-primary rounded flex items-center justify-center shrink-0">
             <FileText className="size-4 text-primary-foreground" />
           </div>
-          <span
-            className="font-bold text-sm tracking-widest uppercase text-foreground"
-            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-          >
+          <span className="font-display font-bold text-sm tracking-widest uppercase text-foreground">
             Resume AI
           </span>
         </button>
@@ -80,24 +83,32 @@ export default function Navbar({ onBack, children }: Props) {
                 onClick={() => setUserMenuOpen((o) => !o)}
                 className="flex items-center gap-2 px-3 py-1.5 border border-border hover:border-primary/50 rounded transition-colors"
               >
-                <div className="size-6 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0">
-                  <span className="text-[10px] font-bold text-primary uppercase">
-                    {user.email?.[0] ?? '?'}
-                  </span>
-                </div>
+                <Avatar size="sm" className="border border-primary/40">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
+                  <AvatarFallback className="bg-primary/20 text-[10px] font-bold text-primary uppercase">
+                    {getInitials(fullName, user.email)}
+                  </AvatarFallback>
+                </Avatar>
                 <span className="hidden sm:block text-xs text-muted-foreground truncate max-w-[160px]">
-                  {user.email}
+                  {displayName}
                 </span>
                 <ChevronDown className={`size-3 text-muted-foreground transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-primary/30 rounded-lg py-1 min-w-[180px] shadow-lg shadow-black/40">
+                <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-primary/30 rounded-lg py-1 min-w-[180px] shadow-dropdown">
                   <button
                     onClick={() => { setUserMenuOpen(false); navigate('/dashboard') }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
                   >
                     <LayoutDashboard className="size-3.5" />
                     My Resumes
+                  </button>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/settings') }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                  >
+                    <Settings className="size-3.5" />
+                    Settings
                   </button>
                   <div className="h-px bg-border mx-2 my-1" />
                   <button

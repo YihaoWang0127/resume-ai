@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { X, FileText, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import Modal from '@/components/Modal'
 import { cn } from '@/lib/utils'
 
 type Tab = 'signin' | 'signup'
@@ -42,8 +43,7 @@ export default function AuthModal() {
   // ── Already authenticated non-guest user ───────────────────────────────────
   if (user && !isGuest) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-        <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 relative">
+      <Modal open={showAuthModal} overlayClassName="bg-black/60 px-4" className="max-w-md rounded-xl relative">
           <Logo />
           <p className="text-foreground text-lg font-semibold mb-1">You're already signed in</p>
           <p className="text-sm text-muted-foreground mb-6">{user.email}</p>
@@ -63,8 +63,7 @@ export default function AuthModal() {
               Sign Out
             </button>
           </div>
-        </div>
-      </div>
+      </Modal>
     )
   }
 
@@ -138,8 +137,7 @@ export default function AuthModal() {
   const submitDisabled = loading || (emailValidated && email !== '' && !emailIsValid)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 relative">
+    <Modal open={showAuthModal} overlayClassName="bg-black/60 px-4" className="max-w-md rounded-xl relative">
         {user && (
           <button
             type="button"
@@ -156,7 +154,7 @@ export default function AuthModal() {
         {/* ── Sign-up success card ─────────────────────────────────────── */}
         {success ? (
           <div className="flex flex-col items-center text-center py-2">
-            <CheckCircle className="size-14 text-primary mb-4" strokeWidth={1.5} />
+            <CheckCircle className="size-14 text-primary mb-4" />
             <h2 className="text-foreground text-xl font-bold mb-3">Check your email!</h2>
             <p className="text-muted-foreground text-sm mb-1">We sent a verification link to:</p>
             <p className="text-foreground text-sm font-medium mb-4 break-all">{success}</p>
@@ -247,8 +245,7 @@ export default function AuthModal() {
             </button>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -258,10 +255,7 @@ function Logo() {
       <div className="size-6 bg-primary rounded flex items-center justify-center">
         <FileText className="size-3.5 text-primary-foreground" />
       </div>
-      <span
-        className="font-bold text-xs tracking-widest uppercase text-foreground"
-        style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-      >
+      <span className="font-display font-bold text-xs tracking-widest uppercase text-foreground">
         Resume AI
       </span>
     </div>

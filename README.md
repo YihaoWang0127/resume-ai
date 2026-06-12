@@ -33,13 +33,22 @@
 - **Native Save As** — File System Access API for choosing location
 
 ### UI/UX
-- **StockX Theme** — dark background + green accent (#00FF87)
+- **Apple Light/Blue Theme** — `#FBFBFD` background, `#0071E3` accent, Inter font
+- **Light / Dark / System Mode** — toggle in Settings, pre-paint script prevents flash-of-white on reload
 - **File Preview** — confirm file before uploading
 - **Cancel Upload** — abort in progress
 - **Smart Errors** — amber warnings vs red errors
 - **Progress Hints** — rotating messages during AI processing
 - **Resizable Panels** — drag AI output panel to any size
 - **Error Pages** — custom 404/500 with ErrorBoundary
+
+### Settings & Personalization
+- **Settings Page** (`/settings`) — sidebar with Profile / AI Preferences / Appearance / Security tabs; tabs stay mounted so edits persist while switching and unsaved changes prompt before leaving
+- **Profile** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only
+- **AI Preferences** — tone, writing style, target industry, job level, and ATS mode, persisted to `user_preferences` and used to steer enrichment/tailoring/cover-letter prompts
+- **Appearance** — Light / Dark / System theme via `next-themes`
+- **Security** — change password (re-authenticates first) and permanently delete account + all data via a `DELETE`-to-confirm modal
+- **Live Navbar Sync** — avatar and display name in the navbar update immediately after a profile edit
 
 ---
 
@@ -64,7 +73,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 135+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 250+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -114,7 +123,28 @@ CREATE TABLE cover_letters (
 
 -- Both tables have Row Level Security enabled
 -- Users can only access their own data
+
+-- User Preferences table (Settings → AI Preferences)
+CREATE TABLE user_preferences (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  tone TEXT NOT NULL DEFAULT 'professional'
+    CHECK (tone IN ('professional', 'conversational', 'executive')),
+  writing_style TEXT NOT NULL DEFAULT 'concise'
+    CHECK (writing_style IN ('concise', 'detailed', 'keyword-optimized')),
+  industry TEXT NOT NULL DEFAULT '',
+  job_level TEXT NOT NULL DEFAULT 'mid'
+    CHECK (job_level IN ('junior', 'mid', 'senior', 'executive')),
+  ats_mode BOOLEAN NOT NULL DEFAULT false,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+-- RLS enabled — users can only read/write their own row
 ```
+
+**Storage:** `avatars` bucket (public read, owner-only write/update/delete by `user_id` folder) for Settings → Profile avatar uploads.
+
+**RPC:** `delete_user_account()` — `SECURITY DEFINER` function called from Settings → Security → Delete Account. Cascades through `cover_letters`, `resumes`, and `user_preferences`, then removes the `auth.users` row.
+
+See `supabase/migrations/20260611_user_preferences.sql` for the full migration.
 
 ---
 
@@ -127,27 +157,40 @@ resume-ai/
 │       ├── components/
 │       │   ├── AuthModal.tsx          # auth overlay
 │       │   ├── ErrorBoundary.tsx      # runtime error catch
+│       │   ├── Modal.tsx              # generic centered overlay (used by Settings)
+│       │   ├── Navbar.tsx             # top nav — avatar/display name, user menu
 │       │   ├── ResumeUploader.tsx     # drag & drop + preview
 │       │   ├── ResumeEditor.tsx       # editor + save + cover letter modal
 │       │   ├── ResumePreview.tsx      # live preview + style switcher
-│       │   └── StreamingOutput.tsx    # AI streaming display
+│       │   ├── StreamingOutput.tsx    # AI streaming display
+│       │   └── settings/
+│       │       ├── SettingsSidebar.tsx       # tab nav (mobile + desktop)
+│       │       ├── ProfileSettings.tsx       # display name + avatar upload
+│       │       ├── AIPreferencesSettings.tsx # tone/style/industry/level/ATS
+│       │       ├── AppearanceSettings.tsx    # Light/Dark/System theme
+│       │       └── SecuritySettings.tsx      # password change + delete account
 │       ├── contexts/AuthContext.tsx    # Supabase auth provider
-│       ├── lib/supabase.ts            # Supabase client
+│       ├── lib/
+│       │   ├── supabase.ts            # Supabase client
+│       │   └── utils.ts               # cn(), getInitials()
 │       ├── pages/
 │       │   ├── Home.tsx               # landing page
 │       │   ├── Editor.tsx             # resume editor
 │       │   ├── Dashboard.tsx          # saved resumes + cover letters
 │       │   ├── CoverLetterEditor.tsx  # cover letter editor
+│       │   ├── Settings.tsx           # /settings — profile/AI/appearance/security
 │       │   ├── NotFound.tsx           # 404
 │       │   └── ServerError.tsx        # 500
 │       ├── services/
 │       │   ├── api.ts                 # FastAPI calls
 │       │   ├── resumes.ts             # Supabase resume CRUD
-│       │   └── coverLetters.ts        # Supabase cover letter CRUD
+│       │   ├── coverLetters.ts        # Supabase cover letter CRUD
+│       │   └── preferences.ts         # Supabase user_preferences CRUD
 │       ├── types/
 │       │   ├── resume.ts
-│       │   └── coverLetter.ts
-│       └── __tests__/                 # 94+ frontend tests
+│       │   ├── coverLetter.ts
+│       │   └── preferences.ts
+│       └── __tests__/                 # 200+ frontend tests
 │
 ├── backend/
 │   └── app/
@@ -215,8 +258,8 @@ Every `git push` → auto-deploys both.
 ## Testing
 
 ```bash
-cd backend && pytest -v        # 42+ backend tests
-cd frontend && npm test        # 94+ frontend tests
+cd backend && pytest -v        # 50+ backend tests
+cd frontend && npm test         # 200+ frontend tests
 ```
 
 ---
@@ -245,7 +288,9 @@ cd frontend && npm test        # 94+ frontend tests
 - [x] Save to database (resumes + cover letters)
 - [x] Dashboard with CRUD
 - [x] Error pages (404/500)
-- [x] 135+ automated tests
+- [x] User settings — profile, AI preferences, appearance, security
+- [x] Dark mode (Light/Dark/System) with no-flash reload
+- [x] 250+ automated tests
 - [ ] Google OAuth sign-in
 - [ ] ATS keyword scoring
 - [ ] Mobile responsive editor

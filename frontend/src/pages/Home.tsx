@@ -43,8 +43,14 @@ export default function Home() {
       <Navbar />
 
       {/* Hero */}
-      <main className="flex-1 px-6 pt-10">
-        <div className="w-full max-w-2xl mx-auto">
+      <main className="relative flex-1 px-6 pt-10 overflow-hidden">
+        {/* Ambient glow */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute left-1/2 top-[-220px] -translate-x-1/2 w-[760px] h-[760px] rounded-full bg-primary/10 blur-[120px]" />
+          <div className="absolute right-[-100px] top-[160px] w-[320px] h-[320px] rounded-full bg-primary/[0.06] blur-[100px]" />
+        </div>
+
+        <div className="relative w-full max-w-2xl mx-auto">
 
           {/* Headline + Subtitle */}
           <div className="text-center">
@@ -56,7 +62,7 @@ export default function Home() {
               className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-none mt-4"
             >
               <span className="block text-foreground uppercase">Your Resume.</span>
-              <span className="block text-primary uppercase">Elevated.</span>
+              <span className="block text-primary uppercase">Enhanced by AI.</span>
             </h1>
             <p className="text-sm text-muted-foreground mt-4">
               AI-powered resume enrichment, tailoring, and export — in seconds.
@@ -90,7 +96,7 @@ export default function Home() {
                         animation: isLeft ? 'chipFadeInLeft 0.15s ease' : 'chipFadeInRight 0.15s ease',
                         ...popupVStyle,
                       }}
-                      className={`absolute z-10 w-56 bg-card border border-border rounded-lg p-3 text-sm text-primary shadow-md ${
+                      className={`absolute z-10 w-56 bg-card border border-border rounded-lg p-3 text-sm text-primary shadow-dropdown ${
                         isLeft ? 'right-full mr-1' : 'left-full ml-1'
                       }`}
                     >
@@ -127,6 +133,19 @@ export default function Home() {
 
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="shrink-0 border-t border-border px-6 py-6">
+        <div className="max-w-2xl mx-auto flex items-center justify-center gap-3 text-xs text-muted-foreground">
+          <p className="flex items-center gap-1.5">
+            <span>© 2026 Yihao Wang. Built with Claude.</span>
+            <span className="text-border">·</span>
+            <a href="mailto:yihaowang0127@gmail.com" className="hover:text-primary transition-colors">
+              yihaowang0127@gmail.com
+            </a>
+          </p>
+        </div>
+      </footer>
 
       <style>{`@keyframes chipFadeInLeft { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } } @keyframes chipFadeInRight { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }`}</style>
     </div>
