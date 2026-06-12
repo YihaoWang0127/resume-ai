@@ -104,6 +104,7 @@ export default function ProfileSettings({ onDirtyChange }: Props) {
               type="button"
               variant="outline"
               size="sm"
+              className="min-h-[44px]"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
             >
@@ -136,7 +137,7 @@ export default function ProfileSettings({ onDirtyChange }: Props) {
       </CardContent>
 
       <CardFooter>
-        <Button onClick={handleSave} disabled={saving || displayName === initialName}>
+        <Button onClick={handleSave} disabled={saving || displayName === initialName} className="min-h-[44px]">
           {saving && <Loader2 className="size-3.5 animate-spin" />}
           Save Changes
         </Button>

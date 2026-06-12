@@ -142,11 +142,11 @@ describe('Dashboard — rendering', () => {
     expect(newResumeCard).toBeInTheDocument()
   })
 
-  it('shows a loading spinner while fetching', () => {
+  it('shows skeleton placeholders while fetching', () => {
     mockListResumes.mockReturnValue(new Promise(() => {}) as any)
     renderDashboard()
-    const svg = document.querySelector('.animate-spin')
-    expect(svg).toBeTruthy()
+    const skeleton = document.querySelector('.animate-pulse')
+    expect(skeleton).toBeTruthy()
   })
 
   it('renders the "My Cover Letters" heading', async () => {

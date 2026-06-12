@@ -60,16 +60,16 @@ export default function ResumePreview({
   ].filter(Boolean)
 
   return (
-    <div>
+    <div className="w-full">
       {/* Style switcher */}
       {onIndustryChange && (
-        <div className="flex items-center gap-2 mb-3 flex-wrap lg:flex-nowrap overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 mb-3 flex-nowrap overflow-x-auto scrollbar-none pb-1">
           <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest shrink-0">Style:</span>
           {STYLE_OPTIONS.map((opt) => {
             const isActive = industry === opt.id
             const isDetected = detectedIndustry === opt.id
             return (
-              <div key={opt.id} className="flex items-center gap-1">
+              <div key={opt.id} className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => onIndustryChange(opt.id)}
                   className={cn(
@@ -140,7 +140,7 @@ export default function ResumePreview({
               {experience.map((exp: ExperienceItem, i: number) => (
                 <div key={i}>
                   <div className="flex justify-between items-baseline gap-2">
-                    <span className="font-bold">
+                    <span className="font-bold min-w-0">
                       {exp.title || <em className="text-gray-400 font-normal">Title</em>}
                     </span>
                     <span className="text-gray-500 whitespace-nowrap shrink-0" style={{ fontSize: '8.5pt' }}>
@@ -173,7 +173,7 @@ export default function ResumePreview({
               {education.map((edu: EducationItem, i: number) => (
                 <div key={i}>
                   <div className="flex justify-between items-baseline gap-2">
-                    <span className="font-bold">{edu.institution}</span>
+                    <span className="font-bold min-w-0">{edu.institution}</span>
                     <span className="text-gray-500 whitespace-nowrap shrink-0" style={{ fontSize: '8.5pt' }}>
                       {edu.graduationYear}
                     </span>

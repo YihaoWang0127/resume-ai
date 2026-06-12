@@ -51,14 +51,14 @@ export default function AuthModal() {
             <button
               type="button"
               onClick={closeAuthModal}
-              className="flex-1 py-3 bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors"
+              className="flex-1 py-3 min-h-[44px] bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors"
             >
               Continue
             </button>
             <button
               type="button"
               onClick={async () => { await signOut(); closeAuthModal() }}
-              className="flex-1 py-3 bg-background border border-border text-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-secondary transition-colors"
+              className="flex-1 py-3 min-h-[44px] bg-background border border-border text-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-secondary transition-colors"
             >
               Sign Out
             </button>
@@ -142,7 +142,7 @@ export default function AuthModal() {
           <button
             type="button"
             onClick={closeAuthModal}
-            className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute top-4 right-4 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close"
           >
             <X className="size-4" />
@@ -164,7 +164,7 @@ export default function AuthModal() {
             <button
               type="button"
               onClick={closeAuthModal}
-              className="w-full py-3 bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors"
+              className="w-full py-3 min-h-[44px] bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors"
             >
               OK, GOT IT
             </button>
@@ -179,7 +179,7 @@ export default function AuthModal() {
                   type="button"
                   onClick={() => switchTab(t)}
                   className={cn(
-                    'flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors',
+                    'flex-1 py-2.5 min-h-[44px] text-xs font-bold uppercase tracking-widest transition-colors',
                     tab === t
                       ? 'text-primary border-b-2 border-primary'
                       : 'text-muted-foreground hover:text-foreground',
@@ -221,7 +221,7 @@ export default function AuthModal() {
               <button
                 type="submit"
                 disabled={submitDisabled}
-                className="w-full py-3 bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full py-3 min-h-[44px] bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? '...' : tab === 'signin' ? 'Sign In' : 'Create Account'}
               </button>
@@ -239,7 +239,7 @@ export default function AuthModal() {
               type="button"
               onClick={handleGuest}
               disabled={loading}
-              className="w-full py-3 bg-background border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-3 min-h-[44px] bg-background border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Continue as Guest
             </button>

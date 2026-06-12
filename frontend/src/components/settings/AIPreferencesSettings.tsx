@@ -129,7 +129,7 @@ export default function AIPreferencesSettings({ onDirtyChange }: Props) {
         <div className="space-y-1.5">
           <Label htmlFor="tone">Tone</Label>
           <Select value={prefs.tone} onValueChange={(value) => update('tone', value as Tone)}>
-            <SelectTrigger id="tone" className="w-full">
+            <SelectTrigger id="tone" className="w-full min-h-[44px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -148,7 +148,7 @@ export default function AIPreferencesSettings({ onDirtyChange }: Props) {
             value={prefs.writing_style}
             onValueChange={(value) => update('writing_style', value as WritingStyle)}
           >
-            <SelectTrigger id="writing-style" className="w-full">
+            <SelectTrigger id="writing-style" className="w-full min-h-[44px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -174,7 +174,7 @@ export default function AIPreferencesSettings({ onDirtyChange }: Props) {
         <div className="space-y-1.5">
           <Label htmlFor="job-level">Job Level</Label>
           <Select value={prefs.job_level} onValueChange={(value) => update('job_level', value as JobLevel)}>
-            <SelectTrigger id="job-level" className="w-full">
+            <SelectTrigger id="job-level" className="w-full min-h-[44px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -201,7 +201,7 @@ export default function AIPreferencesSettings({ onDirtyChange }: Props) {
       </CardContent>
 
       <CardFooter>
-        <Button onClick={handleSave} disabled={saving || !isDirty}>
+        <Button onClick={handleSave} disabled={saving || !isDirty} className="min-h-[44px]">
           {saving && <Loader2 className="size-3.5 animate-spin" />}
           Save Changes
         </Button>

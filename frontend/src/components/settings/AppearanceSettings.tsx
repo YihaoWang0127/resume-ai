@@ -30,7 +30,7 @@ export default function AppearanceSettings() {
               type="button"
               onClick={() => setTheme(value)}
               className={cn(
-                'flex flex-col items-center gap-2 rounded-xl border px-4 py-5 text-sm font-medium transition-colors',
+                'flex flex-col items-center gap-2 rounded-xl border px-4 py-5 min-h-[44px] text-sm font-medium transition-colors',
                 mounted && theme === value
                   ? 'border-primary bg-primary/10 text-primary'
                   : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',

@@ -86,6 +86,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [msgIndex, setMsgIndex] = useState(0)
   const [streamProgress, setStreamProgress] = useState(0)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [mobileViewTab, setMobileViewTab] = useState<'edit' | 'preview'>('edit')
   const [selectedIndustry, setSelectedIndustry] = useState<string>(initialResume.detectedIndustry ?? 'general')
   const [saveToast, setSaveToast] = useState<{ text: string; ok: boolean } | null>(null)
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(initialResumeId ?? null)
@@ -157,6 +158,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     accumRef.current = ''
     setStream({ text: '', done: false, error: null })
     setPanelCollapsed(false)
+    setMobileViewTab('edit')
     setStreamLoading(true)
     try {
       const readable = await getStream()
@@ -549,8 +551,40 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
       {/* ── main ────────────────────────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+        {/* Mobile Edit / Preview toggle */}
+        <div className="md:hidden shrink-0 border-b border-border flex bg-background">
+          <button
+            type="button"
+            onClick={() => setMobileViewTab('edit')}
+            className={cn(
+              'flex-1 min-h-[44px] py-2.5 text-xs font-bold uppercase tracking-wider transition-colors',
+              mobileViewTab === 'edit'
+                ? 'text-foreground border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileViewTab('preview')}
+            className={cn(
+              'flex-1 min-h-[44px] py-2.5 text-xs font-bold uppercase tracking-wider transition-colors',
+              mobileViewTab === 'preview'
+                ? 'text-foreground border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Preview
+          </button>
+        </div>
+
         {/* Left: form */}
-        <div className="relative w-full lg:w-[420px] shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-border overflow-hidden bg-card h-[55vh] lg:h-auto">
+        <div className={cn(
+          'relative w-full lg:w-[420px] shrink-0 flex-col border-b lg:border-b-0 lg:border-r border-border overflow-hidden bg-card h-[55vh] lg:h-auto',
+          mobileViewTab === 'edit' ? 'flex' : 'hidden',
+          'md:flex',
+        )}>
           {/* Metadata */}
           <div className="shrink-0 border-b border-border p-4 space-y-2">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
@@ -931,7 +965,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         </div>
 
         {/* Right: preview */}
-        <div className="flex-1 overflow-auto bg-muted p-4 lg:p-6">
+        <div className={cn(
+          'flex-1 overflow-auto bg-muted p-4 lg:p-6',
+          mobileViewTab === 'preview' ? 'block' : 'hidden',
+          'md:block',
+        )}>
           <div className="flex items-center justify-between mb-4">
             <p className="text-xs font-bold text-primary uppercase tracking-widest font-display">
               Live Preview

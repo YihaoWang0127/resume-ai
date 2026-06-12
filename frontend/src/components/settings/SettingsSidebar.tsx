@@ -26,7 +26,7 @@ export default function SettingsSidebar({ activeTab, onChange }: Props) {
             type="button"
             onClick={() => onChange(id)}
             className={cn(
-              'flex shrink-0 items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors',
+              'flex shrink-0 items-center gap-2 px-4 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors',
               activeTab === id
                 ? 'bg-primary text-primary-foreground'
                 : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',

@@ -52,6 +52,7 @@ export default function CoverLetterEditor() {
   const [savedFlash, setSavedFlash] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit')
   const exportRef = useRef<HTMLDivElement>(null)
   const autoGenRef = useRef(false)
 
@@ -193,21 +194,21 @@ export default function CoverLetterEditor() {
       <Navbar onBack={() => navigate(state.from ?? '/dashboard')} />
 
       {/* ── Header bar ── */}
-      <div className="shrink-0 border-b border-border px-6 py-3 flex items-center gap-4 bg-background">
+      <div className="shrink-0 border-b border-border px-6 py-3 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 bg-background">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="flex-1 min-w-0 bg-transparent text-foreground font-display font-bold text-sm uppercase tracking-widest outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors py-0.5 truncate"
+          className="w-full md:flex-1 md:min-w-0 min-h-[44px] md:min-h-0 bg-transparent text-foreground font-display font-bold text-sm uppercase tracking-widest outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors py-0.5 truncate"
         />
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto md:shrink-0">
           {/* Regenerate */}
           <button
             type="button"
             onClick={handleRegenerate}
             disabled={!canRegenerate || regenerating}
             title={canRegenerate ? 'Regenerate with current tone' : 'Resume or job description unavailable'}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground border border-border hover:border-primary/50 hover:text-foreground rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 min-h-[44px] md:min-h-0 w-full md:w-auto text-xs font-bold uppercase tracking-wider text-muted-foreground border border-border hover:border-primary/50 hover:text-foreground rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <RefreshCw className={cn('size-3.5', regenerating && 'animate-spin')} />
             {regenerating ? 'Regenerating…' : 'Regenerate'}
@@ -218,7 +219,7 @@ export default function CoverLetterEditor() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-primary border border-primary/50 hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 min-h-[44px] md:min-h-0 w-full md:w-auto text-xs font-bold uppercase tracking-wider text-primary border border-primary/50 hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
           >
             {saving
               ? <Loader2 className="size-3.5 animate-spin" />
@@ -227,23 +228,23 @@ export default function CoverLetterEditor() {
           </button>
 
           {/* Export dropdown */}
-          <div ref={exportRef} className="relative">
+          <div ref={exportRef} className="relative w-full md:w-auto">
             <button
               type="button"
               onClick={() => setExportOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 rounded transition-colors"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 min-h-[44px] md:min-h-0 w-full md:w-auto text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 rounded transition-colors"
             >
               <Download className="size-3.5" />
               Export
               <ChevronDown className={cn('size-3 transition-transform', exportOpen && 'rotate-180')} />
             </button>
             {exportOpen && (
-              <ExportMenu className="min-w-[140px]">
+              <ExportMenu className="min-w-[140px] w-full md:w-auto">
                 {(['pdf', 'docx', 'txt'] as const).map((fmt) => (
                   <button
                     key={fmt}
                     onClick={() => handleExport(fmt)}
-                    className="w-full px-4 py-2 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-secondary text-left"
+                    className="w-full px-4 py-2 min-h-[44px] md:min-h-0 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-secondary text-left"
                   >
                     {fmt.toUpperCase()}
                   </button>
@@ -254,11 +255,43 @@ export default function CoverLetterEditor() {
         </div>
       </div>
 
+      {/* Mobile Edit / Preview toggle */}
+      <div className="md:hidden shrink-0 border-b border-border flex bg-background">
+        <button
+          type="button"
+          onClick={() => setMobileTab('edit')}
+          className={cn(
+            'flex-1 min-h-[44px] py-2.5 text-xs font-bold uppercase tracking-wider transition-colors',
+            mobileTab === 'edit'
+              ? 'text-foreground border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('preview')}
+          className={cn(
+            'flex-1 min-h-[44px] py-2.5 text-xs font-bold uppercase tracking-wider transition-colors',
+            mobileTab === 'preview'
+              ? 'text-foreground border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          Preview
+        </button>
+      </div>
+
       {/* ── Two-panel layout ── */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
         {/* LEFT — Edit panel (40%) */}
-        <div className="w-[40%] shrink-0 flex flex-col border-r border-border overflow-hidden">
+        <div className={cn(
+          'flex-col overflow-hidden border-border',
+          mobileTab === 'edit' ? 'flex flex-1 w-full' : 'hidden',
+          'md:flex md:flex-none md:w-[40%] md:border-r',
+        )}>
 
           {/* Tone selector */}
           <div className="shrink-0 px-4 py-2.5 border-b border-border flex items-center gap-2 flex-wrap">
@@ -271,7 +304,7 @@ export default function CoverLetterEditor() {
                 type="button"
                 onClick={() => setTone(t)}
                 className={cn(
-                  'px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-colors',
+                  'flex items-center justify-center px-2.5 py-1 min-h-[44px] md:min-h-0 text-[10px] font-bold uppercase tracking-wider rounded transition-colors',
                   tone === t
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground border border-border hover:border-primary/50 hover:text-foreground',
@@ -299,7 +332,11 @@ export default function CoverLetterEditor() {
         </div>
 
         {/* RIGHT — Preview panel (60%) */}
-        <div className="flex-1 overflow-y-auto bg-muted flex justify-center py-10 px-6">
+        <div className={cn(
+          'flex-1 overflow-y-auto bg-muted justify-center py-10 px-6 w-full',
+          mobileTab === 'preview' ? 'flex' : 'hidden',
+          'md:flex',
+        )}>
           <div className="w-full max-w-[620px] bg-white rounded-sm shadow-paper px-12 py-10 min-h-[880px]">
 
             {/* Date */}

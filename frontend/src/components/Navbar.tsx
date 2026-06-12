@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings } from 'lucide-react'
+import { FileText, ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings, Menu, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { getInitials } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
 
 interface Props {
   onBack?: () => void
@@ -15,6 +15,7 @@ export default function Navbar({ onBack, children }: Props) {
   const { user, loading, isGuest, signOut, openAuthModal } = useAuth()
   const navigate = useNavigate()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function Navbar({ onBack, children }: Props) {
   const displayName = fullName.trim() || user?.email || ''
 
   return (
-    <nav className="shrink-0 border-b border-border px-6 h-14 flex items-center justify-between bg-background">
+    <nav className="relative shrink-0 border-b border-border px-6 h-14 flex items-center justify-between bg-background">
       {/* Left: logo + optional back */}
       <div className="flex items-center gap-3">
         <button
@@ -65,7 +66,18 @@ export default function Navbar({ onBack, children }: Props) {
 
       {/* Right: action slot + user area */}
       <div className="flex items-center gap-2">
-        {children}
+        {children && (
+          <div
+            className={cn(
+              'items-center gap-2 md:flex md:static md:inset-x-auto md:border-0 md:px-0 md:py-0 md:bg-transparent md:shadow-none md:w-auto md:flex-row',
+              mobileMenuOpen
+                ? 'flex flex-col absolute top-full inset-x-0 z-40 border-b border-border bg-background px-6 py-3 shadow-dropdown'
+                : 'hidden'
+            )}
+          >
+            {children}
+          </div>
+        )}
         {!loading && (
           isGuest || !user ? (
             <button
@@ -122,6 +134,17 @@ export default function Navbar({ onBack, children }: Props) {
               )}
             </div>
           ) : null
+        )}
+        {children && (
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
+            className="md:hidden flex items-center justify-center min-h-[44px] min-w-[44px] text-foreground hover:text-primary transition-colors"
+          >
+            {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
         )}
       </div>
     </nav>

@@ -117,6 +117,7 @@ export default function SecuritySettings() {
             <Button
               onClick={handleChangePassword}
               disabled={changing || !currentPassword || !newPassword || !confirmPassword}
+              className="min-h-[44px]"
             >
               {changing && <Loader2 className="size-3.5 animate-spin" />}
               Update Password
@@ -137,7 +138,7 @@ export default function SecuritySettings() {
           </p>
         </CardContent>
         <CardFooter>
-          <Button variant="destructive" onClick={() => setDeleteModalOpen(true)}>
+          <Button variant="destructive" onClick={() => setDeleteModalOpen(true)} className="min-h-[44px]">
             Delete Account
           </Button>
         </CardFooter>
@@ -162,12 +163,12 @@ export default function SecuritySettings() {
           autoFocus
         />
         <div className="flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={closeDeleteModal} disabled={deleting}>
+          <Button variant="outline" className="flex-1 min-h-[44px]" onClick={closeDeleteModal} disabled={deleting}>
             Cancel
           </Button>
           <Button
             variant="destructive"
-            className="flex-1"
+            className="flex-1 min-h-[44px]"
             onClick={handleDeleteAccount}
             disabled={confirmText !== 'DELETE' || deleting}
           >

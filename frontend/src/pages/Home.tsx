@@ -39,7 +39,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       <Navbar />
 
       {/* Hero */}
@@ -74,13 +74,13 @@ export default function Home() {
             {FEATURES.map((feature, i) => {
               const isLeft = i % 2 === 0
               const row = Math.floor(i / 2)
-              const popupVStyle: React.CSSProperties = row === 0
-                ? { top: 0 }
+              const popupVClass = row === 0
+                ? 'md:top-0'
                 : row === 1
-                ? { top: '-25%' }
+                ? 'md:top-[-25%]'
                 : row === 2
-                ? { bottom: '-25%' }
-                : { bottom: 0 }
+                ? 'md:bottom-[-25%]'
+                : 'md:bottom-0'
               const arrowV: React.CSSProperties = row < 2 ? { top: '10px' } : { bottom: '10px' }
               return (
                 <div key={feature.label} className="relative">
@@ -91,28 +91,36 @@ export default function Home() {
                     ✦ {feature.label}
                   </button>
                   {expandedFeature === i && (
-                    <div
-                      style={{
-                        animation: isLeft ? 'chipFadeInLeft 0.15s ease' : 'chipFadeInRight 0.15s ease',
-                        ...popupVStyle,
-                      }}
-                      className={`absolute z-10 w-56 bg-card border border-border rounded-lg p-3 text-sm text-primary shadow-dropdown ${
-                        isLeft ? 'right-full mr-1' : 'left-full ml-1'
-                      }`}
-                    >
-                      {isLeft ? (
-                        <>
-                          <div style={{ position: 'absolute', right: '-9px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '8px solid hsl(var(--border))' }} />
-                          <div style={{ position: 'absolute', right: '-7px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '8px solid hsl(var(--card))' }} />
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ position: 'absolute', left: '-9px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderRight: '8px solid hsl(var(--border))' }} />
-                          <div style={{ position: 'absolute', left: '-7px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderRight: '8px solid hsl(var(--card))' }} />
-                        </>
-                      )}
-                      {feature.desc}
-                    </div>
+                    <>
+                      {/* Mobile backdrop */}
+                      <div
+                        className="fixed inset-0 z-40 bg-black/30 md:hidden"
+                        onClick={() => setExpandedFeature(null)}
+                      />
+                      <div
+                        style={{
+                          animation: isLeft ? 'chipFadeInLeft 0.15s ease' : 'chipFadeInRight 0.15s ease',
+                        }}
+                        className={`fixed inset-x-4 bottom-4 z-50 max-w-lg mx-auto max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-card p-4 text-sm text-primary shadow-dropdown md:absolute md:inset-x-auto md:bottom-auto md:z-10 md:mx-0 md:w-56 md:max-h-none md:max-w-none md:overflow-visible md:p-3 ${popupVClass} ${
+                          isLeft ? 'md:right-full md:mr-1' : 'md:left-full md:ml-1'
+                        }`}
+                      >
+                        <div className="hidden md:block">
+                          {isLeft ? (
+                            <>
+                              <div style={{ position: 'absolute', right: '-9px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '8px solid hsl(var(--border))' }} />
+                              <div style={{ position: 'absolute', right: '-7px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '8px solid hsl(var(--card))' }} />
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ position: 'absolute', left: '-9px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderRight: '8px solid hsl(var(--border))' }} />
+                              <div style={{ position: 'absolute', left: '-7px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderRight: '8px solid hsl(var(--card))' }} />
+                            </>
+                          )}
+                        </div>
+                        {feature.desc}
+                      </div>
+                    </>
                   )}
                 </div>
               )
