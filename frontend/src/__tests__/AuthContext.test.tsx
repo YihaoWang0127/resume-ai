@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
@@ -11,6 +11,7 @@ vi.mock('@/lib/supabase', () => ({
       signInWithPassword: vi.fn(),
       signUp: vi.fn(),
       signInAnonymously: vi.fn(),
+      signInWithOAuth: vi.fn(),
       signOut: vi.fn(),
       resend: vi.fn(),
     },
@@ -120,6 +121,31 @@ describe('AuthContext — auth operations', () => {
     })
 
     expect(mockAuth.signInAnonymously).toHaveBeenCalled()
+  })
+
+  it('signInWithGoogle calls supabase.auth.signInWithOAuth with the google provider and a redirectTo option', async () => {
+    mockAuth.signInWithOAuth.mockResolvedValue({ error: null } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.signInWithGoogle()
+    })
+
+    expect(mockAuth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/` },
+    })
+  })
+
+  it('signInWithGoogle throws when supabase returns an error', async () => {
+    mockAuth.signInWithOAuth.mockResolvedValue({ error: new Error('OAuth failed') } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(
+      act(async () => { await result.current.signInWithGoogle() })
+    ).rejects.toThrow('OAuth failed')
   })
 
   it('signOut calls supabase.auth.signOut', async () => {
@@ -344,5 +370,79 @@ describe('AuthContext — unverified session gating', () => {
     expect(mockAuth.signOut).not.toHaveBeenCalled()
     expect(result.current.user).toEqual(guestUser)
     expect(toast.error).not.toHaveBeenCalledWith(unverifiedToast)
+  })
+})
+
+// ── OAuth redirect error handling ───────────────────────────────────────────
+
+describe('AuthContext — OAuth redirect error on mount', () => {
+  const originalLocation = window.location
+
+  function setLocation({ search = '', hash = '' }: { search?: string; hash?: string }) {
+    Object.defineProperty(window, 'location', {
+      value: { ...originalLocation, search, hash, pathname: '/' },
+      writable: true,
+      configurable: true,
+    })
+  }
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('shows a toast and the auth modal for a query-string OAuth error, using the decoded error_description', async () => {
+    setLocation({ search: '?error=server_error&error_description=Something+went+wrong' })
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    setupAuth(null)
+
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(toast.error).toHaveBeenCalledWith('Something went wrong')
+    expect(replaceStateSpy).toHaveBeenCalledWith(null, '', '/')
+    expect(result.current.showAuthModal).toBe(true)
+
+    replaceStateSpy.mockRestore()
+  })
+
+  it('shows a toast and the auth modal for a hash-fragment OAuth error, using the decoded error_description', async () => {
+    setLocation({ hash: '#error=access_denied&error_description=User+denied+access' })
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    setupAuth(null)
+
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(toast.error).toHaveBeenCalledWith('User denied access')
+    expect(replaceStateSpy).toHaveBeenCalledWith(null, '', '/')
+    expect(result.current.showAuthModal).toBe(true)
+
+    replaceStateSpy.mockRestore()
+  })
+
+  it('falls back to the error code when there is no error_description', async () => {
+    setLocation({ search: '?error=server_error' })
+    setupAuth(null)
+
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(toast.error).toHaveBeenCalledWith('server_error')
+    expect(result.current.showAuthModal).toBe(true)
+  })
+
+  it('does nothing when there are no error params present', async () => {
+    setLocation({ search: '', hash: '' })
+    setupAuth(null)
+
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(result.current.showAuthModal).toBe(false)
   })
 })

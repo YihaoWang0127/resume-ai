@@ -11,6 +11,7 @@ const mockUseAuth = vi.mocked(useAuth)
 const signInWithEmail = vi.fn()
 const signUpWithEmail = vi.fn()
 const signInAsGuest = vi.fn()
+const signInWithGoogle = vi.fn()
 const closeAuthModal = vi.fn()
 const signOut = vi.fn()
 
@@ -26,6 +27,7 @@ function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
     signInWithEmail,
     signUpWithEmail,
     signInAsGuest,
+    signInWithGoogle,
     signOut,
     ...overrides,
   } as any)
@@ -59,6 +61,11 @@ describe('AuthModal — initial render', () => {
   it('shows Continue as Guest button', () => {
     render(<AuthModal />)
     expect(screen.getByRole('button', { name: /continue as guest/i })).toBeInTheDocument()
+  })
+
+  it('shows Continue with Google button', () => {
+    render(<AuthModal />)
+    expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument()
   })
 
   it('does not render when showAuthModal is false', () => {
@@ -166,6 +173,58 @@ describe('AuthModal — form submission', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /continue as guest/i })).not.toBeDisabled()
     )
+  })
+})
+
+// ── Google sign-in ────────────────────────────────────────────────────────────
+
+describe('AuthModal — Google sign-in', () => {
+  it('calls signInWithGoogle when Continue with Google is clicked', async () => {
+    signInWithGoogle.mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    await waitFor(() => expect(signInWithGoogle).toHaveBeenCalled())
+  })
+
+  it('shows error message when Google sign-in fails', async () => {
+    signInWithGoogle.mockRejectedValue(new Error('OAuth failed'))
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    await waitFor(() =>
+      expect(screen.getByText('OAuth failed')).toBeInTheDocument()
+    )
+  })
+
+  it('resets loading after a Google sign-in error', async () => {
+    signInWithGoogle.mockRejectedValue(new Error('OAuth failed'))
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /continue with google/i })).not.toBeDisabled()
+    )
+  })
+
+  it('disables the Guest button while Google sign-in is loading', async () => {
+    let resolveGoogle: () => void
+    signInWithGoogle.mockReturnValue(new Promise<void>((resolve) => { resolveGoogle = resolve }))
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    expect(screen.getByRole('button', { name: /continue as guest/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /continue with google/i })).toBeDisabled()
+
+    await act(async () => { resolveGoogle!(); })
   })
 })
 
