@@ -11,6 +11,7 @@ vi.mock('@/lib/supabase', () => ({
       signInWithPassword: vi.fn(),
       signUp: vi.fn(),
       signInAnonymously: vi.fn(),
+      signInWithOAuth: vi.fn(),
       signOut: vi.fn(),
       resend: vi.fn(),
     },
@@ -120,6 +121,31 @@ describe('AuthContext — auth operations', () => {
     })
 
     expect(mockAuth.signInAnonymously).toHaveBeenCalled()
+  })
+
+  it('signInWithGoogle calls supabase.auth.signInWithOAuth with the google provider and a redirectTo option', async () => {
+    mockAuth.signInWithOAuth.mockResolvedValue({ error: null } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.signInWithGoogle()
+    })
+
+    expect(mockAuth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/` },
+    })
+  })
+
+  it('signInWithGoogle throws when supabase returns an error', async () => {
+    mockAuth.signInWithOAuth.mockResolvedValue({ error: new Error('OAuth failed') } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(
+      act(async () => { await result.current.signInWithGoogle() })
+    ).rejects.toThrow('OAuth failed')
   })
 
   it('signOut calls supabase.auth.signOut', async () => {

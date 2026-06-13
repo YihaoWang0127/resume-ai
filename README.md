@@ -19,6 +19,7 @@
 - **Live Preview** — 5 style presets with real-time switching
 
 ### Auth & Storage
+- **Sign in with Google** — OAuth sign-in via Supabase (`signInWithOAuth`), available as a "Continue with Google" option in the auth modal alongside email/password and guest sign-in
 - **Email/Password Auth** — Supabase Auth with email verification; signup clearly errors if the email is already registered (instead of a false "check your email" message), and verification/resend emails link back to the correct app origin via `emailRedirectTo`
 - **Unverified Session Guard** — non-anonymous sessions without a confirmed email are automatically signed out (on load and on auth state change) with a toast prompting the user to verify their email; guest/anonymous sessions are never affected
 - **Email Verification Banner** — dismissible global banner prompts unverified users to confirm their email, with a "Resend email" action (60s cooldown)
@@ -262,7 +263,7 @@ Every `git push` → auto-deploys both.
 
 ```bash
 cd backend && pytest -v        # 55 backend tests
-cd frontend && npm test         # 235 frontend tests (21 files)
+cd frontend && npm test         # 242 frontend tests (21 files)
 ```
 
 ---
@@ -294,7 +295,7 @@ cd frontend && npm test         # 235 frontend tests (21 files)
 - [x] User settings — profile, AI preferences, appearance, security
 - [x] Dark mode (Light/Dark/System) with no-flash reload
 - [x] 290+ automated tests
-- [ ] Google OAuth sign-in
+- [x] Google OAuth sign-in
 - [ ] ATS keyword scoring
 - [ ] Mobile responsive editor
 - [ ] Stripe monetization

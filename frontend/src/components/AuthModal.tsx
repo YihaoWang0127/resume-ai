@@ -13,7 +13,7 @@ export default function AuthModal() {
   const {
     user, isGuest,
     showAuthModal, closeAuthModal,
-    signInWithEmail, signUpWithEmail, signInAsGuest, signOut,
+    signInWithEmail, signUpWithEmail, signInAsGuest, signInWithGoogle, signOut,
   } = useAuth()
 
   const [tab, setTab] = useState<Tab>('signin')
@@ -110,6 +110,18 @@ export default function AuthModal() {
     try {
       await signInAsGuest()
       closeAuthModal()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogle = async () => {
+    setError(null)
+    setLoading(true)
+    try {
+      await signInWithGoogle()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
@@ -234,12 +246,23 @@ export default function AuthModal() {
               <div className="flex-1 h-px bg-border" />
             </div>
 
+            {/* Google */}
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 py-3 min-h-[44px] bg-background border border-border text-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <GoogleIcon className="size-4" />
+              Continue with Google
+            </button>
+
             {/* Guest */}
             <button
               type="button"
               onClick={handleGuest}
               disabled={loading}
-              className="w-full py-3 min-h-[44px] bg-background border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full mt-3 py-3 min-h-[44px] bg-background border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Continue as Guest
             </button>
@@ -259,5 +282,28 @@ function Logo() {
         Resume AI
       </span>
     </div>
+  )
+}
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.43 3.58v2.97h3.91c2.29-2.11 3.54-5.21 3.54-8.79z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.91-2.97c-1.08.73-2.46 1.16-4.02 1.16-3.09 0-5.71-2.09-6.64-4.89H1.36v3.07C3.33 21.3 7.34 24 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.36 14.39c-.24-.73-.38-1.5-.38-2.29s.14-1.56.38-2.29V6.74H1.36C.5 8.36 0 10.13 0 12.1s.5 3.74 1.36 5.36l4-3.07z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.74c1.77 0 3.35.61 4.6 1.8l3.45-3.45C17.95 1.08 15.24 0 12 0 7.34 0 3.33 2.7 1.36 6.74l4 3.07c.93-2.8 3.55-4.89 6.64-4.89z"
+      />
+    </svg>
   )
 }
