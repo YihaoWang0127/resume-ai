@@ -1,5 +1,5 @@
 ---
-description: Main entry point — routes a task to the right specialist subagent(s), runs them (in parallel when independent), then chains the standard closing pipeline (test-enricher -> readme -> qa -> pr-agent).
+description: Main entry point — routes a task to the right specialist subagent(s), runs them (in parallel when independent), then chains the standard closing pipeline (test-enricher -> readme -> qa -> local verification -> pr-agent).
 argument-hint: <description of the feature, fix, or change to make>
 ---
 
@@ -71,18 +71,45 @@ $ARGUMENTS
 5. **Final validation** — dispatch qa-agent (tsc --noEmit + build, plus
    a backend import check if any backend/ files changed in Wave 1)
 
-6. **Branch + PR** — dispatch pr-agent last, after qa-agent completes. Tell
-   it which files were touched across all waves (including this file/
-   CLAUDE.md if the orchestrator made fallback edits) and pass along
-   qa-agent's result for the PR's Test plan section. If qa-agent reported
-   no app code changed (e.g. a docs/process-only task), say so so pr-agent
-   can write "N/A — docs/process only".
+6. **Local verification gate** — required before pr-agent runs. This step
+   happens in the top-level conversation, not a dispatched subagent (it may
+   need to pause for the user, and subagents can't do that).
+   - If nothing runnable changed this session (pure docs/process/type edits),
+     skip with a one-line note ("N/A — no runnable flow changed") and go to
+     step 7.
+   - Otherwise, identify the flow(s) affected (new/changed page, component,
+     API endpoint, auth/integration, export, etc.).
+   - Automatable (no real external accounts/secrets required): run it
+     yourself — start the relevant dev server(s) (`run` skill) and exercise
+     the golden path + key edge cases for the affected flow in a browser or
+     via curl (`verify` skill). Record what you tested and the result.
+   - Manual-only (the flow needs a real third-party login — e.g. Google/GitHub
+     OAuth — a real inbox for an email-verification link, real payment
+     credentials, or anything else Claude doesn't have access to): STOP.
+     Post a concrete checklist for the user — exact commands to start the
+     server(s), the URL, and the steps to exercise the new/changed behavior
+     plus what "pass" looks like. Then wait for the user's reply (pass / fail
+     + details) before continuing. Do NOT dispatch pr-agent until the user
+     confirms.
+   - If the user reports a failure, send the fix back to the owning
+     specialist (new wave), then re-run qa-agent and this gate before
+     retrying pr-agent.
 
-7. **Report** — one consolidated summary covering:
+7. **Branch + PR** — dispatch pr-agent last, after qa-agent and the local
+   verification gate complete. Tell it which files were touched across all
+   waves (including this file/CLAUDE.md if the orchestrator made fallback
+   edits), pass along qa-agent's result, and the verification gate's result
+   (automated check performed, or "user-confirmed manual test: <summary>")
+   for the PR's Test plan section. If nothing runnable changed (docs/process
+   only), say so so pr-agent can write "N/A — docs/process only".
+
+8. **Report** — one consolidated summary covering:
    - Which specialists were dispatched, in which waves, and what each changed
    - test-enricher-agent: tests added, pass/fail counts
    - readme-agent: sections updated
    - qa-agent: build/tsc status
+   - Local verification gate: what was tested, automated vs. user-confirmed,
+     and the result
    - pr-agent: branch name and PR URL
    - Any unresolved follow-ups a specialist flagged
 

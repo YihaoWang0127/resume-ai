@@ -166,14 +166,28 @@ Every specialist subagent above operates the same way:
 
 `/orchestrator` always runs these after every feature wave, without being told.
 Do not skip them even if the user does not mention them. If subagents are
-dispatched manually instead of via `/orchestrator`, include all three as the
-final tasks before reporting done:
+dispatched manually instead of via `/orchestrator`, include all of these as
+the final tasks before reporting done:
 
 1. test-enricher-agent — adds test coverage for whatever changed
 2. readme-agent — updates README to match
 3. qa-agent — final tsc/build/import validation
-4. pr-agent — creates a branch, commits the session's changes, pushes,
-   and opens a PR
+4. Local verification gate — if anything runnable changed (UI flow, API
+   endpoint, auth/integration, export, etc.), exercise it on localhost before
+   opening a PR:
+   - Automatable, no real external accounts/secrets needed: run it yourself
+     (start the dev server(s), drive the flow via browser/curl) and record
+     the result
+   - Needs a real third-party login, inbox, or credentials Claude doesn't
+     have (e.g. Google OAuth, email verification links, payments): STOP,
+     give the user exact steps to test it locally, and wait for their
+     pass/fail before continuing. This cannot be delegated to a subagent —
+     subagents can't pause for user input — so it runs in the top-level
+     conversation.
+   - Nothing runnable changed (docs/process only): skip with a note.
+5. pr-agent — creates a branch, commits the session's changes, pushes,
+   and opens a PR, including the verification result in its Test plan
 
-These four are reusable and feature-agnostic — they read the codebase
-diff to detect what changed and act accordingly.
+These steps are reusable and feature-agnostic — they read the codebase diff
+to detect what changed and act accordingly. Steps 1-3 and 5 can run as
+subagents; step 4 must run in the top-level conversation.
