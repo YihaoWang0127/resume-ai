@@ -12,6 +12,23 @@ function isUnverifiedSession(session: Session | null): boolean {
   return !user.email_confirmed_at
 }
 
+// After a failed Google OAuth redirect, Supabase sends the user back to
+// redirectTo with error info as either a query string (PKCE) or a hash
+// fragment (implicit flow). Returns a user-facing message if an OAuth
+// error is present, or null otherwise.
+function getOAuthErrorMessage(): string | null {
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const searchParams = new URLSearchParams(window.location.search)
+
+  const error = hashParams.get('error') ?? searchParams.get('error')
+  if (!error) return null
+
+  const description =
+    hashParams.get('error_description') ?? searchParams.get('error_description')
+
+  return description || error || 'Google sign-in failed. Please try again.'
+}
+
 interface AuthContextValue {
   user: User | null
   session: Session | null
@@ -39,6 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const autoShowFired = useRef(false)
 
   useEffect(() => {
+    const oauthError = getOAuthErrorMessage()
+    if (oauthError) {
+      toast.error(oauthError)
+      window.history.replaceState(null, '', window.location.pathname)
+      autoShowFired.current = true
+      setShowAuthModal(true)
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (isUnverifiedSession(session)) {
         void supabase.auth.signOut()
