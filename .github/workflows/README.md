@@ -1,3 +1,17 @@
+# CI
+
+## Workflow: `ci.yml`
+
+**Trigger:** every pull request targeting `main`.
+
+**What it does:** runs two required status checks, named to match the
+branch protection rules configured in GitHub:
+
+- **`frontend`** — `cd frontend`: `npm ci`, `npx tsc --noEmit`,
+  `npm test -- --run`, `npm run build`
+- **`backend`** — `cd backend`: `pip install -r requirements.txt`,
+  `pytest -v`
+
 # Release Automation
 
 This repo automatically tags and publishes a GitHub Release on every push
