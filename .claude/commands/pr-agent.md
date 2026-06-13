@@ -30,8 +30,10 @@ agents/the orchestrator already changed in this session.
 - Open a PR with `gh pr create --title "..." --body "..."`:
   - Title matches the commit message
   - Body has a `## Summary` (bullets on what changed and why) and a
-    `## Test plan` (what was verified — e.g. qa-agent's tsc/build result,
-    or "N/A — docs/process only" if no app code changed)
+    `## Test plan` (what was verified — qa-agent's tsc/build result, plus
+    the local verification gate's result, e.g. "automated: <what was
+    exercised>" or "user-confirmed manual test: <summary>", or
+    "N/A — docs/process only" if no app code changed)
 
 ## Rules
 - Never push directly to `main`
