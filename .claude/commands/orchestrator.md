@@ -1,5 +1,5 @@
 ---
-description: Main entry point — routes a task to the right specialist subagent(s), runs them (in parallel when independent), then chains the standard closing pipeline (test-enricher -> readme -> qa).
+description: Main entry point — routes a task to the right specialist subagent(s), runs them (in parallel when independent), then chains the standard closing pipeline (test-enricher -> readme -> qa -> pr-agent).
 argument-hint: <description of the feature, fix, or change to make>
 ---
 
@@ -27,6 +27,7 @@ $ARGUMENTS
 | test-enricher-agent | test-enricher-agent.md | Add tests for what changed (always) |
 | readme-agent | readme-agent.md | Update README (always) |
 | qa-agent | qa-agent.md | Final tsc/build/import validation (always) |
+| pr-agent | pr-agent.md | Branch, commit, push, and open PR for the session's changes (always, runs last) |
 
 ## Process
 
@@ -67,14 +68,22 @@ $ARGUMENTS
    - Run these sequentially, after all feature waves are done — both read
      the overall diff, so they shouldn't run before the code exists
 
-5. **Final validation** — dispatch qa-agent last (tsc --noEmit + build, plus
+5. **Final validation** — dispatch qa-agent (tsc --noEmit + build, plus
    a backend import check if any backend/ files changed in Wave 1)
 
-6. **Report** — one consolidated summary covering:
+6. **Branch + PR** — dispatch pr-agent last, after qa-agent completes. Tell
+   it which files were touched across all waves (including this file/
+   CLAUDE.md if the orchestrator made fallback edits) and pass along
+   qa-agent's result for the PR's Test plan section. If qa-agent reported
+   no app code changed (e.g. a docs/process-only task), say so so pr-agent
+   can write "N/A — docs/process only".
+
+7. **Report** — one consolidated summary covering:
    - Which specialists were dispatched, in which waves, and what each changed
    - test-enricher-agent: tests added, pass/fail counts
    - readme-agent: sections updated
    - qa-agent: build/tsc status
+   - pr-agent: branch name and PR URL
    - Any unresolved follow-ups a specialist flagged
 
 ## Routing Table
