@@ -77,7 +77,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 318+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 320+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -265,7 +265,7 @@ Every `git push` → auto-deploys both.
 
 ```bash
 cd backend && pytest -v        # 62 backend tests
-cd frontend && npm test         # 256 frontend tests (21 files)
+cd frontend && npm test         # 258 frontend tests (21 files)
 ```
 
 ---
@@ -296,7 +296,7 @@ cd frontend && npm test         # 256 frontend tests (21 files)
 - [x] Error pages (404/500)
 - [x] User settings — profile, AI preferences, appearance, security
 - [x] Dark mode (Light/Dark/System) with no-flash reload
-- [x] 318+ automated tests
+- [x] 320+ automated tests
 - [x] Google OAuth sign-in
 - [x] ATS keyword scoring
 - [ ] Mobile responsive editor

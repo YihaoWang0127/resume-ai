@@ -599,7 +599,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
         {/* Left: form */}
         <div className={cn(
-          'relative w-full lg:w-[420px] shrink-0 flex-col border-b lg:border-b-0 lg:border-r border-border overflow-hidden bg-card h-[55vh] lg:h-auto',
+          'relative w-full lg:w-[40%] lg:min-w-[420px] lg:max-w-[640px] shrink-0 flex-col border-b lg:border-b-0 lg:border-r border-border overflow-hidden bg-card h-[55vh] lg:h-auto',
           mobileViewTab === 'edit' ? 'flex' : 'hidden',
           'md:flex',
         )}>
@@ -655,7 +655,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  'flex-1 min-w-[72px] py-2 text-xs font-bold uppercase tracking-wider transition-colors',
+                  'flex-1 min-w-[72px] py-2.5 text-xs font-bold uppercase tracking-wider text-center transition-colors',
                   tab === t.id
                     ? 'text-foreground border-b-2 border-primary'
                     : 'text-muted-foreground hover:text-foreground',
