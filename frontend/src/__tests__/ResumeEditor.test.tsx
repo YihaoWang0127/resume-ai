@@ -328,3 +328,29 @@ describe('ResumeEditor — ATS Score tab', () => {
     expect(screen.queryByText(/suggestions/i)).not.toBeInTheDocument()
   })
 })
+
+// ── desktop layout — left panel width & tab bar spacing ───────────────────────
+
+describe('ResumeEditor — desktop layout', () => {
+  it('renders the left editor panel with the responsive 40% width (bounded 420px–640px)', () => {
+    renderEditor()
+
+    const leftPanel = screen.getByText('Contact').closest('div')!.parentElement as HTMLElement
+    expect(leftPanel.className).toContain('lg:w-[40%]')
+    expect(leftPanel.className).toContain('lg:min-w-[420px]')
+    expect(leftPanel.className).toContain('lg:max-w-[640px]')
+    // mobile width and visibility behavior remain unchanged
+    expect(leftPanel.className).toContain('w-full')
+  })
+
+  it('renders each tab bar button with centered text and the updated vertical padding', () => {
+    renderEditor()
+
+    const tabNames = [/^summary$/i, /^experience$/i, /^education$/i, /^skills$/i, /^ats score$/i]
+    for (const name of tabNames) {
+      const button = screen.getByRole('button', { name })
+      expect(button.className).toContain('text-center')
+      expect(button.className).toContain('py-2.5')
+    }
+  })
+})
