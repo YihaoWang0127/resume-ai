@@ -179,7 +179,8 @@ describe('exportResume', () => {
     )
 
     const result = await exportResume(mockResume, 'pdf')
-    expect(result).toBeInstanceOf(Blob)
+    expect(result.size).toBeGreaterThan(0)
+    expect(result.type).toBe('application/pdf')
   })
 
   it('throws on non-ok response', async () => {
