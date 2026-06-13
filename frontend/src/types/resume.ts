@@ -36,3 +36,11 @@ export interface ResumeSchema {
   skills: SkillCategory[]
   detectedIndustry?: string
 }
+
+export interface ATSScoreResult {
+  overallScore: number
+  matchedKeywords: string[]
+  missingKeywords: string[]
+  suggestions: string[]
+  summary: string
+}

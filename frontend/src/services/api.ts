@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { ResumeSchema } from '@/types/resume'
+import type { ATSScoreResult, ResumeSchema } from '@/types/resume'
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000'
 
@@ -170,6 +170,23 @@ export async function exportCoverLetter(
   })
   if (!res.ok) throw new Error(`Export failed: ${res.status}`)
   return res.blob()
+}
+
+export async function scoreATS(
+  resume: ResumeSchema,
+  jobDescription: string,
+): Promise<ATSScoreResult> {
+  const { data } = await http.post<BackendPayload>('/api/ats-score', {
+    resume: toBackend(resume),
+    job_description: jobDescription,
+  })
+  return {
+    overallScore: typeof data.overall_score === 'number' ? data.overall_score : 0,
+    matchedKeywords: strArr(data.matched_keywords),
+    missingKeywords: strArr(data.missing_keywords),
+    suggestions: strArr(data.suggestions),
+    summary: str(data.summary),
+  }
 }
 
 export async function exportResume(

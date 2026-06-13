@@ -63,3 +63,16 @@ class TailorRequest(BaseModel):
 
 class EnrichRequest(BaseModel):
     resume: ResumeSchema
+
+
+class ATSScoreRequest(BaseModel):
+    resume: ResumeSchema
+    job_description: str
+
+
+class ATSScoreResponse(BaseModel):
+    overall_score: int = Field(ge=0, le=100)
+    matched_keywords: list[str] = Field(default_factory=list)
+    missing_keywords: list[str] = Field(default_factory=list)
+    suggestions: list[str] = Field(default_factory=list)
+    summary: str = ""

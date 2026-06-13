@@ -17,6 +17,7 @@
 - **Cover Letter Generator** — generates personalized cover letters with tone options
 - **Industry Detection** — auto-detects Tech/Finance/Creative/Healthcare/General
 - **Live Preview** — 5 style presets with real-time switching
+- **ATS Keyword Scoring** — paste a job description in the editor's "ATS Score" tab to get a 0-100 keyword-match score, matched/missing keyword chips, and AI suggestions for closing gaps
 
 ### Auth & Storage
 - **Sign in with Google** — OAuth sign-in via Supabase (`signInWithOAuth`), available as a "Continue with Google" option in the auth modal alongside email/password and guest sign-in; failed redirects show a toast error and reopen the auth modal to retry
@@ -76,7 +77,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 290+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 318+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -90,6 +91,7 @@ Models:
 | POST | /api/export | Export resume as PDF or DOCX |
 | POST | /api/cover-letter | Stream-generated cover letter |
 | POST | /api/cover-letter/export | Export cover letter as PDF/DOCX/TXT |
+| POST | /api/ats-score | Score resume against a job description (keyword match, gaps, suggestions) |
 | GET | /health | Health check |
 
 Frontend uses Supabase JS directly for all CRUD operations (save/load/list/delete).
@@ -194,7 +196,7 @@ resume-ai/
 │       │   ├── resume.ts
 │       │   ├── coverLetter.ts
 │       │   └── preferences.ts
-│       └── __tests__/                 # 200+ frontend tests
+│       └── __tests__/                 # 250+ frontend tests
 │
 ├── backend/
 │   └── app/
@@ -211,7 +213,7 @@ resume-ai/
 │       │   └── exporter.py            # ReportLab + python-docx
 │       ├── models/resume.py
 │       └── prompts/resume.py          # all Claude prompts
-│   └── tests/                         # 42+ backend tests
+│   └── tests/                         # 60+ backend tests
 │
 ├── render.yaml
 ├── CLAUDE.md
@@ -262,8 +264,8 @@ Every `git push` → auto-deploys both.
 ## Testing
 
 ```bash
-cd backend && pytest -v        # 55 backend tests
-cd frontend && npm test         # 250 frontend tests (21 files)
+cd backend && pytest -v        # 62 backend tests
+cd frontend && npm test         # 256 frontend tests (21 files)
 ```
 
 ---
@@ -294,9 +296,9 @@ cd frontend && npm test         # 250 frontend tests (21 files)
 - [x] Error pages (404/500)
 - [x] User settings — profile, AI preferences, appearance, security
 - [x] Dark mode (Light/Dark/System) with no-flash reload
-- [x] 290+ automated tests
+- [x] 318+ automated tests
 - [x] Google OAuth sign-in
-- [ ] ATS keyword scoring
+- [x] ATS keyword scoring
 - [ ] Mobile responsive editor
 - [ ] Stripe monetization
 - [ ] Resume version history

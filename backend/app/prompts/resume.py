@@ -19,6 +19,15 @@ Analyze the job description and strategically rewrite the resume to:
 Return the tailored resume as a complete JSON object with the same structure as the input."""
 
 
+ATS_SCORE_SYSTEM = """You are an expert ATS (Applicant Tracking System) analyst and career coach.
+Compare a candidate's resume against a job description to assess keyword and skill alignment.
+Consider the resume's summary, experience bullets, skills, projects, and education as the candidate's full set of represented content.
+Treat semantically equivalent or closely related terms as matches, not just exact string matches
+(e.g. "JS" ~ "JavaScript", "led" ~ "managed a team", "REST APIs" ~ "RESTful services").
+Focus on the most important keywords and skills from the job description — not every word.
+Return ONLY valid JSON, no markdown fences, no explanation."""
+
+
 RESUME_JSON_SCHEMA = """{
   "metadata": {
     "name": "string",
@@ -159,3 +168,25 @@ CURRENT RESUME:
 
 Return ONLY the tailored resume as valid JSON matching the exact same schema. No markdown fences, no explanation."""
     return TAILOR_SYSTEM, user
+
+
+def build_ats_score_prompt(resume: ResumeSchema, job_description: str) -> tuple[str, str]:
+    """Returns (system_prompt, user_message) for ATS keyword scoring."""
+    resume_json = resume.model_dump_json(indent=2)
+    user = f"""Compare the resume's content (summary, experience bullets, skills, projects, and education) against the job description below.
+
+JOB DESCRIPTION:
+{job_description}
+
+CANDIDATE RESUME (JSON):
+{resume_json}
+
+Return ONLY valid JSON (no markdown fences, no explanation) matching exactly:
+{{
+  "overall_score": <integer 0-100, the percentage of important job-description keywords/skills represented in the resume>,
+  "matched_keywords": [<important keywords/skills from the job description that ARE present in the resume>],
+  "missing_keywords": [<important keywords/skills from the job description that are NOT present in the resume>],
+  "suggestions": [<3-6 concrete, actionable suggestions for incorporating missing keywords or strengthening the match, referencing the candidate's actual experience where possible>],
+  "summary": "<1-2 sentence plain-language summary of the match quality>"
+}}"""
+    return ATS_SCORE_SYSTEM, user

@@ -19,8 +19,8 @@ import { Button } from '@/components/ui/button'
 import Modal from '@/components/Modal'
 import ExportMenu from '@/components/ExportMenu'
 import { cn } from '@/lib/utils'
-import type { EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
-import { enrichResume, exportResume, fromBackend, tailorResume } from '@/services/api'
+import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
+import { enrichResume, exportResume, fromBackend, scoreATS, tailorResume } from '@/services/api'
 import { saveResume, updateResume } from '@/services/resumes'
 import { useAuth } from '@/contexts/AuthContext'
 import Navbar from '@/components/Navbar'
@@ -34,7 +34,7 @@ interface Props {
   onSignUp?: () => void
 }
 
-type Tab = 'summary' | 'experience' | 'education' | 'skills'
+type Tab = 'summary' | 'experience' | 'education' | 'skills' | 'ats'
 
 interface StreamState {
   text: string
@@ -78,6 +78,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [tailorSections, setTailorSections] = useState({
     summary: true, experience: true, education: true, skills: true,
   })
+  const [atsJobDesc, setAtsJobDesc] = useState('')
+  const [atsLoading, setAtsLoading] = useState(false)
+  const [atsResult, setAtsResult] = useState<ATSScoreResult | null>(null)
+  const [atsError, setAtsError] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [streamLoading, setStreamLoading] = useState(false)
   const [panelCollapsed, setPanelCollapsed] = useState(false)
@@ -220,6 +224,19 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const handleTailor = () => {
     setTailorOpen(false)
     runStream(() => tailorResume(resume, jobDesc))
+  }
+
+  const handleAnalyzeATS = async () => {
+    setAtsLoading(true)
+    setAtsError(null)
+    try {
+      const result = await scoreATS(resume, atsJobDesc)
+      setAtsResult(result)
+    } catch (err) {
+      setAtsError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setAtsLoading(false)
+    }
   }
 
   const handleExport = async (format: 'pdf' | 'docx') => {
@@ -437,6 +454,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     { id: 'experience', label: 'Experience' },
     { id: 'education', label: 'Education' },
     { id: 'skills', label: 'Skills' },
+    { id: 'ats', label: 'ATS Score' },
   ]
 
   return (
@@ -882,6 +900,124 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 >
                   <Plus className="size-3.5" /> Add category
                 </Button>
+              </div>
+            )}
+
+            {/* ATS Score */}
+            {tab === 'ats' && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    Job Description
+                  </label>
+                  <textarea
+                    className={cn(field, 'min-h-32 resize-none')}
+                    placeholder="Paste the job description here…"
+                    value={atsJobDesc}
+                    onChange={(e) => setAtsJobDesc(e.target.value)}
+                  />
+                </div>
+
+                <Button
+                  size="sm"
+                  onClick={handleAnalyzeATS}
+                  disabled={!atsJobDesc.trim() || atsLoading}
+                  className="w-full min-h-[44px] bg-primary text-primary-foreground uppercase text-xs tracking-wider font-bold rounded-none border-0 hover:bg-primary/90"
+                >
+                  {atsLoading ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-3.5" />
+                  )}
+                  Analyze
+                </Button>
+
+                {atsError && (
+                  <p className="text-xs text-destructive">{atsError}</p>
+                )}
+
+                {atsResult && (
+                  <div className="space-y-4 border border-border p-3 bg-background">
+                    {/* Overall score */}
+                    <div className="flex items-baseline gap-1.5">
+                      <span
+                        className={cn(
+                          'text-3xl font-bold',
+                          atsResult.overallScore >= 75
+                            ? 'text-primary'
+                            : atsResult.overallScore >= 50
+                              ? 'text-amber-500'
+                              : 'text-destructive',
+                        )}
+                      >
+                        {atsResult.overallScore}
+                      </span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        / 100
+                      </span>
+                    </div>
+
+                    {/* Summary */}
+                    {atsResult.summary && (
+                      <p className="text-sm text-muted-foreground">{atsResult.summary}</p>
+                    )}
+
+                    {/* Matched keywords */}
+                    {atsResult.matchedKeywords.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                          Matched Keywords
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {atsResult.matchedKeywords.map((kw, i) => (
+                            <span
+                              key={i}
+                              className="px-2 py-0.5 text-xs border border-primary/40 text-primary bg-primary/10"
+                            >
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Missing keywords */}
+                    {atsResult.missingKeywords.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                          Missing Keywords
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {atsResult.missingKeywords.map((kw, i) => (
+                            <span
+                              key={i}
+                              className="px-2 py-0.5 text-xs border border-destructive/40 text-destructive bg-destructive/10"
+                            >
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Suggestions */}
+                    {atsResult.suggestions.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                          Suggestions
+                        </p>
+                        <ul className="space-y-1">
+                          {atsResult.suggestions.map((s, i) => (
+                            <li key={i} className="flex gap-1.5 items-start">
+                              <span className="mt-0.5 text-primary text-xs">•</span>
+                              <span className="text-sm text-foreground">{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -11,6 +11,7 @@ vi.mock('@/services/api', () => ({
   enrichResume: vi.fn(),
   exportResume: vi.fn(),
   tailorResume: vi.fn(),
+  scoreATS: vi.fn(),
   fromBackend: vi.fn((d: unknown) => d),
 }))
 vi.mock('@/services/resumes', () => ({
@@ -28,10 +29,13 @@ vi.mock('@/components/StreamingOutput', () => ({
 
 import { useAuth } from '@/contexts/AuthContext'
 import { saveResume } from '@/services/resumes'
+import { scoreATS } from '@/services/api'
 import ResumeEditor from '@/components/ResumeEditor'
+import type { ATSScoreResult } from '@/types/resume'
 
 const mockUseAuth = vi.mocked(useAuth)
 const mockSaveResume = vi.mocked(saveResume)
+const mockScoreATS = vi.mocked(scoreATS)
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -209,5 +213,118 @@ describe('ResumeEditor — user dropdown in navbar', () => {
     await user.click(screen.getByRole('button', { name: /sign out/i }))
 
     expect(signOut).toHaveBeenCalled()
+  })
+})
+
+// ── ATS Score tab ─────────────────────────────────────────────────────────────
+
+const mockATSResult: ATSScoreResult = {
+  overallScore: 78,
+  matchedKeywords: ['Python', 'Distributed Systems'],
+  missingKeywords: ['Kubernetes'],
+  suggestions: ['Add a bullet about container orchestration.', 'Mention CI/CD pipeline experience.'],
+  summary: 'Strong overall match with a few gaps in infrastructure tooling.',
+}
+
+async function openATSTab(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /ats score/i }))
+}
+
+describe('ResumeEditor — ATS Score tab', () => {
+  it('switches to the ATS Score tab and shows the job description field', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await openATSTab(user)
+
+    expect(screen.getByText(/job description/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Paste the job description here…')).toBeInTheDocument()
+  })
+
+  it('disables the Analyze button until a job description is entered', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await openATSTab(user)
+
+    const analyzeButton = screen.getByRole('button', { name: /analyze/i })
+    expect(analyzeButton).toBeDisabled()
+
+    const textarea = screen.getByPlaceholderText('Paste the job description here…')
+    await user.type(textarea, 'Senior Software Engineer role requiring Python.')
+
+    expect(analyzeButton).toBeEnabled()
+  })
+
+  it('shows a loading state and calls scoreATS when Analyze is clicked', async () => {
+    let resolvePromise: (value: ATSScoreResult) => void = () => {}
+    mockScoreATS.mockReturnValue(
+      new Promise<ATSScoreResult>((resolve) => {
+        resolvePromise = resolve
+      }),
+    )
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await openATSTab(user)
+    const textarea = screen.getByPlaceholderText('Paste the job description here…')
+    await user.type(textarea, 'Senior Software Engineer role requiring Python.')
+
+    const analyzeButton = screen.getByRole('button', { name: /analyze/i })
+    await user.click(analyzeButton)
+
+    expect(analyzeButton).toBeDisabled()
+    expect(mockScoreATS).toHaveBeenCalledWith(
+      mockResume,
+      'Senior Software Engineer role requiring Python.',
+    )
+
+    resolvePromise(mockATSResult)
+    await waitFor(() => expect(analyzeButton).toBeEnabled())
+  })
+
+  it('renders the results panel with score, summary, keywords, and suggestions', async () => {
+    mockScoreATS.mockResolvedValue(mockATSResult)
+    const user = userEvent.setup()
+    renderEditor()
+
+    await openATSTab(user)
+    const textarea = screen.getByPlaceholderText('Paste the job description here…')
+    await user.type(textarea, 'Senior Software Engineer role requiring Python.')
+    await user.click(screen.getByRole('button', { name: /analyze/i }))
+
+    await waitFor(() => expect(screen.getByText('78')).toBeInTheDocument())
+    expect(screen.getByText(mockATSResult.summary)).toBeInTheDocument()
+    expect(screen.getByText('Python')).toBeInTheDocument()
+    expect(screen.getByText('Distributed Systems')).toBeInTheDocument()
+    expect(screen.getByText('Kubernetes')).toBeInTheDocument()
+    expect(screen.getByText('Add a bullet about container orchestration.')).toBeInTheDocument()
+    expect(screen.getByText('Mention CI/CD pipeline experience.')).toBeInTheDocument()
+  })
+
+  it('shows an error message when scoreATS rejects', async () => {
+    mockScoreATS.mockRejectedValue(new Error('502 Bad Gateway'))
+    const user = userEvent.setup()
+    renderEditor()
+
+    await openATSTab(user)
+    const textarea = screen.getByPlaceholderText('Paste the job description here…')
+    await user.type(textarea, 'Senior Software Engineer role requiring Python.')
+    await user.click(screen.getByRole('button', { name: /analyze/i }))
+
+    await waitFor(() => expect(screen.getByText(/502 bad gateway/i)).toBeInTheDocument())
+    expect(screen.queryByText('78')).not.toBeInTheDocument()
+  })
+
+  it('does not render the results panel before Analyze is clicked', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await openATSTab(user)
+
+    expect(screen.queryByText(/matched keywords/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/missing keywords/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/suggestions/i)).not.toBeInTheDocument()
   })
 })
