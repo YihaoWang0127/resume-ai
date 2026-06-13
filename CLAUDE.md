@@ -74,6 +74,22 @@ as PDF/DOCX/TXT. Supabase for auth and storage.
 - Backend env: .env (ANTHROPIC_API_KEY)
 - Never commit .env files
 
+## Release Rules
+
+`.github/workflows/release.yml` tags and publishes a GitHub Release
+automatically on every push to `main`, based on commit prefixes since the
+previous tag.
+
+| Prefix | Version Bump |
+|---|---|
+| `feat!:` / `fix!:` / any `!` breaking marker / `BREAKING CHANGE:` footer | major |
+| `feat:` | minor |
+| `fix:` | patch |
+| `chore:`, `docs:`, `test:`, `refactor:`, `style:`, `ci:` | none (no release) |
+
+Priority when multiple prefixes are present since the last tag — highest
+bump wins: major > minor > patch > none.
+
 ## Subagent Roster
 
 All specialist subagents live in `.claude/commands/`. For any feature, fix,
@@ -93,6 +109,7 @@ the Standard Closing Pipeline.
 | settings-agent | Settings.tsx + components/settings/* |
 | shared-agent | App.tsx, index.css, AuthContext, lib/supabase.ts, services/*.ts, ExportMenu, EmptyState, ErrorBoundary, NotFound, ServerError |
 | backend-agent | backend/app/** (routes, services, prompts, models) |
+| pr-agent | Branch creation, commit, and PR for the session's changes (runs last) |
 
 ### How to invoke /orchestrator
 
@@ -155,6 +172,8 @@ final tasks before reporting done:
 1. test-enricher-agent — adds test coverage for whatever changed
 2. readme-agent — updates README to match
 3. qa-agent — final tsc/build/import validation
+4. pr-agent — creates a branch, commits the session's changes, pushes,
+   and opens a PR
 
-These three are reusable and feature-agnostic — they read the codebase
+These four are reusable and feature-agnostic — they read the codebase
 diff to detect what changed and act accordingly.
