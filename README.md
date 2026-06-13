@@ -268,6 +268,10 @@ cd backend && pytest -v        # 62 backend tests
 cd frontend && npm test         # 258 frontend tests (21 files)
 ```
 
+**CI:** `.github/workflows/ci.yml` runs on every pull request to `main` with
+two required checks — `frontend` (`tsc --noEmit`, `npm test`, `npm run build`)
+and `backend` (`pytest -v`) — matching branch protection on `main`.
+
 ---
 
 ## Cost per User Session
