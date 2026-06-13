@@ -25,6 +25,7 @@ FAST_MODEL = "claude-haiku-4-5"   # fast + cheap — used for parsing
 SMART_MODEL = "claude-sonnet-4-6" # high quality — used for enrich/tailor
 MAX_TOKENS = 8192  # for enrich/tailor
 PARSE_MAX_TOKENS = 4096  # faster for parse
+ATS_SCORE_MAX_TOKENS = 2048  # smaller — ATS score response is compact JSON
 
 
 def validate_resume(text: str) -> dict:
@@ -51,6 +52,18 @@ def complete(system: str, user: str) -> str:
     message = client.messages.create(
         model=FAST_MODEL,
         max_tokens=PARSE_MAX_TOKENS,
+        system=system,
+        messages=[{"role": "user", "content": user}],
+    )
+    return message.content[0].text
+
+
+def complete_smart(system: str, user: str, max_tokens: int = ATS_SCORE_MAX_TOKENS) -> str:
+    """Blocking completion using SMART_MODEL — used for quality semantic analysis (e.g. ATS scoring)."""
+    client = get_client()
+    message = client.messages.create(
+        model=SMART_MODEL,
+        max_tokens=max_tokens,
         system=system,
         messages=[{"role": "user", "content": user}],
     )

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest'
 import { setupServer } from 'msw/node'
 import { http, HttpResponse } from 'msw'
-import { parseResume, exportResume } from '@/services/api'
+import { parseResume, exportResume, scoreATS } from '@/services/api'
 import type { ResumeSchema } from '@/types/resume'
 
 const BASE = 'http://localhost:8000'
@@ -190,5 +190,83 @@ describe('exportResume', () => {
     )
 
     await expect(exportResume(mockResume, 'pdf')).rejects.toThrow()
+  })
+})
+
+// ── scoreATS ─────────────────────────────────────────────────────────────────
+
+describe('scoreATS', () => {
+  it('sends resume and job_description in the request body', async () => {
+    let body: Record<string, unknown> = {}
+
+    server.use(
+      http.post(`${BASE}/api/ats-score`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({
+          overall_score: 78,
+          matched_keywords: ['Python'],
+          missing_keywords: ['Kubernetes'],
+          suggestions: ['Add a bullet about containers.'],
+          summary: 'Good match.',
+        })
+      }),
+    )
+
+    await scoreATS(mockResume, 'Senior Software Engineer role requiring Python.')
+
+    expect(body.job_description).toBe('Senior Software Engineer role requiring Python.')
+    expect(body.resume).toMatchObject({
+      metadata: { name: 'Jane Smith', email: 'jane@example.com' },
+    })
+  })
+
+  it('converts the snake_case response into a camelCase ATSScoreResult', async () => {
+    server.use(
+      http.post(`${BASE}/api/ats-score`, () =>
+        HttpResponse.json({
+          overall_score: 78,
+          matched_keywords: ['Python', 'Distributed Systems'],
+          missing_keywords: ['Kubernetes'],
+          suggestions: ['Add a bullet about containers.', 'Mention CI/CD experience.'],
+          summary: 'Good overall match.',
+        }),
+      ),
+    )
+
+    const result = await scoreATS(mockResume, 'Senior Software Engineer role requiring Python.')
+
+    expect(result).toEqual({
+      overallScore: 78,
+      matchedKeywords: ['Python', 'Distributed Systems'],
+      missingKeywords: ['Kubernetes'],
+      suggestions: ['Add a bullet about containers.', 'Mention CI/CD experience.'],
+      summary: 'Good overall match.',
+    })
+  })
+
+  it('defaults missing fields to empty arrays, an empty summary, and a 0 score', async () => {
+    server.use(
+      http.post(`${BASE}/api/ats-score`, () => HttpResponse.json({})),
+    )
+
+    const result = await scoreATS(mockResume, 'Some job description.')
+
+    expect(result).toEqual({
+      overallScore: 0,
+      matchedKeywords: [],
+      missingKeywords: [],
+      suggestions: [],
+      summary: '',
+    })
+  })
+
+  it('throws on non-ok response', async () => {
+    server.use(
+      http.post(`${BASE}/api/ats-score`, () =>
+        HttpResponse.json({ detail: 'job_description must not be empty.' }, { status: 422 }),
+      ),
+    )
+
+    await expect(scoreATS(mockResume, '')).rejects.toThrow()
   })
 })
