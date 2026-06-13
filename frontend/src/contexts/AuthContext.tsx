@@ -8,6 +8,7 @@ interface AuthContextValue {
   session: Session | null
   loading: boolean
   isGuest: boolean
+  emailVerified: boolean
   showAuthModal: boolean
   openAuthModal: () => void
   closeAuthModal: () => void
@@ -15,6 +16,7 @@ interface AuthContextValue {
   signUpWithEmail: (email: string, password: string) => Promise<void>
   signInAsGuest: () => Promise<void>
   signOut: () => Promise<void>
+  resendVerificationEmail: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -71,13 +73,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  const resendVerificationEmail = async () => {
+    if (!user?.email) throw new Error('No email address on file')
+    const { error } = await supabase.auth.resend({ type: 'signup', email: user.email })
+    if (error) throw error
+  }
+
   const isGuest = user?.is_anonymous === true
+  const emailVerified = isGuest || !user ? true : !!user?.email_confirmed_at
 
   return (
     <AuthContext.Provider value={{
-      user, session, loading, isGuest,
+      user, session, loading, isGuest, emailVerified,
       showAuthModal, openAuthModal, closeAuthModal,
       signInWithEmail, signUpWithEmail, signInAsGuest, signOut,
+      resendVerificationEmail,
     }}>
       {children}
     </AuthContext.Provider>

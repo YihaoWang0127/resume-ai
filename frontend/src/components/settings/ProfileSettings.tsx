@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { Loader2, Camera } from 'lucide-react'
+import { Loader2, Camera, CheckCircle2, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -11,12 +11,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 
+const COOLDOWN_SECONDS = 60
+
 interface Props {
   onDirtyChange: (dirty: boolean) => void
 }
 
 export default function ProfileSettings({ onDirtyChange }: Props) {
-  const { user } = useAuth()
+  const { user, isGuest, emailVerified, resendVerificationEmail } = useAuth()
   const initialName = (user?.user_metadata?.full_name as string | undefined) ?? ''
 
   const [displayName, setDisplayName] = useState(initialName)
@@ -25,7 +27,15 @@ export default function ProfileSettings({ onDirtyChange }: Props) {
   )
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [cooldown])
 
   const handleNameChange = (value: string) => {
     setDisplayName(value)
@@ -43,6 +53,19 @@ export default function ProfileSettings({ onDirtyChange }: Props) {
       toast.error(err instanceof Error ? err.message : 'Failed to update profile')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    setResending(true)
+    try {
+      await resendVerificationEmail()
+      toast.success('Verification email sent')
+      setCooldown(COOLDOWN_SECONDS)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send verification email')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -130,6 +153,36 @@ export default function ProfileSettings({ onDirtyChange }: Props) {
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
           <Input id="email" value={user?.email ?? ''} readOnly disabled />
+
+          {!isGuest && user?.email && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              {emailVerified ? (
+                <span className="inline-flex items-center gap-1.5 w-fit rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                  <CheckCircle2 className="size-3.5" />
+                  Verified
+                </span>
+              ) : (
+                <>
+                  <span className="inline-flex items-center gap-1.5 w-fit rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                    <AlertCircle className="size-3.5" />
+                    Not Verified
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[44px] w-full sm:w-auto"
+                    disabled={resending || cooldown > 0}
+                    onClick={handleResendVerification}
+                  >
+                    {resending && <Loader2 className="size-3.5 animate-spin" />}
+                    {cooldown > 0 ? `Resend (${cooldown}s)` : 'Resend verification email'}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
           <p className="text-xs text-muted-foreground">
             Your email is tied to your account. To change it, verify a new address via email.
           </p>

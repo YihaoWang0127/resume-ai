@@ -20,6 +20,7 @@
 
 ### Auth & Storage
 - **Email/Password Auth** — Supabase Auth with email verification
+- **Email Verification Banner** — dismissible global banner prompts unverified users to confirm their email, with a "Resend email" action (60s cooldown)
 - **Guest Mode** — anonymous sessions, try before signing up
 - **Auth Modal** — blurred-background overlay, auto-shows after 10s
 - **Save Resumes** — unlimited versions per user
@@ -44,7 +45,7 @@
 
 ### Settings & Personalization
 - **Settings Page** (`/settings`) — sidebar with Profile / AI Preferences / Appearance / Security tabs; tabs stay mounted so edits persist while switching and unsaved changes prompt before leaving
-- **Profile** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only
+- **Profile** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only, with a Verified / Not Verified status pill and resend-verification action
 - **AI Preferences** — tone, writing style, target industry, job level, and ATS mode, persisted to `user_preferences` and used to steer enrichment/tailoring/cover-letter prompts
 - **Appearance** — Light / Dark / System theme via `next-themes`
 - **Security** — change password (re-authenticates first) and permanently delete account + all data via a `DELETE`-to-confirm modal
@@ -73,7 +74,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 250+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 270+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -156,6 +157,7 @@ resume-ai/
 │   └── src/
 │       ├── components/
 │       │   ├── AuthModal.tsx          # auth overlay
+│       │   ├── EmailVerificationBanner.tsx  # global unverified-email banner + resend
 │       │   ├── ErrorBoundary.tsx      # runtime error catch
 │       │   ├── Modal.tsx              # generic centered overlay (used by Settings)
 │       │   ├── Navbar.tsx             # top nav — avatar/display name, user menu
@@ -259,7 +261,7 @@ Every `git push` → auto-deploys both.
 
 ```bash
 cd backend && pytest -v        # 50+ backend tests
-cd frontend && npm test         # 200+ frontend tests
+cd frontend && npm test         # 227+ frontend tests
 ```
 
 ---

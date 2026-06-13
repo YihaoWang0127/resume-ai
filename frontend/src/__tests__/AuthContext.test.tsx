@@ -12,6 +12,7 @@ vi.mock('@/lib/supabase', () => ({
       signUp: vi.fn(),
       signInAnonymously: vi.fn(),
       signOut: vi.fn(),
+      resend: vi.fn(),
     },
   },
 }))
@@ -20,8 +21,10 @@ import { supabase } from '@/lib/supabase'
 const mockAuth = vi.mocked(supabase.auth)
 
 const regularUser = { id: 'user-1', email: 'user@test.com', is_anonymous: false }
+const verifiedUser = { id: 'user-2', email: 'verified@test.com', is_anonymous: false, email_confirmed_at: '2024-01-01T00:00:00Z' }
 const guestUser = { id: 'anon-1', email: null, is_anonymous: true }
 const regularSession = { user: regularUser, access_token: 'tok' }
+const verifiedSession = { user: verifiedUser, access_token: 'tok' }
 
 function setupAuth(session: typeof regularSession | null = null) {
   mockAuth.getSession.mockResolvedValue({ data: { session } } as any)
@@ -155,5 +158,81 @@ describe('AuthContext — auth modal', () => {
 
     act(() => result.current.closeAuthModal())
     expect(result.current.showAuthModal).toBe(false)
+  })
+})
+
+// ── emailVerified ────────────────────────────────────────────────────────────
+
+describe('AuthContext — emailVerified flag', () => {
+  it('emailVerified is true for a guest user', async () => {
+    setupAuth({ user: guestUser, access_token: 'tok' } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.emailVerified).toBe(true)
+  })
+
+  it('emailVerified is true when there is no user', async () => {
+    setupAuth(null)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.user).toBeNull()
+    expect(result.current.emailVerified).toBe(true)
+  })
+
+  it('emailVerified is false for a regular user without email_confirmed_at', async () => {
+    setupAuth(regularSession as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.emailVerified).toBe(false)
+  })
+
+  it('emailVerified is true for a regular user with email_confirmed_at', async () => {
+    setupAuth(verifiedSession as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.emailVerified).toBe(true)
+  })
+})
+
+// ── resendVerificationEmail ─────────────────────────────────────────────────
+
+describe('AuthContext — resendVerificationEmail', () => {
+  it('calls supabase.auth.resend with the user email', async () => {
+    setupAuth(regularSession as any)
+    mockAuth.resend.mockResolvedValue({ error: null } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.resendVerificationEmail()
+    })
+
+    expect(mockAuth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'user@test.com' })
+  })
+
+  it('throws when there is no user email', async () => {
+    setupAuth(null)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(
+      act(async () => { await result.current.resendVerificationEmail() })
+    ).rejects.toThrow('No email address on file')
+    expect(mockAuth.resend).not.toHaveBeenCalled()
+  })
+
+  it('throws when supabase returns an error', async () => {
+    setupAuth(regularSession as any)
+    mockAuth.resend.mockResolvedValue({ error: new Error('Rate limited') } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(
+      act(async () => { await result.current.resendVerificationEmail() })
+    ).rejects.toThrow('Rate limited')
   })
 })
