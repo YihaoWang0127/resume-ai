@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import SecuritySettings from '@/components/settings/SecuritySettings'
+
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('@/lib/supabase', () => ({
@@ -30,6 +37,14 @@ function setupAuth(identities: { provider: string }[] = [{ provider: 'email' }])
   } as any)
 }
 
+function renderSecuritySettings() {
+  return render(
+    <MemoryRouter>
+      <SecuritySettings />
+    </MemoryRouter>
+  )
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   setupAuth()
@@ -37,24 +52,24 @@ beforeEach(() => {
 
 describe('SecuritySettings — password change', () => {
   it('shows the Change Password card for email/password accounts', () => {
-    render(<SecuritySettings />)
+    renderSecuritySettings()
     expect(screen.getByText('Change Password')).toBeInTheDocument()
   })
 
   it('hides the Change Password card for OAuth-only accounts', () => {
     setupAuth([{ provider: 'google' }])
-    render(<SecuritySettings />)
+    renderSecuritySettings()
     expect(screen.queryByText('Change Password')).not.toBeInTheDocument()
   })
 
   it('disables Update Password until all fields are filled', () => {
-    render(<SecuritySettings />)
+    renderSecuritySettings()
     expect(screen.getByRole('button', { name: /update password/i })).toBeDisabled()
   })
 
   it('shows an error toast when the new password is too short', async () => {
     const user = userEvent.setup()
-    render(<SecuritySettings />)
+    renderSecuritySettings()
 
     await user.type(screen.getByLabelText('Current Password'), 'oldpass')
     await user.type(screen.getByLabelText('New Password'), 'abc')
@@ -67,7 +82,7 @@ describe('SecuritySettings — password change', () => {
 
   it('shows an error toast when the passwords do not match', async () => {
     const user = userEvent.setup()
-    render(<SecuritySettings />)
+    renderSecuritySettings()
 
     await user.type(screen.getByLabelText('Current Password'), 'oldpass')
     await user.type(screen.getByLabelText('New Password'), 'newpass1')
@@ -81,7 +96,7 @@ describe('SecuritySettings — password change', () => {
     mockSignIn.mockResolvedValue({ error: null } as any)
     mockUpdateUser.mockResolvedValue({ data: {}, error: null } as any)
     const user = userEvent.setup()
-    render(<SecuritySettings />)
+    renderSecuritySettings()
 
     await user.type(screen.getByLabelText('Current Password'), 'oldpass')
     await user.type(screen.getByLabelText('New Password'), 'newpass1')
@@ -98,7 +113,7 @@ describe('SecuritySettings — password change', () => {
   it('shows "Current password is incorrect" when re-authentication fails', async () => {
     mockSignIn.mockResolvedValue({ error: { message: 'Invalid login credentials' } } as any)
     const user = userEvent.setup()
-    render(<SecuritySettings />)
+    renderSecuritySettings()
 
     await user.type(screen.getByLabelText('Current Password'), 'wrongpass')
     await user.type(screen.getByLabelText('New Password'), 'newpass1')
@@ -113,7 +128,7 @@ describe('SecuritySettings — password change', () => {
 describe('SecuritySettings — delete account', () => {
   it('opens the confirmation modal when Delete Account is clicked', async () => {
     const user = userEvent.setup()
-    render(<SecuritySettings />)
+    renderSecuritySettings()
 
     await user.click(screen.getByRole('button', { name: /delete account/i }))
 
@@ -122,7 +137,7 @@ describe('SecuritySettings — delete account', () => {
 
   it('keeps the confirm button disabled until "DELETE" is typed', async () => {
     const user = userEvent.setup()
-    render(<SecuritySettings />)
+    renderSecuritySettings()
 
     await user.click(screen.getByRole('button', { name: /delete account/i }))
     const confirmButtons = screen.getAllByRole('button', { name: /delete account/i })
@@ -137,7 +152,7 @@ describe('SecuritySettings — delete account', () => {
     mockRpc.mockResolvedValue({ error: null } as any)
     signOut.mockResolvedValue(undefined)
     const user = userEvent.setup()
-    render(<SecuritySettings />)
+    renderSecuritySettings()
 
     await user.click(screen.getByRole('button', { name: /delete account/i }))
     await user.type(screen.getByPlaceholderText('DELETE'), 'DELETE')
@@ -151,7 +166,7 @@ describe('SecuritySettings — delete account', () => {
   it('shows an error toast and does not sign out if deletion fails', async () => {
     mockRpc.mockResolvedValue({ error: new Error('Server error') } as any)
     const user = userEvent.setup()
-    render(<SecuritySettings />)
+    renderSecuritySettings()
 
     await user.click(screen.getByRole('button', { name: /delete account/i }))
     await user.type(screen.getByPlaceholderText('DELETE'), 'DELETE')
@@ -164,12 +179,28 @@ describe('SecuritySettings — delete account', () => {
 
   it('closes the modal and clears the confirm text on Cancel', async () => {
     const user = userEvent.setup()
-    render(<SecuritySettings />)
+    renderSecuritySettings()
 
     await user.click(screen.getByRole('button', { name: /delete account/i }))
     await user.type(screen.getByPlaceholderText('DELETE'), 'DELETE')
     await user.click(screen.getByRole('button', { name: /cancel/i }))
 
     expect(screen.queryByPlaceholderText('DELETE')).not.toBeInTheDocument()
+  })
+
+  it('closes the modal, shows a success toast, and navigates to "/" on successful deletion', async () => {
+    mockRpc.mockResolvedValue({ error: null } as any)
+    signOut.mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderSecuritySettings()
+
+    await user.click(screen.getByRole('button', { name: /delete account/i }))
+    await user.type(screen.getByPlaceholderText('DELETE'), 'DELETE')
+    const confirmButtons = screen.getAllByRole('button', { name: /delete account/i })
+    await user.click(confirmButtons[confirmButtons.length - 1])
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Your account has been deleted.'))
+    expect(screen.queryByPlaceholderText('DELETE')).not.toBeInTheDocument()
+    expect(mockNavigate).toHaveBeenCalledWith('/')
   })
 })

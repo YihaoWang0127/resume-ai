@@ -1,7 +1,16 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+
+// A session belongs to a non-anonymous user who hasn't verified their email yet.
+// Anonymous/guest sessions are intentionally unverified and must never be gated.
+function isUnverifiedSession(session: Session | null): boolean {
+  const user = session?.user
+  if (!user || user.is_anonymous) return false
+  return !user.email_confirmed_at
+}
 
 interface AuthContextValue {
   user: User | null
@@ -30,6 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (isUnverifiedSession(session)) {
+        void supabase.auth.signOut()
+        setSession(null)
+        setUser(null)
+        setLoading(false)
+        toast.error('Please verify your email address before continuing. Check your inbox for the verification link.')
+        if (!autoShowFired.current) {
+          autoShowFired.current = true
+          const timer = setTimeout(() => setShowAuthModal(true), 10000)
+          return () => clearTimeout(timer)
+        }
+        return
+      }
+
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -44,6 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isUnverifiedSession(session)) {
+        void supabase.auth.signOut()
+        setSession(null)
+        setUser(null)
+        toast.error('Please verify your email address before continuing. Check your inbox for the verification link.')
+        return
+      }
+
       setSession(session)
       setUser(session?.user ?? null)
     })
@@ -60,8 +91,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signUpWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    })
     if (error) throw error
+    if (data.user?.identities?.length === 0) {
+      throw new Error('This email is already registered. Please sign in instead.')
+    }
   }
 
   const signInAsGuest = async () => {
@@ -75,7 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resendVerificationEmail = async () => {
     if (!user?.email) throw new Error('No email address on file')
-    const { error } = await supabase.auth.resend({ type: 'signup', email: user.email })
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: user.email,
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    })
     if (error) throw error
   }
 
