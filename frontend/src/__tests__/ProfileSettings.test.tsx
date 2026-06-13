@@ -20,7 +20,9 @@ const mockUseAuth = vi.mocked(useAuth)
 const mockUpdateUser = vi.mocked(supabase.auth.updateUser)
 const mockStorageFrom = vi.mocked(supabase.storage.from)
 
-function setupAuth(overrides: Record<string, unknown> = {}) {
+const resendVerificationEmail = vi.fn()
+
+function setupAuth(overrides: Record<string, unknown> = {}, authOverrides: Record<string, unknown> = {}) {
   mockUseAuth.mockReturnValue({
     user: {
       id: 'user-1',
@@ -28,6 +30,10 @@ function setupAuth(overrides: Record<string, unknown> = {}) {
       user_metadata: { full_name: 'Jane Smith' },
       ...overrides,
     },
+    isGuest: false,
+    emailVerified: true,
+    resendVerificationEmail,
+    ...authOverrides,
   } as any)
 }
 
@@ -141,5 +147,67 @@ describe('ProfileSettings — avatar upload', () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Storage error'))
     expect(mockUpdateUser).not.toHaveBeenCalled()
+  })
+})
+
+describe('ProfileSettings — email verification', () => {
+  it('shows a "Verified" pill when the email is verified', () => {
+    setupAuth({}, { emailVerified: true })
+    render(<ProfileSettings onDirtyChange={vi.fn()} />)
+
+    expect(screen.getByText('Verified')).toBeInTheDocument()
+    expect(screen.queryByText('Not Verified')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /resend verification email/i })).not.toBeInTheDocument()
+  })
+
+  it('shows a "Not Verified" pill and resend button when the email is unverified', () => {
+    setupAuth({}, { emailVerified: false })
+    render(<ProfileSettings onDirtyChange={vi.fn()} />)
+
+    expect(screen.getByText('Not Verified')).toBeInTheDocument()
+    expect(screen.queryByText('Verified')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /resend verification email/i })).toBeInTheDocument()
+  })
+
+  it('resend button calls resendVerificationEmail, shows success toast, and starts cooldown', async () => {
+    setupAuth({}, { emailVerified: false })
+    resendVerificationEmail.mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    render(<ProfileSettings onDirtyChange={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: /resend verification email/i }))
+
+    await waitFor(() => expect(resendVerificationEmail).toHaveBeenCalled())
+    expect(toast.success).toHaveBeenCalledWith('Verification email sent')
+    expect(screen.getByRole('button', { name: /resend \(60s\)/i })).toBeDisabled()
+  })
+
+  it('shows an error toast when resend fails', async () => {
+    setupAuth({}, { emailVerified: false })
+    resendVerificationEmail.mockRejectedValue(new Error('Network error'))
+    const user = userEvent.setup()
+    render(<ProfileSettings onDirtyChange={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: /resend verification email/i }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Network error'))
+    expect(screen.getByRole('button', { name: /resend verification email/i })).not.toBeDisabled()
+  })
+
+  it('renders nothing for guest users', () => {
+    setupAuth({}, { isGuest: true, emailVerified: true })
+    render(<ProfileSettings onDirtyChange={vi.fn()} />)
+
+    expect(screen.queryByText('Verified')).not.toBeInTheDocument()
+    expect(screen.queryByText('Not Verified')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /resend verification email/i })).not.toBeInTheDocument()
+  })
+
+  it('renders nothing when the user has no email', () => {
+    setupAuth({ email: undefined }, { emailVerified: false })
+    render(<ProfileSettings onDirtyChange={vi.fn()} />)
+
+    expect(screen.queryByText('Verified')).not.toBeInTheDocument()
+    expect(screen.queryByText('Not Verified')).not.toBeInTheDocument()
   })
 })

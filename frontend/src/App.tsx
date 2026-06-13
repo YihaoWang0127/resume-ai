@@ -9,11 +9,13 @@ import Settings from '@/pages/Settings'
 import NotFound from '@/pages/NotFound'
 import AuthModal from '@/components/AuthModal'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import EmailVerificationBanner from '@/components/EmailVerificationBanner'
 import { Toaster } from '@/components/ui/sonner'
 
 function AppRoutes() {
   return (
     <>
+      <EmailVerificationBanner />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/editor" element={<Editor />} />
