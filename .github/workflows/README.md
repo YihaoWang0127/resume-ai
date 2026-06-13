@@ -1,62 +1,40 @@
 # Release Automation
 
-This repo uses [release-please](https://github.com/googleapis/release-please)
-(via `googleapis/release-please-action@v4`) to automate versioning,
-changelog generation, and GitHub Releases based on
-[Conventional Commits](https://www.conventionalcommits.org/).
+This repo automatically tags and publishes a GitHub Release on every push
+to `main`, based on [Conventional Commits](https://www.conventionalcommits.org/)
+prefixes. There is no release-please, no Release PR, and no changelog file —
+the tag and release are created instantly on push.
 
 ## Workflow: `release.yml`
 
 **Trigger:** every push to `main`.
 
 **What it does:**
-1. Scans commit messages on `main` since the last release.
-2. Opens or updates a "Release PR" containing:
-   - The next version number (computed from commit prefixes)
-   - An updated `CHANGELOG.md` summarizing the changes
-3. When that Release PR is merged into `main`, the action runs again and:
-   - Creates a Git tag (e.g. `v1.2.0`)
-   - Publishes a GitHub Release with the changelog notes for that version
-
-No manual version bumping or changelog editing is required.
-
-## Commit prefix → version bump
-
-release-please follows Conventional Commits to decide the next version:
-
-| Commit prefix | Version bump |
-|---|---|
-| `fix:` | PATCH (1.0.0 → 1.0.1) |
-| `feat:` | MINOR (1.0.0 → 1.1.0) |
-| `feat!:` or any commit with a `BREAKING CHANGE:` footer | MAJOR (1.0.0 → 2.0.0) |
-| `docs:`, `chore:`, `test:`, `refactor:`, etc. | No version bump (still recorded in changelog history) |
+1. Finds the most recent tag (or starts from `v0.0.0` if there is none yet).
+2. Scans the commit messages between that tag and `HEAD`.
+3. Picks the highest-priority version bump found:
+   - `feat!:` / `fix!:` / any commit with a `BREAKING CHANGE:` footer → **MAJOR**
+   - `feat:` → **MINOR**
+   - `fix:` → **PATCH**
+   - anything else (`docs:`, `chore:`, `test:`, `refactor:`, etc. only) → no release
+4. If a bump applies, creates and pushes the new tag (e.g. `v1.2.0`) and
+   publishes a GitHub Release for it via
+   [`softprops/action-gh-release@v2`](https://github.com/softprops/action-gh-release),
+   with release notes auto-generated from the commits/PRs in that range.
 
 This matches the commit prefix convention already used in this repo
 (see the root `CLAUDE.md` → Conventions).
 
-## First run / bootstrapping
-
-On the very first run, release-please has no prior release to compare
-against. It will open a bootstrap Release PR that creates:
-- `.release-please-manifest.json` — tracks the current released version
-- `release-please-config.json` — release configuration (if not already present)
-- An initial `CHANGELOG.md`
-
-Merging that PR establishes the baseline version (starts at `0.1.0` for
-`release-type: simple`) and all future pushes to `main` are diffed against it.
-
 ## Permissions
 
-- `contents: write` — push the Release PR branch, create tags, and publish releases
-- `pull-requests: write` — open and update the Release PR
+- `contents: write` — create and push the new tag and publish the release.
 
 ## Notes
 
-- The default `GITHUB_TOKEN` does **not** re-trigger other workflows when it
-  pushes the Release PR commit or the release tag (a GitHub Actions
-  limitation). If a downstream workflow needs to run off the release tag
-  (e.g. a deploy or publish step), pass a personal access token via
-  `with: token:` instead.
 - If PRs are squash-merged into `main`, make sure the squash commit
   message (or PR title) follows the `feat:` / `fix:` / `feat!:` convention —
-  that's the message release-please actually sees on `main`.
+  that's the message this workflow sees when scanning commits on `main`.
+- Pushing the release tag with the default `GITHUB_TOKEN` does **not**
+  re-trigger other workflows (a GitHub Actions limitation). If a downstream
+  workflow needs to run off the release tag (e.g. a deploy step), pass a
+  personal access token via `with: token:` instead.
