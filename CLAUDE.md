@@ -88,12 +88,9 @@ the Standard Closing Pipeline.
 | Agent | Owns |
 |---|---|
 | dashboard-agent | Dashboard.tsx |
-| editor-agent | Editor.tsx, ResumeEditor.tsx, ResumePreview.tsx, StreamingOutput.tsx |
-| home-agent | Home.tsx, ResumeUploader.tsx |
-| cover-letter-agent | CoverLetterEditor.tsx |
+| editor-agent | Editor.tsx, ResumeEditor.tsx, ResumePreview.tsx, StreamingOutput.tsx, CoverLetterEditor.tsx |
+| ui-agent | Navbar.tsx, AuthModal.tsx, Modal.tsx, Home.tsx, ResumeUploader.tsx |
 | settings-agent | Settings.tsx + components/settings/* |
-| nav-agent | Navbar.tsx |
-| modal-agent | AuthModal.tsx, Modal.tsx |
 | shared-agent | App.tsx, index.css, AuthContext, lib/supabase.ts, services/*.ts, ExportMenu, EmptyState, ErrorBoundary, NotFound, ServerError |
 | backend-agent | backend/app/** (routes, services, prompts, models) |
 
