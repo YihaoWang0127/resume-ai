@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Loader2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
@@ -11,6 +12,7 @@ import Modal from '@/components/Modal'
 
 export default function SecuritySettings() {
   const { user, signOut } = useAuth()
+  const navigate = useNavigate()
 
   const hasPasswordAuth = user?.identities?.some((i) => i.provider === 'email') ?? false
 
@@ -62,6 +64,9 @@ export default function SecuritySettings() {
       const { error } = await supabase.rpc('delete_user_account')
       if (error) throw error
       await signOut()
+      closeDeleteModal()
+      toast.success('Your account has been deleted.')
+      navigate('/')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete account')
       setDeleting(false)

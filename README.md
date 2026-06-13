@@ -19,7 +19,8 @@
 - **Live Preview** — 5 style presets with real-time switching
 
 ### Auth & Storage
-- **Email/Password Auth** — Supabase Auth with email verification
+- **Email/Password Auth** — Supabase Auth with email verification; signup clearly errors if the email is already registered (instead of a false "check your email" message), and verification/resend emails link back to the correct app origin via `emailRedirectTo`
+- **Unverified Session Guard** — non-anonymous sessions without a confirmed email are automatically signed out (on load and on auth state change) with a toast prompting the user to verify their email; guest/anonymous sessions are never affected
 - **Email Verification Banner** — dismissible global banner prompts unverified users to confirm their email, with a "Resend email" action (60s cooldown)
 - **Guest Mode** — anonymous sessions, try before signing up
 - **Auth Modal** — blurred-background overlay, auto-shows after 10s
@@ -48,7 +49,7 @@
 - **Profile** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only, with a Verified / Not Verified status pill and resend-verification action
 - **AI Preferences** — tone, writing style, target industry, job level, and ATS mode, persisted to `user_preferences` and used to steer enrichment/tailoring/cover-letter prompts
 - **Appearance** — Light / Dark / System theme via `next-themes`
-- **Security** — change password (re-authenticates first) and permanently delete account + all data via a `DELETE`-to-confirm modal
+- **Security** — change password (re-authenticates first) and permanently delete account + all data via a `DELETE`-to-confirm modal; on success the modal closes, a confirmation toast appears, and the user is redirected to the home page
 - **Live Navbar Sync** — avatar and display name in the navbar update immediately after a profile edit
 
 ---
@@ -74,7 +75,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 270+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 290+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -260,8 +261,8 @@ Every `git push` → auto-deploys both.
 ## Testing
 
 ```bash
-cd backend && pytest -v        # 50+ backend tests
-cd frontend && npm test         # 227+ frontend tests
+cd backend && pytest -v        # 55 backend tests
+cd frontend && npm test         # 235 frontend tests (21 files)
 ```
 
 ---
@@ -292,7 +293,7 @@ cd frontend && npm test         # 227+ frontend tests
 - [x] Error pages (404/500)
 - [x] User settings — profile, AI preferences, appearance, security
 - [x] Dark mode (Light/Dark/System) with no-flash reload
-- [x] 250+ automated tests
+- [x] 290+ automated tests
 - [ ] Google OAuth sign-in
 - [ ] ATS keyword scoring
 - [ ] Mobile responsive editor

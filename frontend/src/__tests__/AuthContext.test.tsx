@@ -17,7 +17,10 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 const mockAuth = vi.mocked(supabase.auth)
 
 const regularUser = { id: 'user-1', email: 'user@test.com', is_anonymous: false }
@@ -31,6 +34,7 @@ function setupAuth(session: typeof regularSession | null = null) {
   mockAuth.onAuthStateChange.mockReturnValue({
     data: { subscription: { unsubscribe: vi.fn() } },
   } as any)
+  mockAuth.signOut.mockResolvedValue({ error: null } as any)
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -70,8 +74,8 @@ describe('AuthContext — auth operations', () => {
     ).rejects.toThrow()
   })
 
-  it('signUpWithEmail calls supabase.auth.signUp', async () => {
-    mockAuth.signUp.mockResolvedValue({ error: null } as any)
+  it('signUpWithEmail calls supabase.auth.signUp with an emailRedirectTo option', async () => {
+    mockAuth.signUp.mockResolvedValue({ data: { user: { identities: [{ id: 'identity-1' }] } }, error: null } as any)
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -79,7 +83,31 @@ describe('AuthContext — auth operations', () => {
       await result.current.signUpWithEmail('new@test.com', 'pass123')
     })
 
-    expect(mockAuth.signUp).toHaveBeenCalledWith({ email: 'new@test.com', password: 'pass123' })
+    expect(mockAuth.signUp).toHaveBeenCalledWith({
+      email: 'new@test.com',
+      password: 'pass123',
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    })
+  })
+
+  it('signUpWithEmail resolves without throwing for a genuine new signup', async () => {
+    mockAuth.signUp.mockResolvedValue({ data: { user: { identities: [{ id: 'identity-1' }] } }, error: null } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(
+      act(async () => { await result.current.signUpWithEmail('new@test.com', 'pass123') })
+    ).resolves.not.toThrow()
+  })
+
+  it('signUpWithEmail throws "already registered" when identities is empty', async () => {
+    mockAuth.signUp.mockResolvedValue({ data: { user: { identities: [] } }, error: null } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await expect(
+      act(async () => { await result.current.signUpWithEmail('existing@test.com', 'pass123') })
+    ).rejects.toThrow('This email is already registered. Please sign in instead.')
   })
 
   it('signInAsGuest calls supabase.auth.signInAnonymously', async () => {
@@ -181,14 +209,6 @@ describe('AuthContext — emailVerified flag', () => {
     expect(result.current.emailVerified).toBe(true)
   })
 
-  it('emailVerified is false for a regular user without email_confirmed_at', async () => {
-    setupAuth(regularSession as any)
-    const { result } = renderHook(() => useAuth(), { wrapper })
-    await waitFor(() => expect(result.current.loading).toBe(false))
-
-    expect(result.current.emailVerified).toBe(false)
-  })
-
   it('emailVerified is true for a regular user with email_confirmed_at', async () => {
     setupAuth(verifiedSession as any)
     const { result } = renderHook(() => useAuth(), { wrapper })
@@ -201,8 +221,8 @@ describe('AuthContext — emailVerified flag', () => {
 // ── resendVerificationEmail ─────────────────────────────────────────────────
 
 describe('AuthContext — resendVerificationEmail', () => {
-  it('calls supabase.auth.resend with the user email', async () => {
-    setupAuth(regularSession as any)
+  it('calls supabase.auth.resend with the user email and an emailRedirectTo option', async () => {
+    setupAuth(verifiedSession as any)
     mockAuth.resend.mockResolvedValue({ error: null } as any)
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -211,7 +231,11 @@ describe('AuthContext — resendVerificationEmail', () => {
       await result.current.resendVerificationEmail()
     })
 
-    expect(mockAuth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'user@test.com' })
+    expect(mockAuth.resend).toHaveBeenCalledWith({
+      type: 'signup',
+      email: 'verified@test.com',
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    })
   })
 
   it('throws when there is no user email', async () => {
@@ -226,7 +250,7 @@ describe('AuthContext — resendVerificationEmail', () => {
   })
 
   it('throws when supabase returns an error', async () => {
-    setupAuth(regularSession as any)
+    setupAuth(verifiedSession as any)
     mockAuth.resend.mockResolvedValue({ error: new Error('Rate limited') } as any)
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
@@ -234,5 +258,91 @@ describe('AuthContext — resendVerificationEmail', () => {
     await expect(
       act(async () => { await result.current.resendVerificationEmail() })
     ).rejects.toThrow('Rate limited')
+  })
+})
+
+// ── isUnverifiedSession gating ───────────────────────────────────────────────
+
+const unverifiedToast = 'Please verify your email address before continuing. Check your inbox for the verification link.'
+
+describe('AuthContext — unverified session gating', () => {
+  it('on load: signs out, clears session/user, and shows a toast for an unverified non-anonymous session', async () => {
+    setupAuth(regularSession as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(mockAuth.signOut).toHaveBeenCalled()
+    expect(result.current.session).toBeNull()
+    expect(result.current.user).toBeNull()
+    expect(toast.error).toHaveBeenCalledWith(unverifiedToast)
+  })
+
+  it('on load: does NOT gate a verified non-anonymous session', async () => {
+    setupAuth(verifiedSession as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(mockAuth.signOut).not.toHaveBeenCalled()
+    expect(result.current.user).toEqual(verifiedUser)
+    expect(toast.error).not.toHaveBeenCalledWith(unverifiedToast)
+  })
+
+  it('on load: does NOT gate an anonymous/guest session', async () => {
+    setupAuth({ user: guestUser, access_token: 'tok' } as any)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(mockAuth.signOut).not.toHaveBeenCalled()
+    expect(result.current.user).toEqual(guestUser)
+    expect(toast.error).not.toHaveBeenCalledWith(unverifiedToast)
+  })
+
+  it('on auth state change: signs out, clears session/user, and shows a toast for an unverified non-anonymous session', async () => {
+    setupAuth(null)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    const onAuthStateChangeCallback = mockAuth.onAuthStateChange.mock.calls[0][0]
+
+    await act(async () => {
+      onAuthStateChangeCallback('SIGNED_IN', regularSession as any)
+    })
+
+    expect(mockAuth.signOut).toHaveBeenCalled()
+    expect(result.current.session).toBeNull()
+    expect(result.current.user).toBeNull()
+    expect(toast.error).toHaveBeenCalledWith(unverifiedToast)
+  })
+
+  it('on auth state change: does NOT gate a verified non-anonymous session', async () => {
+    setupAuth(null)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    const onAuthStateChangeCallback = mockAuth.onAuthStateChange.mock.calls[0][0]
+
+    await act(async () => {
+      onAuthStateChangeCallback('SIGNED_IN', verifiedSession as any)
+    })
+
+    expect(mockAuth.signOut).not.toHaveBeenCalled()
+    expect(result.current.user).toEqual(verifiedUser)
+    expect(toast.error).not.toHaveBeenCalledWith(unverifiedToast)
+  })
+
+  it('on auth state change: does NOT gate an anonymous/guest session', async () => {
+    setupAuth(null)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    const onAuthStateChangeCallback = mockAuth.onAuthStateChange.mock.calls[0][0]
+
+    await act(async () => {
+      onAuthStateChangeCallback('SIGNED_IN', { user: guestUser, access_token: 'tok' } as any)
+    })
+
+    expect(mockAuth.signOut).not.toHaveBeenCalled()
+    expect(result.current.user).toEqual(guestUser)
+    expect(toast.error).not.toHaveBeenCalledWith(unverifiedToast)
   })
 })
