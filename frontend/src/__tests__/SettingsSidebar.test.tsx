@@ -4,8 +4,8 @@ import userEvent from '@testing-library/user-event'
 import SettingsSidebar, { SETTINGS_TABS } from '@/components/settings/SettingsSidebar'
 
 describe('SettingsSidebar', () => {
-  it('renders all four tab labels', () => {
-    render(<SettingsSidebar activeTab="profile" onChange={vi.fn()} />)
+  it('renders all tab labels', () => {
+    render(<SettingsSidebar activeTab="appearance" onChange={vi.fn()} />)
     for (const tab of SETTINGS_TABS) {
       expect(screen.getAllByText(tab.label).length).toBeGreaterThan(0)
     }
@@ -30,7 +30,7 @@ describe('SettingsSidebar', () => {
   it('calls onChange with the clicked tab id', async () => {
     const onChange = vi.fn()
     const user = userEvent.setup()
-    render(<SettingsSidebar activeTab="profile" onChange={onChange} />)
+    render(<SettingsSidebar activeTab="appearance" onChange={onChange} />)
 
     const [securityButton] = screen.getAllByText('Security').map((el) => el.closest('button')!)
     await user.click(securityButton)

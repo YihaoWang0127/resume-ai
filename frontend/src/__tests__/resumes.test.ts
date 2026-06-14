@@ -9,7 +9,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 import { supabase } from '@/lib/supabase'
-import { saveResume, updateResume, listResumes, getResume, deleteResume } from '@/services/resumes'
+import { saveResume, updateResume, listResumes, getResume, deleteResume, updateAtsScore } from '@/services/resumes'
 
 const mockFrom = vi.mocked(supabase.from)
 const mockGetUser = vi.mocked(supabase.auth.getUser)
@@ -124,6 +124,39 @@ describe('updateResume', () => {
 
     const updateArg = mockUpdate.mock.calls[0][0] as Record<string, unknown>
     expect(updateArg).not.toHaveProperty('title')
+  })
+})
+
+// ── updateAtsScore ───────────────────────────────────────────────────────────
+
+describe('updateAtsScore', () => {
+  it('calls .update() with ats_score and ats_score_updated_at, then .eq("id", id)', async () => {
+    const mockSingle = vi.fn().mockResolvedValue({ data: { ...savedRecord, ats_score: 85 }, error: null })
+    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    mockFrom.mockReturnValue({ update: mockUpdate } as any)
+
+    const result = await updateAtsScore('resume-1', 85)
+
+    expect(mockFrom).toHaveBeenCalledWith('resumes')
+    expect(mockUpdate).toHaveBeenCalledWith({
+      ats_score: 85,
+      ats_score_updated_at: expect.any(String),
+    })
+    expect(mockEq).toHaveBeenCalledWith('id', 'resume-1')
+    expect(result).toEqual({ ...savedRecord, ats_score: 85 })
+  })
+
+  it('throws when the update fails', async () => {
+    const error = { message: 'db error' }
+    const mockSingle = vi.fn().mockResolvedValue({ data: null, error })
+    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    mockFrom.mockReturnValue({ update: mockUpdate } as any)
+
+    await expect(updateAtsScore('resume-1', 85)).rejects.toEqual(error)
   })
 })
 

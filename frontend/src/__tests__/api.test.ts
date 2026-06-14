@@ -1,8 +1,14 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, afterAll, vi, beforeEach } from 'vitest'
 import { setupServer } from 'msw/node'
 import { http, HttpResponse } from 'msw'
+
+vi.mock('@/services/aiUsage', () => ({ logAiUsage: vi.fn() }))
+
 import { parseResume, exportResume, scoreATS } from '@/services/api'
+import { logAiUsage } from '@/services/aiUsage'
 import type { ResumeSchema } from '@/types/resume'
+
+const mockLogAiUsage = vi.mocked(logAiUsage)
 
 const BASE = 'http://localhost:8000'
 
@@ -16,9 +22,13 @@ const mockResume: ResumeSchema = {
 
 const server = setupServer()
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
+beforeEach(() => {
+  mockLogAiUsage.mockResolvedValue(undefined)
+})
 afterEach(() => {
   server.resetHandlers()
   vi.restoreAllMocks()
+  mockLogAiUsage.mockReset()
 })
 afterAll(() => server.close())
 
@@ -94,6 +104,27 @@ describe('parseResume', () => {
 
     const file = new File(['data'], 'resume.txt', { type: 'text/plain' })
     await expect(parseResume(file)).rejects.toThrow()
+  })
+
+  it('logs AI usage with action "parse" and the fast model', async () => {
+    server.use(
+      http.post(`${BASE}/api/parse`, () =>
+        HttpResponse.json({
+          metadata: { name: 'Jane Smith', email: 'jane@example.com' },
+          summary: null,
+          experience: [],
+          education: [],
+          skills: [],
+          projects: [],
+          detected_industry: 'tech',
+        }),
+      ),
+    )
+
+    const file = new File(['pdf content'], 'resume.pdf', { type: 'application/pdf' })
+    await parseResume(file)
+
+    expect(mockLogAiUsage).toHaveBeenCalledWith('parse', 'claude-haiku-4-5')
   })
 })
 
@@ -269,5 +300,23 @@ describe('scoreATS', () => {
     )
 
     await expect(scoreATS(mockResume, '')).rejects.toThrow()
+  })
+
+  it('logs AI usage with action "ats_score" and the smart model', async () => {
+    server.use(
+      http.post(`${BASE}/api/ats-score`, () =>
+        HttpResponse.json({
+          overall_score: 78,
+          matched_keywords: ['Python'],
+          missing_keywords: ['Kubernetes'],
+          suggestions: ['Add a bullet about containers.'],
+          summary: 'Good match.',
+        }),
+      ),
+    )
+
+    await scoreATS(mockResume, 'Senior Software Engineer role requiring Python.')
+
+    expect(mockLogAiUsage).toHaveBeenCalledWith('ats_score', 'claude-sonnet-4-6')
   })
 })

@@ -9,6 +9,8 @@ export interface SavedResume {
   detected_industry: string
   created_at: string
   updated_at: string
+  ats_score?: number | null
+  ats_score_updated_at?: string | null
 }
 
 export async function saveResume(resume: ResumeSchema, title: string): Promise<SavedResume> {
@@ -41,6 +43,21 @@ export async function updateResume(id: string, resume: ResumeSchema, title?: str
   const { data, error } = await supabase
     .from('resumes')
     .update(update)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateAtsScore(id: string, score: number): Promise<SavedResume> {
+  const { data, error } = await supabase
+    .from('resumes')
+    .update({
+      ats_score: score,
+      ats_score_updated_at: new Date().toISOString(),
+    })
     .eq('id', id)
     .select()
     .single()

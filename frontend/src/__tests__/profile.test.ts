@@ -8,45 +8,45 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 import { supabase } from '@/lib/supabase'
-import { getPreferences, upsertPreferences } from '@/services/preferences'
-import { DEFAULT_PREFERENCES } from '@/types/preferences'
-import type { UserPreferences } from '@/types/preferences'
+import { getProfile, upsertProfile } from '@/services/profile'
+import { DEFAULT_PROFILE } from '@/types/profile'
+import type { ProfileData } from '@/types/profile'
 
 const mockFrom = vi.mocked(supabase.from)
 const mockGetUser = vi.mocked(supabase.auth.getUser)
 
 const mockUser = { id: 'user-123', email: 'jane@example.com' }
 
-const savedPrefs: UserPreferences = {
+const savedProfile: ProfileData = {
   user_id: 'user-123',
-  tone: 'executive',
-  writing_style: 'detailed',
-  industry: 'Finance',
-  job_level: 'senior',
-  ats_mode: true,
-  notify_export_complete: true,
-  notify_product_updates: false,
+  full_name: 'Jane Smith',
+  phone: '555-1234',
+  address: 'San Francisco, CA',
+  job_title: 'Software Engineer',
+  experience: [
+    { company: 'Acme', title: 'Engineer', startDate: 'Jan 2022', endDate: '', current: true, bullets: ['Did things'] },
+  ],
   updated_at: '2026-01-01T00:00:00Z',
 }
 
 beforeEach(() => vi.clearAllMocks())
 
-// ── getPreferences ───────────────────────────────────────────────────────────
+// ── getProfile ───────────────────────────────────────────────────────────────
 
-describe('getPreferences', () => {
+describe('getProfile', () => {
   it('calls .select("*").eq("user_id", id).maybeSingle() and returns the row', async () => {
     mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
-    const mockMaybeSingle = vi.fn().mockResolvedValue({ data: savedPrefs, error: null })
+    const mockMaybeSingle = vi.fn().mockResolvedValue({ data: savedProfile, error: null })
     const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     mockFrom.mockReturnValue({ select: mockSelect } as any)
 
-    const result = await getPreferences()
+    const result = await getProfile()
 
-    expect(mockFrom).toHaveBeenCalledWith('user_preferences')
+    expect(mockFrom).toHaveBeenCalledWith('profiles')
     expect(mockSelect).toHaveBeenCalledWith('*')
     expect(mockEq).toHaveBeenCalledWith('user_id', 'user-123')
-    expect(result).toEqual(savedPrefs)
+    expect(result).toEqual(savedProfile)
   })
 
   it('returns null when no row exists yet', async () => {
@@ -56,7 +56,7 @@ describe('getPreferences', () => {
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     mockFrom.mockReturnValue({ select: mockSelect } as any)
 
-    expect(await getPreferences()).toBeNull()
+    expect(await getProfile()).toBeNull()
   })
 
   it('returns null when the table does not exist yet (PGRST205)', async () => {
@@ -69,20 +69,20 @@ describe('getPreferences', () => {
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     mockFrom.mockReturnValue({ select: mockSelect } as any)
 
-    expect(await getPreferences()).toBeNull()
+    expect(await getProfile()).toBeNull()
   })
 
   it('returns null when the table does not exist yet (42P01)', async () => {
     mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
     const mockMaybeSingle = vi.fn().mockResolvedValue({
       data: null,
-      error: { code: '42P01', message: 'relation "user_preferences" does not exist' },
+      error: { code: '42P01', message: 'relation "profiles" does not exist' },
     })
     const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     mockFrom.mockReturnValue({ select: mockSelect } as any)
 
-    expect(await getPreferences()).toBeNull()
+    expect(await getProfile()).toBeNull()
   })
 
   it('throws for any other error code', async () => {
@@ -93,40 +93,40 @@ describe('getPreferences', () => {
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     mockFrom.mockReturnValue({ select: mockSelect } as any)
 
-    await expect(getPreferences()).rejects.toEqual(error)
+    await expect(getProfile()).rejects.toEqual(error)
   })
 
   it('throws "Not authenticated" when there is no user', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } } as any)
 
-    await expect(getPreferences()).rejects.toThrow('Not authenticated')
+    await expect(getProfile()).rejects.toThrow('Not authenticated')
     expect(mockFrom).not.toHaveBeenCalled()
   })
 })
 
-// ── upsertPreferences ────────────────────────────────────────────────────────
+// ── upsertProfile ────────────────────────────────────────────────────────────
 
-describe('upsertPreferences', () => {
-  it('calls .upsert() with user_id, the given preferences, and updated_at', async () => {
+describe('upsertProfile', () => {
+  it('calls .upsert() with user_id, the given profile, and updated_at', async () => {
     mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
-    const mockSingle = vi.fn().mockResolvedValue({ data: savedPrefs, error: null })
+    const mockSingle = vi.fn().mockResolvedValue({ data: savedProfile, error: null })
     const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
     const mockUpsert = vi.fn().mockReturnValue({ select: mockSelect })
     mockFrom.mockReturnValue({ upsert: mockUpsert } as any)
 
-    const result = await upsertPreferences(DEFAULT_PREFERENCES)
+    const result = await upsertProfile(DEFAULT_PROFILE)
 
-    expect(mockFrom).toHaveBeenCalledWith('user_preferences')
+    expect(mockFrom).toHaveBeenCalledWith('profiles')
     expect(mockUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({ user_id: 'user-123', ...DEFAULT_PREFERENCES, updated_at: expect.any(String) })
+      expect.objectContaining({ user_id: 'user-123', ...DEFAULT_PROFILE, updated_at: expect.any(String) })
     )
-    expect(result).toEqual(savedPrefs)
+    expect(result).toEqual(savedProfile)
   })
 
   it('throws "Not authenticated" when there is no user', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } } as any)
 
-    await expect(upsertPreferences(DEFAULT_PREFERENCES)).rejects.toThrow('Not authenticated')
+    await expect(upsertProfile(DEFAULT_PROFILE)).rejects.toThrow('Not authenticated')
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
@@ -138,6 +138,6 @@ describe('upsertPreferences', () => {
     const mockUpsert = vi.fn().mockReturnValue({ select: mockSelect })
     mockFrom.mockReturnValue({ upsert: mockUpsert } as any)
 
-    await expect(upsertPreferences(DEFAULT_PREFERENCES)).rejects.toEqual(error)
+    await expect(upsertProfile(DEFAULT_PROFILE)).rejects.toEqual(error)
   })
 })

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings, Menu, X } from 'lucide-react'
+import { FileText, ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings, Menu, X, Sparkles } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { cn, getInitials } from '@/lib/utils'
@@ -109,11 +109,25 @@ export default function Navbar({ onBack, children }: Props) {
               {userMenuOpen && (
                 <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-primary/30 rounded-lg py-1 min-w-[180px] shadow-dropdown">
                   <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/profile') }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                  >
+                    <User className="size-3.5" />
+                    Profile
+                  </button>
+                  <button
                     onClick={() => { setUserMenuOpen(false); navigate('/dashboard') }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
                   >
                     <LayoutDashboard className="size-3.5" />
-                    My Resumes
+                    Dashboard
+                  </button>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/ai') }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                  >
+                    <Sparkles className="size-3.5" />
+                    AI
                   </button>
                   <button
                     onClick={() => { setUserMenuOpen(false); navigate('/settings') }}
