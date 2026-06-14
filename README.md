@@ -45,6 +45,7 @@
 - **Progress Hints** — rotating messages during AI processing
 - **Resizable Panels** — drag AI output panel to any size
 - **Error Pages** — custom 404/500 with ErrorBoundary
+- **Enrich with AI — Review & Compare** — clicking "Enrich with AI" shows a loading overlay (blurred preview + cycling status messages) on the live preview, then opens a side-by-side **Split View** or **Unified View** comparison of the original vs. AI-enriched resume with diff highlights, so you can **Accept** to apply the changes or **Discard** to keep the original
 
 ### Settings & Personalization
 - **Settings Page** (`/settings`) — sidebar with Profile / AI Preferences / Appearance / Security tabs; tabs stay mounted so edits persist while switching and unsaved changes prompt before leaving
@@ -77,7 +78,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 320+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 328+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -161,13 +162,14 @@ resume-ai/
 │   └── src/
 │       ├── components/
 │       │   ├── AuthModal.tsx          # auth overlay
+│       │   ├── ComparisonView.tsx     # Enrich review: split/unified diff view + accept/discard
 │       │   ├── EmailVerificationBanner.tsx  # global unverified-email banner + resend
 │       │   ├── ErrorBoundary.tsx      # runtime error catch
 │       │   ├── Modal.tsx              # generic centered overlay (used by Settings)
 │       │   ├── Navbar.tsx             # top nav — avatar/display name, user menu
 │       │   ├── ResumeUploader.tsx     # drag & drop + preview
 │       │   ├── ResumeEditor.tsx       # editor + save + cover letter modal
-│       │   ├── ResumePreview.tsx      # live preview + style switcher
+│       │   ├── ResumePreview.tsx      # live preview + style switcher + diff highlights
 │       │   ├── StreamingOutput.tsx    # AI streaming display
 │       │   └── settings/
 │       │       ├── SettingsSidebar.tsx       # tab nav (mobile + desktop)
@@ -265,7 +267,7 @@ Every `git push` → auto-deploys both.
 
 ```bash
 cd backend && pytest -v        # 62 backend tests
-cd frontend && npm test         # 258 frontend tests (21 files)
+cd frontend && npm test         # 266 frontend tests (22 files)
 ```
 
 **CI:** `.github/workflows/ci.yml` runs on every pull request to `main` with

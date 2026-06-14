@@ -1,12 +1,20 @@
 import { cn } from '@/lib/utils'
 import type { EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
 
+export interface DiffHighlight {
+  summary?: boolean
+  experience?: boolean[][]
+  education?: boolean[]
+  skills?: boolean[][]
+}
+
 interface Props {
   resume: ResumeSchema
   flashSections?: Set<string>
   industry?: string
   detectedIndustry?: string
   onIndustryChange?: (id: string) => void
+  diffHighlight?: DiffHighlight
 }
 
 const PRESETS: Record<string, { font: string; accent: string; h1Size: string }> = {
@@ -42,6 +50,7 @@ export default function ResumePreview({
   industry = 'general',
   detectedIndustry,
   onIndustryChange,
+  diffHighlight,
 }: Props) {
   const preset = PRESETS[industry] ?? PRESETS.general
 
@@ -49,6 +58,12 @@ export default function ResumePreview({
     flashSections?.has(key)
       ? 'transition-colors duration-500 rounded px-2 -mx-2 py-1 -my-1 bg-green-50 ring-1 ring-green-300'
       : 'transition-colors duration-500'
+
+  const diffClass = (changed: boolean | undefined) =>
+    changed ? 'border-l-4 pl-2 -ml-2 bg-[#22c55e]/10' : ''
+
+  const diffStyle = (changed: boolean | undefined): React.CSSProperties | undefined =>
+    changed ? { borderColor: '#22c55e' } : undefined
 
   const { metadata, summary, experience, education, skills } = resume
   const contacts = [
@@ -128,7 +143,12 @@ export default function ResumePreview({
         {summary && (
           <section className={`mb-4 ${flash('summary')}`}>
             <SectionHeading>Summary</SectionHeading>
-            <p style={{ fontSize: '10pt' }}>{summary}</p>
+            <p
+              className={diffClass(diffHighlight?.summary)}
+              style={{ fontSize: '10pt', ...diffStyle(diffHighlight?.summary) }}
+            >
+              {summary}
+            </p>
           </section>
         )}
 
@@ -152,11 +172,18 @@ export default function ResumePreview({
                   </p>
                   {exp.bullets.filter(Boolean).length > 0 && (
                     <ul className="list-disc list-outside ml-4 mt-1 space-y-0.5">
-                      {exp.bullets.filter(Boolean).map((b: string, j: number) => (
-                        <li key={j} style={{ fontSize: '10pt' }}>
-                          {b}
-                        </li>
-                      ))}
+                      {exp.bullets.filter(Boolean).map((b: string, j: number) => {
+                        const changed = diffHighlight?.experience?.[i]?.[j]
+                        return (
+                          <li
+                            key={j}
+                            className={diffClass(changed)}
+                            style={{ fontSize: '10pt', ...diffStyle(changed) }}
+                          >
+                            {b}
+                          </li>
+                        )
+                      })}
                     </ul>
                   )}
                 </div>
@@ -170,19 +197,22 @@ export default function ResumePreview({
           <section className={`mb-4 ${flash('education')}`}>
             <SectionHeading>Education</SectionHeading>
             <div className="space-y-2">
-              {education.map((edu: EducationItem, i: number) => (
-                <div key={i}>
-                  <div className="flex justify-between items-baseline gap-2">
-                    <span className="font-bold min-w-0">{edu.institution}</span>
-                    <span className="text-gray-500 whitespace-nowrap shrink-0" style={{ fontSize: '8.5pt' }}>
-                      {edu.graduationYear}
-                    </span>
+              {education.map((edu: EducationItem, i: number) => {
+                const changed = diffHighlight?.education?.[i]
+                return (
+                  <div key={i} className={diffClass(changed)} style={diffStyle(changed)}>
+                    <div className="flex justify-between items-baseline gap-2">
+                      <span className="font-bold min-w-0">{edu.institution}</span>
+                      <span className="text-gray-500 whitespace-nowrap shrink-0" style={{ fontSize: '8.5pt' }}>
+                        {edu.graduationYear}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '9.5pt' }}>
+                      {[edu.degree, edu.field].filter(Boolean).join(' in ')}
+                    </p>
                   </div>
-                  <p style={{ fontSize: '9.5pt' }}>
-                    {[edu.degree, edu.field].filter(Boolean).join(' in ')}
-                  </p>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         )}
@@ -192,12 +222,36 @@ export default function ResumePreview({
           <section className={flash('skills')}>
             <SectionHeading>Skills</SectionHeading>
             <div className="space-y-1">
-              {skills.map((g: SkillCategory, i: number) => (
-                <p key={i} style={{ fontSize: '10pt' }}>
-                  {g.category && <span className="font-semibold">{g.category}: </span>}
-                  {g.items.join(', ')}
-                </p>
-              ))}
+              {skills.map((g: SkillCategory, i: number) => {
+                const groupDiff = diffHighlight?.skills?.[i]
+                if (!groupDiff) {
+                  return (
+                    <p key={i} style={{ fontSize: '10pt' }}>
+                      {g.category && <span className="font-semibold">{g.category}: </span>}
+                      {g.items.join(', ')}
+                    </p>
+                  )
+                }
+                return (
+                  <p key={i} style={{ fontSize: '10pt' }}>
+                    {g.category && <span className="font-semibold">{g.category}: </span>}
+                    {g.items.map((item: string, j: number) => {
+                      const changed = groupDiff[j]
+                      return (
+                        <span key={j}>
+                          <span
+                            className={diffClass(changed)}
+                            style={diffStyle(changed)}
+                          >
+                            {item}
+                          </span>
+                          {j < g.items.length - 1 ? ', ' : ''}
+                        </span>
+                      )
+                    })}
+                  </p>
+                )
+              })}
             </div>
           </section>
         )}
