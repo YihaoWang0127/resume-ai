@@ -250,14 +250,14 @@ describe('ResumeEditor — user dropdown in navbar', () => {
     expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument()
   })
 
-  it('shows My Resumes option in the user dropdown', async () => {
+  it('shows Dashboard option in the user dropdown', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     const emailText = screen.getByText('user@test.com')
     await user.click(emailText.closest('button')!)
 
-    expect(screen.getByRole('button', { name: /my resumes/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /dashboard/i })).toBeInTheDocument()
   })
 
   it('calls signOut when Sign Out is clicked', async () => {

@@ -3,19 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import Navbar from '@/components/Navbar'
 import SettingsSidebar, { type SettingsTab } from '@/components/settings/SettingsSidebar'
-import ProfileSettings from '@/components/settings/ProfileSettings'
-import AIPreferencesSettings from '@/components/settings/AIPreferencesSettings'
 import AppearanceSettings from '@/components/settings/AppearanceSettings'
 import SecuritySettings from '@/components/settings/SecuritySettings'
+import NotificationSettings from '@/components/settings/NotificationSettings'
 
 export default function Settings() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
+  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance')
   const [dirtyTabs, setDirtyTabs] = useState<Record<SettingsTab, boolean>>({
-    profile: false,
-    ai: false,
     appearance: false,
     security: false,
+    notifications: false,
   })
   const dirty = Object.values(dirtyTabs).some(Boolean)
 
@@ -42,17 +40,14 @@ export default function Settings() {
         <SettingsSidebar activeTab={activeTab} onChange={setActiveTab} />
         <div className="flex-1 min-w-0">
           {/* All tabs stay mounted so their data loads ahead of time and edits persist across tab switches */}
-          <div className={cn(activeTab !== 'profile' && 'hidden')}>
-            <ProfileSettings onDirtyChange={(d) => setDirtyTabs((p) => ({ ...p, profile: d }))} />
-          </div>
-          <div className={cn(activeTab !== 'ai' && 'hidden')}>
-            <AIPreferencesSettings onDirtyChange={(d) => setDirtyTabs((p) => ({ ...p, ai: d }))} />
-          </div>
           <div className={cn(activeTab !== 'appearance' && 'hidden')}>
             <AppearanceSettings />
           </div>
           <div className={cn(activeTab !== 'security' && 'hidden')}>
             <SecuritySettings />
+          </div>
+          <div className={cn(activeTab !== 'notifications' && 'hidden')}>
+            <NotificationSettings onDirtyChange={(d) => setDirtyTabs((p) => ({ ...p, notifications: d }))} />
           </div>
         </div>
       </main>

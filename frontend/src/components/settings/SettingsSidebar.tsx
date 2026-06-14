@@ -1,13 +1,12 @@
-import { User, Sparkles, Palette, Lock, type LucideIcon } from 'lucide-react'
+import { Palette, Lock, Bell, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type SettingsTab = 'profile' | 'ai' | 'appearance' | 'security'
+export type SettingsTab = 'appearance' | 'security' | 'notifications'
 
 export const SETTINGS_TABS: { id: SettingsTab; label: string; icon: LucideIcon }[] = [
-  { id: 'profile', label: 'Profile', icon: User },
-  { id: 'ai', label: 'AI Preferences', icon: Sparkles },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'security', label: 'Security', icon: Lock },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
 ]
 
 interface Props {

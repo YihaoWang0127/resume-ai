@@ -8,22 +8,19 @@ vi.mock('@/components/Navbar', () => ({
   default: ({ onBack }: { onBack?: () => void }) => <button onClick={onBack}>Back</button>,
 }))
 
-vi.mock('@/components/settings/ProfileSettings', () => ({
-  default: ({ onDirtyChange }: { onDirtyChange: (d: boolean) => void }) => (
-    <div data-testid="profile-panel">
-      Profile Panel
-      <button onClick={() => onDirtyChange(true)}>Make Profile Dirty</button>
-    </div>
-  ),
-}))
-vi.mock('@/components/settings/AIPreferencesSettings', () => ({
-  default: () => <div data-testid="ai-panel">AI Panel</div>,
-}))
 vi.mock('@/components/settings/AppearanceSettings', () => ({
   default: () => <div data-testid="appearance-panel">Appearance Panel</div>,
 }))
 vi.mock('@/components/settings/SecuritySettings', () => ({
   default: () => <div data-testid="security-panel">Security Panel</div>,
+}))
+vi.mock('@/components/settings/NotificationSettings', () => ({
+  default: ({ onDirtyChange }: { onDirtyChange: (d: boolean) => void }) => (
+    <div data-testid="notifications-panel">
+      Notifications Panel
+      <button onClick={() => onDirtyChange(true)}>Make Notifications Dirty</button>
+    </div>
+  ),
 }))
 
 function renderSettings() {
@@ -43,30 +40,41 @@ beforeEach(() => {
 })
 
 describe('Settings — tab switching', () => {
-  it('shows the Profile tab by default and hides the others', () => {
+  it('shows the Appearance tab by default and hides the others', () => {
     renderSettings()
-    expect(screen.getByTestId('profile-panel').parentElement?.className).not.toMatch(/hidden/)
-    expect(screen.getByTestId('ai-panel').parentElement?.className).toMatch(/hidden/)
+    expect(screen.getByTestId('appearance-panel').parentElement?.className).not.toMatch(/hidden/)
+    expect(screen.getByTestId('security-panel').parentElement?.className).toMatch(/hidden/)
+    expect(screen.getByTestId('notifications-panel').parentElement?.className).toMatch(/hidden/)
   })
 
-  it('switches to the AI Preferences tab', async () => {
+  it('switches to the Security tab', async () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.click(screen.getAllByText('AI Preferences')[0])
+    await user.click(screen.getAllByText('Security')[0])
 
-    expect(screen.getByTestId('ai-panel').parentElement?.className).not.toMatch(/hidden/)
-    expect(screen.getByTestId('profile-panel').parentElement?.className).toMatch(/hidden/)
+    expect(screen.getByTestId('security-panel').parentElement?.className).not.toMatch(/hidden/)
+    expect(screen.getByTestId('appearance-panel').parentElement?.className).toMatch(/hidden/)
+  })
+
+  it('switches to the Notifications tab', async () => {
+    const user = userEvent.setup()
+    renderSettings()
+
+    await user.click(screen.getAllByText('Notifications')[0])
+
+    expect(screen.getByTestId('notifications-panel').parentElement?.className).not.toMatch(/hidden/)
+    expect(screen.getByTestId('appearance-panel').parentElement?.className).toMatch(/hidden/)
   })
 
   it('keeps inactive tab panels mounted in the DOM when switching', async () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.click(screen.getAllByText('Appearance')[0])
+    await user.click(screen.getAllByText('Security')[0])
 
-    expect(screen.getByTestId('profile-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('appearance-panel').parentElement?.className).not.toMatch(/hidden/)
+    expect(screen.getByTestId('appearance-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('security-panel').parentElement?.className).not.toMatch(/hidden/)
   })
 })
 
@@ -86,11 +94,12 @@ describe('Settings — back navigation', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.click(screen.getByText('Make Profile Dirty'))
+    await user.click(screen.getAllByText('Notifications')[0])
+    await user.click(screen.getByText('Make Notifications Dirty'))
     await user.click(screen.getByText('Back'))
 
     expect(window.confirm).toHaveBeenCalledWith('You have unsaved changes. Discard them?')
-    expect(screen.getByTestId('profile-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('notifications-panel')).toBeInTheDocument()
   })
 
   it('navigates to the dashboard if the user confirms discarding changes', async () => {
@@ -98,7 +107,8 @@ describe('Settings — back navigation', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.click(screen.getByText('Make Profile Dirty'))
+    await user.click(screen.getAllByText('Notifications')[0])
+    await user.click(screen.getByText('Make Notifications Dirty'))
     await user.click(screen.getByText('Back'))
 
     expect(screen.getByText('Dashboard Page')).toBeInTheDocument()

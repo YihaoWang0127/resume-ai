@@ -9,6 +9,8 @@ export interface UserPreferences {
   industry: string
   job_level: JobLevel
   ats_mode: boolean
+  notify_export_complete: boolean
+  notify_product_updates: boolean
   updated_at: string
 }
 
@@ -20,4 +22,6 @@ export const DEFAULT_PREFERENCES: UserPreferencesInput = {
   industry: '',
   job_level: 'mid',
   ats_mode: false,
+  notify_export_complete: true,
+  notify_product_updates: false,
 }

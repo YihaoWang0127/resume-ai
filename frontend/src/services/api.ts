@@ -1,7 +1,12 @@
 import axios from 'axios'
 import type { ATSScoreResult, ResumeSchema } from '@/types/resume'
+import { logAiUsage } from '@/services/aiUsage'
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000'
+
+// Mirrors backend/app/services/claude.py
+const FAST_MODEL = 'claude-haiku-4-5'
+const SMART_MODEL = 'claude-sonnet-4-6'
 
 const http = axios.create({ baseURL: BASE })
 
@@ -113,23 +118,28 @@ export async function parseResume(file: File, signal?: AbortSignal): Promise<Res
     headers: { 'Content-Type': 'multipart/form-data' },
     signal,
   })
+  logAiUsage('parse', FAST_MODEL).catch(() => {})
   return fromBackend(data)
 }
 
 export async function enrichResume(
   resume: ResumeSchema,
 ): Promise<ReadableStream<Uint8Array>> {
-  return fetchStream('/api/enrich', { resume: toBackend(resume) })
+  const stream = await fetchStream('/api/enrich', { resume: toBackend(resume) })
+  logAiUsage('enrich', SMART_MODEL).catch(() => {})
+  return stream
 }
 
 export async function tailorResume(
   resume: ResumeSchema,
   jobDescription: string,
 ): Promise<ReadableStream<Uint8Array>> {
-  return fetchStream('/api/tailor', {
+  const stream = await fetchStream('/api/tailor', {
     resume: toBackend(resume),
     job_description: jobDescription,
   })
+  logAiUsage('tailor', SMART_MODEL).catch(() => {})
+  return stream
 }
 
 export async function generateCoverLetter(
@@ -155,6 +165,7 @@ export async function generateCoverLetter(
     throw new Error(`${res.status} ${res.statusText}: ${text}`)
   }
   if (!res.body) throw new Error('No response stream received')
+  logAiUsage('cover_letter', SMART_MODEL).catch(() => {})
   return res.body
 }
 
@@ -180,6 +191,7 @@ export async function scoreATS(
     resume: toBackend(resume),
     job_description: jobDescription,
   })
+  logAiUsage('ats_score', SMART_MODEL).catch(() => {})
   return {
     overallScore: typeof data.overall_score === 'number' ? data.overall_score : 0,
     matchedKeywords: strArr(data.matched_keywords),

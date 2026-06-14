@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
-import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft } from 'lucide-react'
+import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { listResumes, deleteResume, type SavedResume } from '@/services/resumes'
+import { listResumes, deleteResume, updateAtsScore, type SavedResume } from '@/services/resumes'
 import { listCoverLetters, deleteCoverLetter, type CoverLetter } from '@/services/coverLetters'
-import { exportResume, exportCoverLetter } from '@/services/api'
+import { exportResume, exportCoverLetter, scoreATS } from '@/services/api'
+import { getAiUsageStats } from '@/services/aiUsage'
 import Navbar from '@/components/Navbar'
 import ResumeUploader from '@/components/ResumeUploader'
 import Modal from '@/components/Modal'
 import ExportMenu from '@/components/ExportMenu'
 import EmptyState from '@/components/EmptyState'
-import type { ResumeSchema } from '@/types/resume'
+import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
 
 function SkeletonCards() {
   return (
@@ -41,6 +42,17 @@ export default function Dashboard() {
   const [resumes, setResumes] = useState<SavedResume[]>([])
   const [coverLetters, setCoverLetters] = useState<CoverLetter[]>([])
   const [fetching, setFetching] = useState(true)
+  const [aiCallsThisMonth, setAiCallsThisMonth] = useState<number | null>(null)
+
+  type DashboardTab = 'resumes' | 'cover-letters' | 'ats-score'
+  const [activeTab, setActiveTab] = useState<DashboardTab>('resumes')
+
+  // ── ATS score check ──────────────────────────────────────────────────────────
+  const [atsTarget, setAtsTarget] = useState<SavedResume | null>(null)
+  const [atsJobDesc, setAtsJobDesc] = useState('')
+  const [atsLoading, setAtsLoading] = useState(false)
+  const [atsResult, setAtsResult] = useState<ATSScoreResult | null>(null)
+  const [atsError, setAtsError] = useState<string | null>(null)
 
   const [deleteTarget, setDeleteTarget] = useState<SavedResume | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -78,9 +90,11 @@ export default function Dashboard() {
     Promise.all([
       listResumes().catch(() => [] as SavedResume[]),
       listCoverLetters().catch(() => [] as CoverLetter[]),
-    ]).then(([res, cls]) => {
+      getAiUsageStats().catch(() => null),
+    ]).then(([res, cls, usage]) => {
       setResumes(res)
       setCoverLetters(cls)
+      setAiCallsThisMonth(usage?.callsThisMonth ?? 0)
     }).finally(() => setFetching(false))
   }, [user, isGuest])
 
@@ -150,11 +164,135 @@ export default function Dashboard() {
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
+  // ── ATS score check ──────────────────────────────────────────────────────────
+  const closeAtsModal = () => {
+    setAtsTarget(null)
+    setAtsJobDesc('')
+    setAtsResult(null)
+    setAtsError(null)
+    setAtsLoading(false)
+  }
+
+  const handleRunAtsCheck = async () => {
+    if (!atsTarget || !atsJobDesc.trim()) return
+    setAtsLoading(true)
+    setAtsError(null)
+    try {
+      const result = await scoreATS(atsTarget.resume_data, atsJobDesc)
+      setAtsResult(result)
+      try {
+        await updateAtsScore(atsTarget.id, result.overallScore)
+        const updatedAt = new Date().toISOString()
+        setResumes((prev) =>
+          prev.map((r) =>
+            r.id === atsTarget.id ? { ...r, ats_score: result.overallScore, ats_score_updated_at: updatedAt } : r
+          )
+        )
+        setAtsTarget((prev) => (prev ? { ...prev, ats_score: result.overallScore, ats_score_updated_at: updatedAt } : prev))
+      } catch (err) {
+        console.error('Failed to save ATS score:', err)
+      }
+    } catch (err) {
+      console.error('ATS score check failed:', err)
+      setAtsError('Failed to run ATS check. Please try again.')
+    } finally {
+      setAtsLoading(false)
+    }
+  }
+
+  const avgAtsScore = (() => {
+    const scored = resumes.filter((r) => r.ats_score != null) as (SavedResume & { ats_score: number })[]
+    if (scored.length === 0) return null
+    const sum = scored.reduce((acc, r) => acc + r.ats_score, 0)
+    return Math.round(sum / scored.length)
+  })()
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar onBack={() => navigate('/')} />
 
       <main className="flex-1 px-6 py-10 max-w-5xl mx-auto w-full">
+
+        {/* ── STATS BAR ────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          <div className="bg-card border border-border rounded-xl p-4">
+            <p className="text-2xl font-bold text-foreground">
+              {fetching ? <span className="inline-block h-7 w-10 bg-muted rounded animate-pulse" /> : resumes.length}
+            </p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Resumes</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <p className="text-2xl font-bold text-foreground">
+              {fetching ? <span className="inline-block h-7 w-10 bg-muted rounded animate-pulse" /> : coverLetters.length}
+            </p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cover Letters</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <p className="text-2xl font-bold text-foreground">
+              {fetching ? <span className="inline-block h-7 w-10 bg-muted rounded animate-pulse" /> : (avgAtsScore ?? '—')}
+            </p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Avg ATS Score</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <p className="text-2xl font-bold text-foreground">
+              {fetching ? <span className="inline-block h-7 w-10 bg-muted rounded animate-pulse" /> : (aiCallsThisMonth ?? 0)}
+            </p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">AI Calls This Month</p>
+          </div>
+        </div>
+
+        {/* ── TABS ─────────────────────────────────────────────────────────── */}
+        <div className="overflow-x-auto mb-8">
+          <div className="flex gap-2 min-w-max">
+            <button
+              type="button"
+              onClick={() => setActiveTab('resumes')}
+              className={`flex items-center gap-2 px-4 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${
+                activeTab === 'resumes'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              }`}
+            >
+              Resumes
+              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                activeTab === 'resumes'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-primary/10 text-primary border border-primary/30'
+              }`}>
+                {resumes.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('cover-letters')}
+              className={`flex items-center gap-2 px-4 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${
+                activeTab === 'cover-letters'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              }`}
+            >
+              Cover Letters
+              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                activeTab === 'cover-letters'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-primary/10 text-primary border border-primary/30'
+              }`}>
+                {coverLetters.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('ats-score')}
+              className={`flex items-center gap-2 px-4 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${
+                activeTab === 'ats-score'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              }`}
+            >
+              ATS Score
+            </button>
+          </div>
+        </div>
 
         {fetching ? (
           <>
@@ -170,6 +308,7 @@ export default function Dashboard() {
         ) : (
           <>
             {/* ── MY RESUMES ─────────────────────────────────────────────────── */}
+            {activeTab === 'resumes' && (
             <section className="mb-12">
               <div className="flex items-center gap-3 mb-6">
                 <h2
@@ -275,8 +414,10 @@ export default function Dashboard() {
               </div>
               )}
             </section>
+            )}
 
             {/* ── MY COVER LETTERS ────────────────────────────────────────────── */}
+            {activeTab === 'cover-letters' && (
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <h2
@@ -380,6 +521,65 @@ export default function Dashboard() {
               </div>
               )}
             </section>
+            )}
+
+            {/* ── ATS SCORE ───────────────────────────────────────────────────── */}
+            {activeTab === 'ats-score' && (
+            <section>
+              <div className="flex items-center gap-3 mb-6">
+                <h2
+                  className="text-2xl font-bold uppercase tracking-wider text-foreground"
+                >
+                  ATS Score
+                </h2>
+              </div>
+
+              {resumes.length === 0 ? (
+                <EmptyState
+                  icon={Target}
+                  title="No resumes yet"
+                  description="Upload a resume first, then run an ATS check against any job description to see how well it matches."
+                  actionLabel="Upload Resume"
+                  onAction={() => setUploadModalOpen(true)}
+                />
+              ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {resumes.map((r) => (
+                  <div
+                    key={r.id}
+                    className="bg-card border border-primary/40 rounded-xl p-5 flex flex-col min-h-[160px] hover:border-primary/70 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-foreground text-sm truncate">{r.title}</p>
+                      {r.ats_score != null ? (
+                        <>
+                          <p className="mt-2 text-sm font-bold text-primary">
+                            Score: {r.ats_score}/100
+                          </p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            Checked {r.ats_score_updated_at ? formatDate(r.ats_score_updated_at) : '—'}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-2 text-[11px] text-muted-foreground">Not checked yet</p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+                      <button
+                        onClick={() => setAtsTarget(r)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                      >
+                        <Target className="size-3.5" />
+                        Check ATS Score
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              )}
+            </section>
+            )}
           </>
         )}
       </main>
@@ -707,6 +907,147 @@ export default function Dashboard() {
                 Delete
               </button>
             </div>
+      </Modal>
+
+      {/* ── ATS Score Check modal ───────────────────────────────────────────── */}
+      <Modal open={!!atsTarget} overlayClassName="bg-black/60 px-4" className="max-w-lg rounded-xl relative">
+            <button
+              type="button"
+              onClick={closeAtsModal}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Close"
+            >
+              <X className="size-4" />
+            </button>
+
+            <h2 className="text-lg font-bold text-foreground uppercase tracking-wide mb-1">
+              Check ATS Score
+            </h2>
+            <p className="text-xs text-muted-foreground mb-5">
+              Paste the job description for{' '}
+              <span className="text-foreground font-medium">"{atsTarget?.title}"</span>
+            </p>
+
+            {!atsResult ? (
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-1.5">
+                    Job Description <span className="text-red-400">*</span>
+                  </label>
+                  <textarea
+                    autoFocus
+                    placeholder="Paste the job description here..."
+                    value={atsJobDesc}
+                    onChange={(e) => setAtsJobDesc(e.target.value)}
+                    disabled={atsLoading}
+                    className="w-full min-h-32 px-3 py-2.5 border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary resize-none transition-colors disabled:opacity-50"
+                  />
+                </div>
+
+                {atsError && (
+                  <p className="mt-3 text-xs text-red-500">{atsError}</p>
+                )}
+
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={closeAtsModal}
+                    disabled={atsLoading}
+                    className="px-4 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!atsJobDesc.trim() || atsLoading}
+                    onClick={handleRunAtsCheck}
+                    className="flex items-center gap-2 px-5 py-2 min-h-[44px] bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-xs font-bold uppercase tracking-wide transition-colors"
+                  >
+                    {atsLoading && <Loader2 className="size-3.5 animate-spin" />}
+                    Run Check
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-5">
+                  {/* Overall score */}
+                  <div className="text-center py-4 bg-primary/5 border border-primary/20 rounded-xl">
+                    <p className="text-3xl font-bold text-primary">{atsResult.overallScore}/100</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Overall ATS Score
+                    </p>
+                  </div>
+
+                  {/* Summary */}
+                  {atsResult.summary && (
+                    <p className="text-sm text-foreground">{atsResult.summary}</p>
+                  )}
+
+                  {/* Matched keywords */}
+                  {atsResult.matchedKeywords.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                        Matched Keywords
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {atsResult.matchedKeywords.map((kw, i) => (
+                          <span
+                            key={i}
+                            className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-green-500/10 text-green-600 border border-green-500/30 rounded-full"
+                          >
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Missing keywords */}
+                  {atsResult.missingKeywords.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                        Missing Keywords
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {atsResult.missingKeywords.map((kw, i) => (
+                          <span
+                            key={i}
+                            className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-red-500/10 text-red-500 border border-red-500/30 rounded-full"
+                          >
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Suggestions */}
+                  {atsResult.suggestions.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                        Suggestions
+                      </p>
+                      <ul className="list-disc list-inside space-y-1">
+                        {atsResult.suggestions.map((s, i) => (
+                          <li key={i} className="text-sm text-foreground">{s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={closeAtsModal}
+                    className="px-4 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
       </Modal>
     </div>
   )

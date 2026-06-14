@@ -17,7 +17,8 @@
 - **Cover Letter Generator** — generates personalized cover letters with tone options
 - **Industry Detection** — auto-detects Tech/Finance/Creative/Healthcare/General
 - **Live Preview** — 5 style presets with real-time switching
-- **ATS Keyword Scoring** — paste a job description in the editor's "ATS Score" tab to get a 0-100 keyword-match score, matched/missing keyword chips, and AI suggestions for closing gaps
+- **ATS Keyword Scoring** — paste a job description in the editor's "ATS Score" tab to get a 0-100 keyword-match score, matched/missing keyword chips, and AI suggestions for closing gaps; scores can also be run and tracked per-resume from the Dashboard's "ATS Score" tab
+- **AI Usage Tracking** — every parse/enrich/tailor/cover-letter/ATS-score call is logged (`ai_usage_log`), surfaced on the new `/ai` page as total calls, calls this month, and a breakdown by action type
 
 ### Auth & Storage
 - **Sign in with Google** — OAuth sign-in via Supabase (`signInWithOAuth`), available as a "Continue with Google" option in the auth modal alongside email/password and guest sign-in; failed redirects show a toast error and reopen the auth modal to retry
@@ -28,7 +29,7 @@
 - **Auth Modal** — blurred-background overlay, auto-shows after 10s
 - **Save Resumes** — unlimited versions per user
 - **Save Cover Letters** — linked to source resume
-- **Dashboard** — grid view with edit/export/delete for both
+- **Dashboard** — stats bar (Resumes, Cover Letters, Avg ATS Score, AI Calls This Month) above a tabbed Resumes / Cover Letters / ATS Score view, each with grid view and edit/export/delete
 
 ### Export
 - **PDF Export** — ReportLab with industry-matched styling
@@ -47,13 +48,22 @@
 - **Error Pages** — custom 404/500 with ErrorBoundary
 - **Enrich with AI — Review & Compare** — clicking "Enrich with AI" shows a loading overlay (blurred preview + cycling status messages) on the live preview, then opens a side-by-side **Split View** or **Unified View** comparison of the original vs. AI-enriched resume with diff highlights, so you can **Accept** to apply the changes or **Discard** to keep the original
 
-### Settings & Personalization
-- **Settings Page** (`/settings`) — sidebar with Profile / AI Preferences / Appearance / Security tabs; tabs stay mounted so edits persist while switching and unsaved changes prompt before leaving
-- **Profile** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only, with a Verified / Not Verified status pill and resend-verification action
+### Profile (`/profile`)
+- **Account** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only, with a Verified / Not Verified status pill and resend-verification action
+- **Personal Info** — phone, address, and current/target job title, persisted to a new `profiles` table
+- **Work Experience** — repeatable company/title/dates/bullets entries, persisted to `profiles.experience` (JSONB); this data is intended to seed/generate a resume from scratch
+- **Live Navbar Sync** — avatar and display name in the navbar update immediately after a profile edit
+
+### AI (`/ai`)
 - **AI Preferences** — tone, writing style, target industry, job level, and ATS mode, persisted to `user_preferences` and used to steer enrichment/tailoring/cover-letter prompts
+- **Models** — read-only info card showing which Claude model powers parsing (Haiku 4.5) vs. enrichment/tailoring/cover letters/ATS scoring (Sonnet 4.6)
+- **AI Usage** — total AI calls, calls this month, breakdown by action type, and recent activity, backed by `ai_usage_log`
+
+### Settings & Personalization
+- **Settings Page** (`/settings`) — sidebar with Appearance / Security / Notifications tabs; tabs stay mounted so edits persist while switching and unsaved changes prompt before leaving
 - **Appearance** — Light / Dark / System theme via `next-themes`
 - **Security** — change password (re-authenticates first) and permanently delete account + all data via a `DELETE`-to-confirm modal; on success the modal closes, a confirmation toast appears, and the user is redirected to the home page
-- **Live Navbar Sync** — avatar and display name in the navbar update immediately after a profile edit
+- **Notifications** — toggles for "Export Complete" emails and "Product Updates" emails, persisted to `user_preferences`
 
 ---
 
@@ -78,7 +88,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 328+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 401+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -109,6 +119,8 @@ CREATE TABLE resumes (
   title TEXT NOT NULL,
   resume_data JSONB NOT NULL,
   detected_industry TEXT DEFAULT 'general',
+  ats_score INTEGER,
+  ats_score_updated_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -130,7 +142,7 @@ CREATE TABLE cover_letters (
 -- Both tables have Row Level Security enabled
 -- Users can only access their own data
 
--- User Preferences table (Settings → AI Preferences)
+-- User Preferences table (AI page → AI Preferences, Settings → Notifications)
 CREATE TABLE user_preferences (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   tone TEXT NOT NULL DEFAULT 'professional'
@@ -141,16 +153,43 @@ CREATE TABLE user_preferences (
   job_level TEXT NOT NULL DEFAULT 'mid'
     CHECK (job_level IN ('junior', 'mid', 'senior', 'executive')),
   ats_mode BOOLEAN NOT NULL DEFAULT false,
+  notify_export_complete BOOLEAN NOT NULL DEFAULT true,
+  notify_product_updates BOOLEAN NOT NULL DEFAULT false,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 -- RLS enabled — users can only read/write their own row
+
+-- Profiles table (Profile page → Personal Info + Work Experience)
+CREATE TABLE profiles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name TEXT NOT NULL DEFAULT '',
+  phone TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  job_title TEXT NOT NULL DEFAULT '',
+  experience JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- RLS enabled — users can only read/write their own row
+
+-- AI Usage Log table (AI page → AI Usage)
+CREATE TABLE ai_usage_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  action TEXT NOT NULL
+    CHECK (action IN ('parse', 'enrich', 'tailor', 'cover_letter', 'ats_score')),
+  model TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- RLS enabled — users can only read/write their own rows
+-- Indexed on (user_id, created_at DESC) for the AI Usage card
 ```
 
-**Storage:** `avatars` bucket (public read, owner-only write/update/delete by `user_id` folder) for Settings → Profile avatar uploads.
+**Storage:** `avatars` bucket (public read, owner-only write/update/delete by `user_id` folder) for Profile → Account avatar uploads.
 
-**RPC:** `delete_user_account()` — `SECURITY DEFINER` function called from Settings → Security → Delete Account. Cascades through `cover_letters`, `resumes`, and `user_preferences`, then removes the `auth.users` row.
+**RPC:** `delete_user_account()` — `SECURITY DEFINER` function called from Settings → Security → Delete Account. Cascades through `cover_letters`, `resumes`, `user_preferences`, `profiles`, and `ai_usage_log`, then removes the `auth.users` row.
 
-See `supabase/migrations/20260611_user_preferences.sql` for the full migration.
+See `supabase/migrations/20260611_user_preferences.sql` and
+`supabase/migrations/20260613_profile_and_ai_usage.sql` for the full migrations.
 
 ---
 
@@ -173,10 +212,9 @@ resume-ai/
 │       │   ├── StreamingOutput.tsx    # AI streaming display
 │       │   └── settings/
 │       │       ├── SettingsSidebar.tsx       # tab nav (mobile + desktop)
-│       │       ├── ProfileSettings.tsx       # display name + avatar upload
-│       │       ├── AIPreferencesSettings.tsx # tone/style/industry/level/ATS
 │       │       ├── AppearanceSettings.tsx    # Light/Dark/System theme
-│       │       └── SecuritySettings.tsx      # password change + delete account
+│       │       ├── SecuritySettings.tsx      # password change + delete account
+│       │       └── NotificationSettings.tsx  # export-complete / product-update email toggles
 │       ├── contexts/AuthContext.tsx    # Supabase auth provider
 │       ├── lib/
 │       │   ├── supabase.ts            # Supabase client
@@ -184,21 +222,27 @@ resume-ai/
 │       ├── pages/
 │       │   ├── Home.tsx               # landing page
 │       │   ├── Editor.tsx             # resume editor
-│       │   ├── Dashboard.tsx          # saved resumes + cover letters
+│       │   ├── Dashboard.tsx          # stats bar + Resumes/Cover Letters/ATS Score tabs
+│       │   ├── Profile.tsx            # /profile — account, personal info, work experience
+│       │   ├── AI.tsx                 # /ai — AI preferences, models info, AI usage
 │       │   ├── CoverLetterEditor.tsx  # cover letter editor
-│       │   ├── Settings.tsx           # /settings — profile/AI/appearance/security
+│       │   ├── Settings.tsx           # /settings — appearance/security/notifications
 │       │   ├── NotFound.tsx           # 404
 │       │   └── ServerError.tsx        # 500
 │       ├── services/
-│       │   ├── api.ts                 # FastAPI calls
-│       │   ├── resumes.ts             # Supabase resume CRUD
+│       │   ├── api.ts                 # FastAPI calls + AI usage logging
+│       │   ├── resumes.ts             # Supabase resume CRUD + ATS score updates
 │       │   ├── coverLetters.ts        # Supabase cover letter CRUD
-│       │   └── preferences.ts         # Supabase user_preferences CRUD
+│       │   ├── preferences.ts         # Supabase user_preferences CRUD
+│       │   ├── profile.ts             # Supabase profiles CRUD
+│       │   └── aiUsage.ts             # Supabase ai_usage_log CRUD + stats
 │       ├── types/
 │       │   ├── resume.ts
 │       │   ├── coverLetter.ts
-│       │   └── preferences.ts
-│       └── __tests__/                 # 250+ frontend tests
+│       │   ├── preferences.ts
+│       │   ├── profile.ts
+│       │   └── aiUsage.ts
+│       └── __tests__/                 # 339 frontend tests (25 files)
 │
 ├── backend/
 │   └── app/
@@ -215,7 +259,10 @@ resume-ai/
 │       │   └── exporter.py            # ReportLab + python-docx
 │       ├── models/resume.py
 │       └── prompts/resume.py          # all Claude prompts
-│   └── tests/                         # 60+ backend tests
+│   └── tests/                         # 62 backend tests
+│
+├── supabase/
+│   └── migrations/                    # SQL migrations (user_preferences, profiles, ai_usage_log, ATS score columns)
 │
 ├── render.yaml
 ├── CLAUDE.md
@@ -267,7 +314,7 @@ Every `git push` → auto-deploys both.
 
 ```bash
 cd backend && pytest -v        # 62 backend tests
-cd frontend && npm test         # 266 frontend tests (22 files)
+cd frontend && npm test         # 339 frontend tests (25 files)
 ```
 
 **CI:** `.github/workflows/ci.yml` runs on every pull request to `main` with
@@ -300,14 +347,17 @@ and `backend` (`pytest -v`) — matching branch protection on `main`.
 - [x] Save to database (resumes + cover letters)
 - [x] Dashboard with CRUD
 - [x] Error pages (404/500)
-- [x] User settings — profile, AI preferences, appearance, security
+- [x] User settings — appearance, security, notifications
 - [x] Dark mode (Light/Dark/System) with no-flash reload
-- [x] 320+ automated tests
+- [x] 400+ automated tests
 - [x] Google OAuth sign-in
-- [x] ATS keyword scoring
+- [x] ATS keyword scoring + Dashboard ATS Score tracking
+- [x] Profile page — personal info & work experience capture
+- [x] AI usage tracking and model transparency (`/ai` page)
 - [ ] Mobile responsive editor
 - [ ] Stripe monetization
 - [ ] Resume version history
+- [ ] Generate resume from scratch using Profile work experience
 
 ---
 
