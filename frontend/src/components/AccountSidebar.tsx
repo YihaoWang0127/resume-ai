@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, User, Sparkles, Settings as SettingsIcon, type LucideIcon } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 
 const ACCOUNT_NAV_ITEMS: { path: string; label: string; icon: LucideIcon }[] = [
@@ -12,12 +13,19 @@ const ACCOUNT_NAV_ITEMS: { path: string; label: string; icon: LucideIcon }[] = [
 export default function AccountSidebar() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, isGuest } = useAuth()
+
+  // Dashboard requires a persisted (non-guest) account — Dashboard.tsx
+  // redirects guests/signed-out users to "/", so don't show a tab that bounces them out.
+  const navItems = !user || isGuest
+    ? ACCOUNT_NAV_ITEMS.filter((item) => item.path !== '/dashboard')
+    : ACCOUNT_NAV_ITEMS
 
   return (
     <nav className="lg:w-56 lg:shrink-0">
       {/* Mobile: horizontal scrollable tab bar */}
       <div className="flex lg:hidden gap-2 overflow-x-auto scrollbar-none -mx-6 px-6 pb-4 mb-2 border-b border-border">
-        {ACCOUNT_NAV_ITEMS.map(({ path, label, icon: Icon }) => (
+        {navItems.map(({ path, label, icon: Icon }) => (
           <button
             key={path}
             type="button"
@@ -37,7 +45,7 @@ export default function AccountSidebar() {
 
       {/* Desktop: vertical sticky sidebar */}
       <div className="hidden lg:flex lg:flex-col lg:gap-1 lg:sticky lg:top-20">
-        {ACCOUNT_NAV_ITEMS.map(({ path, label, icon: Icon }) => (
+        {navItems.map(({ path, label, icon: Icon }) => (
           <button
             key={path}
             type="button"

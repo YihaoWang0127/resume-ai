@@ -8,6 +8,8 @@ vi.mock('@/components/Navbar', () => ({
   default: ({ onBack }: { onBack?: () => void }) => <button onClick={onBack}>Back</button>,
 }))
 
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+
 vi.mock('@/components/settings/ChangePasswordSettings', () => ({
   default: () => <div data-testid="change-password-panel">Change Password Panel</div>,
 }))
@@ -26,6 +28,9 @@ vi.mock('@/components/settings/DangerZoneSettings', () => ({
   default: () => <div data-testid="danger-zone-panel">Danger Zone Panel</div>,
 }))
 
+import { useAuth } from '@/contexts/AuthContext'
+const mockUseAuth = vi.mocked(useAuth)
+
 function renderSettings() {
   return render(
     <MemoryRouter initialEntries={['/settings']}>
@@ -40,6 +45,10 @@ function renderSettings() {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.spyOn(window, 'confirm')
+  mockUseAuth.mockReturnValue({
+    user: { id: 'u1', email: 'jane@example.com' },
+    isGuest: false,
+  } as any)
 })
 
 describe('Settings — layout', () => {

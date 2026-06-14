@@ -47,7 +47,8 @@
 - **Resizable Panels** — drag AI output panel to any size
 - **Error Pages** — custom 404/500 with ErrorBoundary
 - **Enrich with AI — Review & Compare** — clicking "Enrich with AI" shows a loading overlay (blurred preview + cycling status messages) on the live preview, then opens a side-by-side **Split View** or **Unified View** comparison of the original vs. AI-enriched resume with diff highlights, so you can **Accept** to apply the changes or **Discard** to keep the original
-- **Persistent Account Sidebar** — Profile, Dashboard, AI, and Settings share a route-aware `AccountSidebar` (Notion/Linear/Vercel-dashboard style) for switching between account pages without reopening the navbar menu; vertical sticky sidebar on desktop, horizontal scrollable tab bar on mobile, with the active page highlighted
+- **Persistent Account Sidebar** — Profile, Dashboard, AI, and Settings share a route-aware `AccountSidebar` (Notion/Linear/Vercel-dashboard style) for switching between account pages without reopening the navbar menu; vertical sticky sidebar on desktop, horizontal scrollable tab bar on mobile, with the active page highlighted; the "Dashboard" tab is hidden for guest/signed-out users since the Dashboard page redirects them to `/`
+- **Guest Navbar Menu** — guest/signed-out users get a "Guest" dropdown in the navbar (avatar + chevron) with quick links to Profile, AI, and Settings plus a "Sign In / Sign Up" action, instead of a bare "Sign In" button
 
 ### Profile (`/profile`)
 - **Account** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only, with a Verified / Not Verified status pill and resend-verification action
@@ -90,7 +91,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 405+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 420+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -245,7 +246,7 @@ resume-ai/
 │       │   ├── preferences.ts
 │       │   ├── profile.ts
 │       │   └── aiUsage.ts
-│       └── __tests__/                 # 343 frontend tests (26 files)
+│       └── __tests__/                 # 360 frontend tests (26 files)
 │
 ├── backend/
 │   └── app/
@@ -317,7 +318,7 @@ Every `git push` → auto-deploys both.
 
 ```bash
 cd backend && pytest -v        # 62 backend tests
-cd frontend && npm test         # 343 frontend tests (26 files)
+cd frontend && npm test         # 360 frontend tests (26 files)
 ```
 
 **CI:** `.github/workflows/ci.yml` runs on every pull request to `main` with
