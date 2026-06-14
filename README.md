@@ -47,7 +47,7 @@
 - **Resizable Panels** — drag AI output panel to any size
 - **Error Pages** — custom 404/500 with ErrorBoundary
 - **Enrich with AI — Review & Compare** — clicking "Enrich with AI" shows a loading overlay (blurred preview + cycling status messages) on the live preview, then opens a side-by-side **Split View** or **Unified View** comparison of the original vs. AI-enriched resume with diff highlights, so you can **Accept** to apply the changes or **Discard** to keep the original
-- **Persistent Account Sidebar** — Dashboard, Profile, AI, and Settings share a route-aware `AccountSidebar` (Notion/Linear/Vercel-dashboard style) for switching between account pages without reopening the navbar menu; vertical sticky sidebar on desktop, horizontal scrollable tab bar on mobile, with the active page highlighted
+- **Persistent Account Sidebar** — Profile, Dashboard, AI, and Settings share a route-aware `AccountSidebar` (Notion/Linear/Vercel-dashboard style) for switching between account pages without reopening the navbar menu; vertical sticky sidebar on desktop, horizontal scrollable tab bar on mobile, with the active page highlighted
 
 ### Profile (`/profile`)
 - **Account** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only, with a Verified / Not Verified status pill and resend-verification action
@@ -61,10 +61,11 @@
 - **AI Usage** — total AI calls, calls this month, breakdown by action type, and recent activity, backed by `ai_usage_log`
 
 ### Settings & Personalization
-- **Settings Page** (`/settings`) — sidebar with Appearance / Security / Notifications tabs; tabs stay mounted so edits persist while switching and unsaved changes prompt before leaving
+- **Settings Page** (`/settings`) — Change Password, Appearance, Notifications, and Danger Zone sections shown stacked on a single page; unsaved Notifications changes prompt before leaving
+- **Change Password** — re-authenticates first, then updates the account password
 - **Appearance** — Light / Dark / System theme via `next-themes`
-- **Security** — change password (re-authenticates first) and permanently delete account + all data via a `DELETE`-to-confirm modal; on success the modal closes, a confirmation toast appears, and the user is redirected to the home page
 - **Notifications** — toggles for "Export Complete" emails and "Product Updates" emails, persisted to `user_preferences`
+- **Danger Zone** — permanently delete account + all data via a `DELETE`-to-confirm modal; on success the modal closes, a confirmation toast appears, and the user is redirected to the home page
 
 ---
 
@@ -89,7 +90,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 408+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 405+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -213,10 +214,10 @@ resume-ai/
 │       │   ├── ResumePreview.tsx      # live preview + style switcher + diff highlights
 │       │   ├── StreamingOutput.tsx    # AI streaming display
 │       │   └── settings/
-│       │       ├── SettingsSidebar.tsx       # tab nav (mobile + desktop)
+│       │       ├── ChangePasswordSettings.tsx # re-authenticate + change password
 │       │       ├── AppearanceSettings.tsx    # Light/Dark/System theme
-│       │       ├── SecuritySettings.tsx      # password change + delete account
-│       │       └── NotificationSettings.tsx  # export-complete / product-update email toggles
+│       │       ├── NotificationSettings.tsx  # export-complete / product-update email toggles
+│       │       └── DangerZoneSettings.tsx    # permanently delete account + all data
 │       ├── contexts/AuthContext.tsx    # Supabase auth provider
 │       ├── lib/
 │       │   ├── supabase.ts            # Supabase client
@@ -244,7 +245,7 @@ resume-ai/
 │       │   ├── preferences.ts
 │       │   ├── profile.ts
 │       │   └── aiUsage.ts
-│       └── __tests__/                 # 346 frontend tests (26 files)
+│       └── __tests__/                 # 343 frontend tests (26 files)
 │
 ├── backend/
 │   └── app/
@@ -316,7 +317,7 @@ Every `git push` → auto-deploys both.
 
 ```bash
 cd backend && pytest -v        # 62 backend tests
-cd frontend && npm test         # 346 frontend tests (26 files)
+cd frontend && npm test         # 343 frontend tests (26 files)
 ```
 
 **CI:** `.github/workflows/ci.yml` runs on every pull request to `main` with

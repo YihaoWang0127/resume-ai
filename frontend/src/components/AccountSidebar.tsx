@@ -3,8 +3,8 @@ import { LayoutDashboard, User, Sparkles, Settings as SettingsIcon, type LucideI
 import { cn } from '@/lib/utils'
 
 const ACCOUNT_NAV_ITEMS: { path: string; label: string; icon: LucideIcon }[] = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/profile', label: 'Profile', icon: User },
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/ai', label: 'AI', icon: Sparkles },
   { path: '/settings', label: 'Settings', icon: SettingsIcon },
 ]

@@ -12,8 +12,8 @@ vi.mock('react-router-dom', async (importOriginal) => {
 })
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/dashboard' },
   { label: 'Profile', path: '/profile' },
+  { label: 'Dashboard', path: '/dashboard' },
   { label: 'AI', path: '/ai' },
   { label: 'Settings', path: '/settings' },
 ]
@@ -51,6 +51,16 @@ describe('AccountSidebar — nav links', () => {
       await user.click(buttons[0])
       expect(mockNavigate).toHaveBeenCalledWith(path)
     }
+  })
+
+  it('renders nav links in Profile, Dashboard, AI, Settings order', () => {
+    const { container } = renderSidebar('/dashboard')
+
+    // Desktop sidebar is the second nav group in the DOM (mobile pill bar is first)
+    const desktopNav = container.querySelectorAll('nav > div')[1]
+    const labels = Array.from(desktopNav.querySelectorAll('button')).map((btn) => btn.textContent)
+
+    expect(labels).toEqual(['Profile', 'Dashboard', 'AI', 'Settings'])
   })
 })
 
