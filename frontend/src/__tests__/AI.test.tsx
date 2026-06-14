@@ -14,17 +14,20 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/components/Navbar', () => ({
   default: ({ onBack }: { onBack?: () => void }) => <button onClick={onBack}>Back</button>,
 }))
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 
 // ── imports after mocks ───────────────────────────────────────────────────────
 
 import { getPreferences, upsertPreferences } from '@/services/preferences'
 import { getAiUsageStats } from '@/services/aiUsage'
 import { toast } from 'sonner'
+import { useAuth } from '@/contexts/AuthContext'
 import AI from '@/pages/AI'
 
 const mockGetPreferences = vi.mocked(getPreferences)
 const mockUpsertPreferences = vi.mocked(upsertPreferences)
 const mockGetAiUsageStats = vi.mocked(getAiUsageStats)
+const mockUseAuth = vi.mocked(useAuth)
 
 const emptyStats: AiUsageStats = {
   totalCalls: 0,
@@ -59,6 +62,10 @@ function renderAI() {
 beforeEach(() => {
   vi.clearAllMocks()
   mockGetAiUsageStats.mockResolvedValue(emptyStats)
+  mockUseAuth.mockReturnValue({
+    user: { id: 'u1', email: 'jane@example.com' },
+    isGuest: false,
+  } as any)
 })
 
 // ── AI Preferences card ───────────────────────────────────────────────────────

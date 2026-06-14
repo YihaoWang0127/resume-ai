@@ -11,6 +11,19 @@ vi.mock('react-router-dom', async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+
+import { useAuth } from '@/contexts/AuthContext'
+const mockUseAuth = vi.mocked(useAuth)
+
+function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
+  mockUseAuth.mockReturnValue({
+    user: { id: 'u1', email: 'jane@example.com' } as any,
+    isGuest: false,
+    ...overrides,
+  } as any)
+}
+
 const NAV_ITEMS = [
   { label: 'Profile', path: '/profile' },
   { label: 'Dashboard', path: '/dashboard' },
@@ -30,6 +43,7 @@ function renderSidebar(initialPath: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  setupAuth()
 })
 
 describe('AccountSidebar — nav links', () => {
@@ -130,5 +144,97 @@ describe('AccountSidebar — active link highlighting', () => {
         expect(button.className).not.toMatch(/bg-primary/)
       }
     }
+  })
+})
+
+describe('AccountSidebar — guest and signed-out users', () => {
+  it('hides the Dashboard tab for a guest user', () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    renderSidebar('/profile')
+
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Profile').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('AI').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Settings').length).toBeGreaterThan(0)
+  })
+
+  it('hides the Dashboard tab for a signed-out user', () => {
+    setupAuth({ user: null, isGuest: false })
+    renderSidebar('/profile')
+
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Profile').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('AI').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Settings').length).toBeGreaterThan(0)
+  })
+
+  it('shows the Dashboard tab for a signed-in non-guest user', () => {
+    setupAuth({ user: { id: 'u1', email: 'jane@example.com' } as any, isGuest: false })
+    renderSidebar('/profile')
+
+    expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0)
+  })
+
+  it('renders exactly 3 tabs (Profile, AI, Settings) in both the mobile pill bar and desktop sidebar for a guest', () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    const { container } = renderSidebar('/profile')
+
+    const [mobileNav, desktopNav] = container.querySelectorAll('nav > div')
+    expect(Array.from(mobileNav.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
+      'Profile',
+      'AI',
+      'Settings',
+    ])
+    expect(Array.from(desktopNav.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
+      'Profile',
+      'AI',
+      'Settings',
+    ])
+  })
+
+  it('renders exactly 3 tabs (Profile, AI, Settings) for a signed-out user', () => {
+    setupAuth({ user: null, isGuest: false })
+    const { container } = renderSidebar('/profile')
+
+    const [mobileNav, desktopNav] = container.querySelectorAll('nav > div')
+    expect(Array.from(mobileNav.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
+      'Profile',
+      'AI',
+      'Settings',
+    ])
+    expect(Array.from(desktopNav.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
+      'Profile',
+      'AI',
+      'Settings',
+    ])
+  })
+
+  it('still highlights the active tab for a guest user when Dashboard is hidden', () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    renderSidebar('/ai')
+
+    const aiButtons = screen.getAllByText('AI').map((el) => el.closest('button')!)
+    for (const button of aiButtons) {
+      expect(button.className).toMatch(/bg-primary/)
+    }
+
+    const profileButtons = screen.getAllByText('Profile').map((el) => el.closest('button')!)
+    for (const button of profileButtons) {
+      expect(button.className).not.toMatch(/bg-primary/)
+    }
+  })
+
+  it('navigates correctly when clicking AI and Settings tabs as a guest', async () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    const user = userEvent.setup()
+    renderSidebar('/profile')
+
+    const aiButtons = screen.getAllByText('AI').map((el) => el.closest('button')!)
+    await user.click(aiButtons[0])
+    expect(mockNavigate).toHaveBeenCalledWith('/ai')
+
+    const settingsButtons = screen.getAllByText('Settings').map((el) => el.closest('button')!)
+    await user.click(settingsButtons[0])
+    expect(mockNavigate).toHaveBeenCalledWith('/settings')
   })
 })
