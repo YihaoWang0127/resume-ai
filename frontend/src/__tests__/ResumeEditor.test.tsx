@@ -19,7 +19,17 @@ vi.mock('@/services/resumes', () => ({
   updateResume: vi.fn(),
 }))
 vi.mock('@/components/ResumePreview', () => ({
-  default: () => <div data-testid="resume-preview" />,
+  default: (props: { onIndustryChange?: (industry: string) => void }) => (
+    <div data-testid="resume-preview">
+      <button
+        type="button"
+        data-testid="change-industry"
+        onClick={() => props.onIndustryChange?.('finance')}
+      >
+        Change Industry
+      </button>
+    </div>
+  ),
 }))
 vi.mock('@/components/StreamingOutput', () => ({
   default: () => <div data-testid="streaming-output" />,
@@ -28,13 +38,14 @@ vi.mock('@/components/StreamingOutput', () => ({
 // ── imports after mocks ───────────────────────────────────────────────────────
 
 import { useAuth } from '@/contexts/AuthContext'
-import { saveResume } from '@/services/resumes'
+import { saveResume, updateResume } from '@/services/resumes'
 import { scoreATS, enrichResume } from '@/services/api'
 import ResumeEditor from '@/components/ResumeEditor'
 import type { ATSScoreResult } from '@/types/resume'
 
 const mockUseAuth = vi.mocked(useAuth)
 const mockSaveResume = vi.mocked(saveResume)
+const mockUpdateResume = vi.mocked(updateResume)
 const mockScoreATS = vi.mocked(scoreATS)
 const mockEnrichResume = vi.mocked(enrichResume)
 
@@ -176,6 +187,51 @@ describe('ResumeEditor — save dialog', () => {
 
     expect(screen.queryByRole('heading', { name: /save resume/i })).not.toBeInTheDocument()
     expect(mockSaveResume).not.toHaveBeenCalled()
+  })
+
+  it('calls saveResume with the newly selected style, not the original detectedIndustry', async () => {
+    mockSaveResume.mockResolvedValue({ id: 'new-id' } as any)
+    const user = userEvent.setup()
+    renderEditor()
+
+    // Change the style via the (mocked) ResumePreview's onIndustryChange callback
+    await user.click(screen.getByTestId('change-industry'))
+
+    const dialog = await openSaveDialog(user)
+    await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
+
+    await waitFor(() =>
+      expect(mockSaveResume).toHaveBeenCalledWith(
+        expect.objectContaining({ detectedIndustry: 'finance' }),
+        expect.any(String),
+      )
+    )
+    const [savedResume] = mockSaveResume.mock.calls[0]
+    expect(savedResume.detectedIndustry).not.toBe(mockResume.detectedIndustry)
+  })
+})
+
+// ── update (existing resume) ─────────────────────────────────────────────────
+
+describe('ResumeEditor — update existing resume', () => {
+  it('calls updateResume with the newly selected style, not the original detectedIndustry', async () => {
+    mockUpdateResume.mockResolvedValue({ id: 'existing-id' } as any)
+    const user = userEvent.setup()
+    renderEditor({ initialResumeId: 'existing-id' })
+
+    // Change the style via the (mocked) ResumePreview's onIndustryChange callback
+    await user.click(screen.getByTestId('change-industry'))
+
+    await user.click(screen.getByRole('button', { name: /^update$/i }))
+
+    await waitFor(() =>
+      expect(mockUpdateResume).toHaveBeenCalledWith(
+        'existing-id',
+        expect.objectContaining({ detectedIndustry: 'finance' }),
+      )
+    )
+    const [, updatedResume] = mockUpdateResume.mock.calls[0]
+    expect(updatedResume.detectedIndustry).not.toBe(mockResume.detectedIndustry)
   })
 })
 

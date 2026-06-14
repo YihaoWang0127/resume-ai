@@ -410,7 +410,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       setTimeout(() => setSaveToast(null), 3000)
     }
     try {
-      const saved = await saveResume(resume, saveTitle.trim())
+      const saved = await saveResume({ ...resume, detectedIndustry: selectedIndustry }, saveTitle.trim())
       setCurrentResumeId(saved.id)
       setSaveDialogOpen(false)
       showToast('Resume saved!', true)
@@ -430,7 +430,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       setTimeout(() => setSaveToast(null), 3000)
     }
     try {
-      await updateResume(currentResumeId, resume)
+      await updateResume(currentResumeId, { ...resume, detectedIndustry: selectedIndustry })
       showToast('Resume updated!', true)
     } catch (err) {
       console.error(err)

@@ -78,7 +78,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 326+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 328+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -267,7 +267,7 @@ Every `git push` → auto-deploys both.
 
 ```bash
 cd backend && pytest -v        # 62 backend tests
-cd frontend && npm test         # 264 frontend tests (22 files)
+cd frontend && npm test         # 266 frontend tests (22 files)
 ```
 
 **CI:** `.github/workflows/ci.yml` runs on every pull request to `main` with
