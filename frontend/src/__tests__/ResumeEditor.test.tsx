@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, waitFor, within, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import type { ResumeSchema } from '@/types/resume'
@@ -29,13 +29,14 @@ vi.mock('@/components/StreamingOutput', () => ({
 
 import { useAuth } from '@/contexts/AuthContext'
 import { saveResume } from '@/services/resumes'
-import { scoreATS } from '@/services/api'
+import { scoreATS, enrichResume } from '@/services/api'
 import ResumeEditor from '@/components/ResumeEditor'
 import type { ATSScoreResult } from '@/types/resume'
 
 const mockUseAuth = vi.mocked(useAuth)
 const mockSaveResume = vi.mocked(saveResume)
 const mockScoreATS = vi.mocked(scoreATS)
+const mockEnrichResume = vi.mocked(enrichResume)
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -352,5 +353,71 @@ describe('ResumeEditor — desktop layout', () => {
       expect(button.className).toContain('text-center')
       expect(button.className).toContain('py-2.5')
     }
+  })
+})
+
+// ── enrich with AI — loading overlay ──────────────────────────────────────────
+
+const ENRICHMENT_LOADING_MESSAGES = [
+  'Analyzing your resume...',
+  'Enhancing bullet points...',
+  'Quantifying achievements...',
+  'Optimizing for ATS keywords...',
+  'Finalizing improvements...',
+]
+
+// A ReadableStream whose reader never resolves, so runStream() never marks
+// `stream.done = true` and enrichmentState stays 'loading'.
+function createPendingStream(): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start() {
+      // intentionally never enqueue or close
+    },
+  })
+}
+
+describe('ResumeEditor — enrich with AI loading overlay', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows a cycling status message that advances after 1500ms', async () => {
+    mockEnrichResume.mockResolvedValue(createPendingStream())
+    renderEditor()
+
+    fireEvent.click(screen.getByRole('button', { name: /enrich with ai/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText(ENRICHMENT_LOADING_MESSAGES[0])).toBeInTheDocument()
+
+    await act(async () => {
+      vi.advanceTimersByTime(1500)
+    })
+
+    expect(screen.getByText(ENRICHMENT_LOADING_MESSAGES[1])).toBeInTheDocument()
+    expect(screen.queryByText(ENRICHMENT_LOADING_MESSAGES[0])).not.toBeInTheDocument()
+  })
+
+  it('applies blur/opacity classes to the preview container while loading', async () => {
+    mockEnrichResume.mockResolvedValue(createPendingStream())
+    renderEditor()
+
+    fireEvent.click(screen.getByRole('button', { name: /enrich with ai/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    const preview = screen.getByTestId('resume-preview')
+    const wrapper = preview.parentElement as HTMLElement
+    expect(wrapper.className).toContain('opacity-30')
+    expect(wrapper.className).toContain('blur-sm')
   })
 })

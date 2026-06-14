@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import Navbar from '@/components/Navbar'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
+import ComparisonView from './ComparisonView'
 
 interface Props {
   initialResume: ResumeSchema
@@ -65,6 +66,16 @@ const STREAMING_MESSAGES = [
   'Polishing the final output...',
 ]
 
+const ENRICHMENT_LOADING_MESSAGES = [
+  'Analyzing your resume...',
+  'Enhancing bullet points...',
+  'Quantifying achievements...',
+  'Optimizing for ATS keywords...',
+  'Finalizing improvements...',
+]
+
+type EnrichmentState = 'idle' | 'loading' | 'comparing'
+
 type CoverLetterTone = 'professional' | 'enthusiastic' | 'concise'
 
 export default function ResumeEditor({ initialResume, initialResumeId, onBack, onSignUp }: Props) {
@@ -103,6 +114,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     () => `Resume - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   )
   const [isSaving, setIsSaving] = useState(false)
+  const [enrichmentState, setEnrichmentState] = useState<EnrichmentState>('idle')
+  const [originalResume, setOriginalResume] = useState<ResumeSchema | null>(null)
+  const [enrichedResume, setEnrichedResume] = useState<ResumeSchema | null>(null)
+  const [enrichMsgIndex, setEnrichMsgIndex] = useState(0)
+  const [confirmReEnrichOpen, setConfirmReEnrichOpen] = useState(false)
   const accumRef = useRef('')
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null)
   const exportMenuRef = useRef<HTMLDivElement>(null)
@@ -135,6 +151,55 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     const id = requestAnimationFrame(() => setStreamProgress(90))
     return () => cancelAnimationFrame(id)
   }, [stream?.done])
+
+  // Cycling status messages for the enrichment loading overlay
+  useEffect(() => {
+    if (enrichmentState !== 'loading') {
+      setEnrichMsgIndex(0)
+      return
+    }
+    setEnrichMsgIndex(0)
+    const id = setInterval(
+      () => setEnrichMsgIndex((i) => (i + 1) % ENRICHMENT_LOADING_MESSAGES.length),
+      1500,
+    )
+    return () => clearInterval(id)
+  }, [enrichmentState])
+
+  // Watch for streaming completion while an enrichment is in flight
+  useEffect(() => {
+    if (enrichmentState !== 'loading' || !stream?.done) return
+
+    if (stream.error) {
+      setEnrichmentState('idle')
+      setEnrichedResume(null)
+      setOriginalResume(null)
+      setStream(null)
+      setSaveToast({ text: stream.error || 'Enrichment failed. Please try again.', ok: false })
+      setTimeout(() => setSaveToast(null), 3000)
+      return
+    }
+
+    try {
+      let text = accumRef.current.trim()
+      if (text.startsWith('```')) {
+        text = text.split('\n').slice(1).join('\n').replace(/```\s*$/, '').trim()
+      }
+      const parsed: unknown = JSON.parse(text)
+      const newResume = fromBackend(parsed)
+      setEnrichedResume(newResume)
+      setEnrichmentState('comparing')
+      setStream(null)
+    } catch (err) {
+      console.error('[enrichment] failed to parse AI response:', err)
+      setEnrichmentState('idle')
+      setEnrichedResume(null)
+      setOriginalResume(null)
+      setStream(null)
+      setSaveToast({ text: 'Enrichment failed. Please try again.', ok: false })
+      setTimeout(() => setSaveToast(null), 3000)
+    }
+  }, [enrichmentState, stream?.done, stream?.error])
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -219,7 +284,57 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   }
 
   // ── actions ────────────────────────────────────────────────────────────────
-  const handleEnrich = () => runStream(() => enrichResume(resume))
+  const startEnrich = () => {
+    setOriginalResume(resume)
+    setEnrichmentState('loading')
+    runStream(() => enrichResume(resume))
+    // Enrich's loading/comparison UI lives in the right (preview) panel —
+    // switch mobile view there so the user sees it (overrides runStream's
+    // setMobileViewTab('edit') for the Tailor flow).
+    setMobileViewTab('preview')
+  }
+
+  const handleEnrich = () => {
+    if (enrichmentState === 'comparing') {
+      setConfirmReEnrichOpen(true)
+      return
+    }
+    startEnrich()
+  }
+
+  const handleConfirmReEnrich = () => {
+    setConfirmReEnrichOpen(false)
+    setEnrichedResume(null)
+    setOriginalResume(null)
+    startEnrich()
+  }
+
+  const handleAcceptEnrichment = () => {
+    if (!originalResume || !enrichedResume) return
+    const changes = new Set<string>()
+    if (JSON.stringify(originalResume.metadata) !== JSON.stringify(enrichedResume.metadata)) changes.add('metadata')
+    if (JSON.stringify(originalResume.summary) !== JSON.stringify(enrichedResume.summary)) changes.add('summary')
+    if (JSON.stringify(originalResume.experience) !== JSON.stringify(enrichedResume.experience)) changes.add('experience')
+    if (JSON.stringify(originalResume.education) !== JSON.stringify(enrichedResume.education)) changes.add('education')
+    if (JSON.stringify(originalResume.skills) !== JSON.stringify(enrichedResume.skills)) changes.add('skills')
+
+    setResume(enrichedResume)
+    if (changes.size > 0) {
+      setFlashSections(changes)
+      setTimeout(() => setFlashSections(new Set()), 1800)
+    }
+    setEnrichmentState('idle')
+    setEnrichedResume(null)
+    setOriginalResume(null)
+    setSaveToast({ text: 'Resume enriched successfully', ok: true })
+    setTimeout(() => setSaveToast(null), 3000)
+  }
+
+  const handleDiscardEnrichment = () => {
+    setEnrichmentState('idle')
+    setEnrichedResume(null)
+    setOriginalResume(null)
+  }
 
   const handleTailor = () => {
     setTailorOpen(false)
@@ -1022,8 +1137,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             )}
           </div>
 
-          {/* Streaming panel */}
-          {stream && (
+          {/* Streaming panel (Tailor only — Enrich uses the right-panel comparison flow) */}
+          {stream && enrichmentState === 'idle' && (
             <div
               className="absolute bottom-0 left-0 right-0 z-50 border-t border-border bg-background shadow-[0_-8px_24px_-12px_rgba(0,113,227,0.25)] flex flex-col"
               style={panelCollapsed ? undefined : { height: panelHeight }}
@@ -1102,23 +1217,54 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
         {/* Right: preview */}
         <div className={cn(
-          'flex-1 overflow-auto bg-muted p-4 lg:p-6',
-          mobileViewTab === 'preview' ? 'block' : 'hidden',
-          'md:block',
+          'flex-1 bg-muted p-4 lg:p-6',
+          enrichmentState === 'comparing' ? 'overflow-hidden flex flex-col' : 'overflow-auto',
+          mobileViewTab === 'preview' ? (enrichmentState === 'comparing' ? 'flex' : 'block') : 'hidden',
+          enrichmentState === 'comparing' ? 'md:flex' : 'md:block',
         )}>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-bold text-primary uppercase tracking-widest font-display">
-              Live Preview
-            </p>
-            <ChevronUp className="size-3 text-muted-foreground" />
-          </div>
-          <ResumePreview
-            resume={resume}
-            flashSections={flashSections}
-            industry={selectedIndustry}
-            detectedIndustry={resume.detectedIndustry}
-            onIndustryChange={setSelectedIndustry}
-          />
+          {enrichmentState === 'comparing' && enrichedResume && originalResume ? (
+            <ComparisonView
+              originalResume={originalResume}
+              enrichedResume={enrichedResume}
+              onAccept={handleAcceptEnrichment}
+              onDiscard={handleDiscardEnrichment}
+            />
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-primary uppercase tracking-widest font-display">
+                  Live Preview
+                </p>
+                <ChevronUp className="size-3 text-muted-foreground" />
+              </div>
+              <div className="relative">
+                <div
+                  className={cn(
+                    'transition-all duration-300',
+                    enrichmentState === 'loading' && 'opacity-30 blur-sm pointer-events-none',
+                  )}
+                >
+                  <ResumePreview
+                    resume={resume}
+                    flashSections={flashSections}
+                    industry={selectedIndustry}
+                    detectedIndustry={resume.detectedIndustry}
+                    onIndustryChange={setSelectedIndustry}
+                  />
+                </div>
+                {enrichmentState === 'loading' && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-card border border-border shadow-lg px-6 py-5 flex flex-col items-center gap-3 text-center max-w-xs">
+                      <Loader2 className="size-6 animate-spin text-primary" />
+                      <p className="text-xs font-bold uppercase tracking-wider text-foreground">
+                        {ENRICHMENT_LOADING_MESSAGES[enrichMsgIndex]}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -1343,6 +1489,30 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               >
                 {isSaving && <Loader2 className="size-3.5 animate-spin" />}
                 Save
+              </button>
+            </div>
+      </Modal>
+
+      {/* ── Discard & re-enrich confirm dialog ──────────────────────────────── */}
+      <Modal open={confirmReEnrichOpen} className="max-w-sm p-6">
+            <h2 className="text-base font-bold text-foreground uppercase tracking-wide mb-4">
+              Discard Enrichment?
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              You have unsaved enrichment changes. Discard and re-enrich?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmReEnrichOpen(false)}
+                className="px-4 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReEnrich}
+                className="px-5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold uppercase tracking-wide transition-colors"
+              >
+                Confirm
               </button>
             </div>
       </Modal>
