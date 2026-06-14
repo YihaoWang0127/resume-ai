@@ -11,6 +11,7 @@ import { DEFAULT_PROFILE } from '@/types/profile'
 import type { ProfileInput } from '@/types/profile'
 import type { ExperienceItem } from '@/types/resume'
 import Navbar from '@/components/Navbar'
+import AccountSidebar from '@/components/AccountSidebar'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
@@ -213,7 +214,9 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar onBack={handleBack} />
-      <main className="flex-1 px-6 py-10 max-w-5xl mx-auto w-full space-y-6">
+      <main className="flex-1 px-6 py-10 max-w-5xl mx-auto w-full flex flex-col lg:flex-row gap-8">
+        <AccountSidebar />
+        <div className="flex-1 min-w-0 space-y-6">
         <div>
           <h1 className="text-xl font-bold text-foreground">Profile</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -484,6 +487,7 @@ export default function Profile() {
             </CardFooter>
           </Card>
         )}
+        </div>
       </main>
     </div>
   )

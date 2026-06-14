@@ -7,6 +7,7 @@ import { listCoverLetters, deleteCoverLetter, type CoverLetter } from '@/service
 import { exportResume, exportCoverLetter, scoreATS } from '@/services/api'
 import { getAiUsageStats } from '@/services/aiUsage'
 import Navbar from '@/components/Navbar'
+import AccountSidebar from '@/components/AccountSidebar'
 import ResumeUploader from '@/components/ResumeUploader'
 import Modal from '@/components/Modal'
 import ExportMenu from '@/components/ExportMenu'
@@ -211,7 +212,10 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar onBack={() => navigate('/')} />
 
-      <main className="flex-1 px-6 py-10 max-w-5xl mx-auto w-full">
+      <main className="flex-1 px-6 py-10 max-w-5xl mx-auto w-full flex flex-col lg:flex-row gap-8">
+        <AccountSidebar />
+
+        <div className="flex-1 min-w-0">
 
         {/* ── STATS BAR ────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
@@ -582,6 +586,7 @@ export default function Dashboard() {
             )}
           </>
         )}
+        </div>
       </main>
 
       {/* ── Upload resume modal ─────────────────────────────────────────────── */}

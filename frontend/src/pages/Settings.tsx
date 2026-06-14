@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import Navbar from '@/components/Navbar'
+import AccountSidebar from '@/components/AccountSidebar'
 import SettingsSidebar, { type SettingsTab } from '@/components/settings/SettingsSidebar'
 import AppearanceSettings from '@/components/settings/AppearanceSettings'
 import SecuritySettings from '@/components/settings/SecuritySettings'
@@ -36,18 +37,21 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar onBack={handleBack} />
-      <main className="flex-1 px-6 py-10 max-w-5xl mx-auto w-full flex flex-col lg:flex-row gap-8">
-        <SettingsSidebar activeTab={activeTab} onChange={setActiveTab} />
-        <div className="flex-1 min-w-0">
-          {/* All tabs stay mounted so their data loads ahead of time and edits persist across tab switches */}
-          <div className={cn(activeTab !== 'appearance' && 'hidden')}>
-            <AppearanceSettings />
-          </div>
-          <div className={cn(activeTab !== 'security' && 'hidden')}>
-            <SecuritySettings />
-          </div>
-          <div className={cn(activeTab !== 'notifications' && 'hidden')}>
-            <NotificationSettings onDirtyChange={(d) => setDirtyTabs((p) => ({ ...p, notifications: d }))} />
+      <main className="flex-1 px-6 py-10 max-w-6xl mx-auto w-full flex flex-col lg:flex-row gap-8">
+        <AccountSidebar />
+        <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-8">
+          <SettingsSidebar activeTab={activeTab} onChange={setActiveTab} />
+          <div className="flex-1 min-w-0">
+            {/* All tabs stay mounted so their data loads ahead of time and edits persist across tab switches */}
+            <div className={cn(activeTab !== 'appearance' && 'hidden')}>
+              <AppearanceSettings />
+            </div>
+            <div className={cn(activeTab !== 'security' && 'hidden')}>
+              <SecuritySettings />
+            </div>
+            <div className={cn(activeTab !== 'notifications' && 'hidden')}>
+              <NotificationSettings onDirtyChange={(d) => setDirtyTabs((p) => ({ ...p, notifications: d }))} />
+            </div>
           </div>
         </div>
       </main>

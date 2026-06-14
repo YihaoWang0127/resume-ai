@@ -47,6 +47,7 @@
 - **Resizable Panels** — drag AI output panel to any size
 - **Error Pages** — custom 404/500 with ErrorBoundary
 - **Enrich with AI — Review & Compare** — clicking "Enrich with AI" shows a loading overlay (blurred preview + cycling status messages) on the live preview, then opens a side-by-side **Split View** or **Unified View** comparison of the original vs. AI-enriched resume with diff highlights, so you can **Accept** to apply the changes or **Discard** to keep the original
+- **Persistent Account Sidebar** — Dashboard, Profile, AI, and Settings share a route-aware `AccountSidebar` (Notion/Linear/Vercel-dashboard style) for switching between account pages without reopening the navbar menu; vertical sticky sidebar on desktop, horizontal scrollable tab bar on mobile, with the active page highlighted
 
 ### Profile (`/profile`)
 - **Account** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only, with a Verified / Not Verified status pill and resend-verification action
@@ -88,7 +89,7 @@ Models:
 **Database:** Supabase PostgreSQL (resumes + cover_letters tables, RLS enabled)
 **Auth:** Supabase Auth (email + anonymous)
 **Infra:** Vercel (frontend) · Render (backend) · Supabase (auth + db)
-**Testing:** 401+ tests (pytest + Vitest + React Testing Library + MSW)
+**Testing:** 408+ tests (pytest + Vitest + React Testing Library + MSW)
 
 ---
 
@@ -200,6 +201,7 @@ resume-ai/
 ├── frontend/
 │   └── src/
 │       ├── components/
+│       │   ├── AccountSidebar.tsx     # persistent left nav for Dashboard/Profile/AI/Settings
 │       │   ├── AuthModal.tsx          # auth overlay
 │       │   ├── ComparisonView.tsx     # Enrich review: split/unified diff view + accept/discard
 │       │   ├── EmailVerificationBanner.tsx  # global unverified-email banner + resend
@@ -242,7 +244,7 @@ resume-ai/
 │       │   ├── preferences.ts
 │       │   ├── profile.ts
 │       │   └── aiUsage.ts
-│       └── __tests__/                 # 339 frontend tests (25 files)
+│       └── __tests__/                 # 346 frontend tests (26 files)
 │
 ├── backend/
 │   └── app/
@@ -314,7 +316,7 @@ Every `git push` → auto-deploys both.
 
 ```bash
 cd backend && pytest -v        # 62 backend tests
-cd frontend && npm test         # 339 frontend tests (25 files)
+cd frontend && npm test         # 346 frontend tests (26 files)
 ```
 
 **CI:** `.github/workflows/ci.yml` runs on every pull request to `main` with
