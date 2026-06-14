@@ -8,11 +8,11 @@ vi.mock('@/components/Navbar', () => ({
   default: ({ onBack }: { onBack?: () => void }) => <button onClick={onBack}>Back</button>,
 }))
 
+vi.mock('@/components/settings/ChangePasswordSettings', () => ({
+  default: () => <div data-testid="change-password-panel">Change Password Panel</div>,
+}))
 vi.mock('@/components/settings/AppearanceSettings', () => ({
   default: () => <div data-testid="appearance-panel">Appearance Panel</div>,
-}))
-vi.mock('@/components/settings/SecuritySettings', () => ({
-  default: () => <div data-testid="security-panel">Security Panel</div>,
 }))
 vi.mock('@/components/settings/NotificationSettings', () => ({
   default: ({ onDirtyChange }: { onDirtyChange: (d: boolean) => void }) => (
@@ -21,6 +21,9 @@ vi.mock('@/components/settings/NotificationSettings', () => ({
       <button onClick={() => onDirtyChange(true)}>Make Notifications Dirty</button>
     </div>
   ),
+}))
+vi.mock('@/components/settings/DangerZoneSettings', () => ({
+  default: () => <div data-testid="danger-zone-panel">Danger Zone Panel</div>,
 }))
 
 function renderSettings() {
@@ -39,42 +42,60 @@ beforeEach(() => {
   vi.spyOn(window, 'confirm')
 })
 
-describe('Settings — tab switching', () => {
-  it('shows the Appearance tab by default and hides the others', () => {
+describe('Settings — layout', () => {
+  it('renders the Settings page heading and description', () => {
     renderSettings()
-    expect(screen.getByTestId('appearance-panel').parentElement?.className).not.toMatch(/hidden/)
-    expect(screen.getByTestId('security-panel').parentElement?.className).toMatch(/hidden/)
-    expect(screen.getByTestId('notifications-panel').parentElement?.className).toMatch(/hidden/)
+
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+    expect(
+      screen.getByText('Manage your appearance, security, and notification preferences.')
+    ).toBeInTheDocument()
   })
 
-  it('switches to the Security tab', async () => {
-    const user = userEvent.setup()
+  it('renders all settings sections at once with no tab-switcher', () => {
     renderSettings()
 
-    await user.click(screen.getAllByText('Security')[0])
-
-    expect(screen.getByTestId('security-panel').parentElement?.className).not.toMatch(/hidden/)
-    expect(screen.getByTestId('appearance-panel').parentElement?.className).toMatch(/hidden/)
-  })
-
-  it('switches to the Notifications tab', async () => {
-    const user = userEvent.setup()
-    renderSettings()
-
-    await user.click(screen.getAllByText('Notifications')[0])
-
-    expect(screen.getByTestId('notifications-panel').parentElement?.className).not.toMatch(/hidden/)
-    expect(screen.getByTestId('appearance-panel').parentElement?.className).toMatch(/hidden/)
-  })
-
-  it('keeps inactive tab panels mounted in the DOM when switching', async () => {
-    const user = userEvent.setup()
-    renderSettings()
-
-    await user.click(screen.getAllByText('Security')[0])
-
+    expect(screen.getByTestId('change-password-panel')).toBeInTheDocument()
     expect(screen.getByTestId('appearance-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('security-panel').parentElement?.className).not.toMatch(/hidden/)
+    expect(screen.getByTestId('notifications-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('danger-zone-panel')).toBeInTheDocument()
+
+    // None of the panels should be hidden — all stacked on one page
+    expect(screen.getByTestId('change-password-panel').className).not.toMatch(/hidden/)
+    expect(screen.getByTestId('appearance-panel').className).not.toMatch(/hidden/)
+    expect(screen.getByTestId('notifications-panel').className).not.toMatch(/hidden/)
+    expect(screen.getByTestId('danger-zone-panel').className).not.toMatch(/hidden/)
+  })
+
+  it('does not render a settings tab-switcher sidebar', () => {
+    renderSettings()
+
+    expect(screen.queryByRole('button', { name: 'Appearance' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Security' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Notifications' })).not.toBeInTheDocument()
+  })
+
+  it('renders the sections in order: Change Password, Appearance, Notifications, Danger Zone', () => {
+    renderSettings()
+
+    const testIds = [
+      'change-password-panel',
+      'appearance-panel',
+      'notifications-panel',
+      'danger-zone-panel',
+    ]
+    const positions = testIds.map((id) => screen.getByTestId(id))
+
+    for (let i = 0; i < positions.length - 1; i++) {
+      // Each section should appear before the next one in the DOM
+      // eslint-disable-next-line no-bitwise
+      expect(
+        positions[i].compareDocumentPosition(positions[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy()
+    }
+
+    // Danger Zone is last
+    expect(positions[positions.length - 1].getAttribute('data-testid')).toBe('danger-zone-panel')
   })
 })
 
@@ -94,7 +115,6 @@ describe('Settings — back navigation', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.click(screen.getAllByText('Notifications')[0])
     await user.click(screen.getByText('Make Notifications Dirty'))
     await user.click(screen.getByText('Back'))
 
@@ -107,7 +127,6 @@ describe('Settings — back navigation', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.click(screen.getAllByText('Notifications')[0])
     await user.click(screen.getByText('Make Notifications Dirty'))
     await user.click(screen.getByText('Back'))
 
