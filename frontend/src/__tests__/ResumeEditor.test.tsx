@@ -414,6 +414,41 @@ describe('ResumeEditor — desktop layout', () => {
   })
 })
 
+// ── all 6 sections always rendered ───────────────────────────────────────────
+// The redesigned editor renders all sections simultaneously in a scrollable
+// column — no conditional {tab === 'xxx' && (...)} gating. All section
+// headings and key form elements should be in the DOM without any navigation.
+
+describe('ResumeEditor — all sections always visible', () => {
+  it('renders all 6 section headings without any tab navigation', () => {
+    renderEditor()
+
+    expect(screen.getByRole('heading', { name: /contact information/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^summary$/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^experience$/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^education$/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^skills$/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^ats score$/i })).toBeInTheDocument()
+  })
+
+  it('renders the summary textarea before any tab is clicked', () => {
+    renderEditor()
+    expect(screen.getByPlaceholderText(/brief professional summary/i)).toBeInTheDocument()
+  })
+
+  it('renders the ATS job description textarea before ATS nav is clicked', () => {
+    renderEditor()
+    expect(screen.getByPlaceholderText('Paste the job description here…')).toBeInTheDocument()
+  })
+
+  it('renders Add Experience, Add Education, Add Category buttons on initial render', () => {
+    renderEditor()
+    expect(screen.getByRole('button', { name: /add experience/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add education/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add category/i })).toBeInTheDocument()
+  })
+})
+
 // ── enrich with AI — loading overlay ──────────────────────────────────────────
 
 const ENRICHMENT_LOADING_MESSAGES = [
@@ -447,7 +482,7 @@ describe('ResumeEditor — enrich with AI loading overlay', () => {
     mockEnrichResume.mockResolvedValue(createPendingStream())
     renderEditor()
 
-    fireEvent.click(screen.getByRole('button', { name: /enrich with ai/i }))
+    fireEvent.click(screen.getByRole('button', { name: /view suggestions/i }))
 
     await act(async () => {
       await Promise.resolve()
@@ -467,7 +502,7 @@ describe('ResumeEditor — enrich with AI loading overlay', () => {
     mockEnrichResume.mockResolvedValue(createPendingStream())
     renderEditor()
 
-    fireEvent.click(screen.getByRole('button', { name: /enrich with ai/i }))
+    fireEvent.click(screen.getByRole('button', { name: /view suggestions/i }))
 
     await act(async () => {
       await Promise.resolve()
@@ -517,6 +552,47 @@ describe('ResumeEditor — step indicator', () => {
 
     // The "Download" step-4 label must still be visible and nothing crashed
     expect(screen.getByText('Download')).toBeInTheDocument()
+  })
+
+  it('renders a "Prev Step" button in the bottom bar', () => {
+    renderEditor()
+    expect(screen.getByRole('button', { name: /prev step/i })).toBeInTheDocument()
+  })
+
+  it('"Prev Step" is disabled when currentStep is 1', () => {
+    renderEditor()
+    // Step starts at 1, so Prev Step must be disabled immediately.
+    expect(screen.getByRole('button', { name: /prev step/i })).toBeDisabled()
+  })
+
+  it('"Next Step" is disabled when currentStep reaches 4', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    const nextBtn = screen.getByRole('button', { name: /next step/i })
+    // Advance from step 1 to step 4 (3 clicks)
+    for (let i = 0; i < 3; i++) {
+      await user.click(nextBtn)
+    }
+
+    expect(nextBtn).toBeDisabled()
+  })
+
+  it('"Prev Step" decrements currentStep when clicked', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    // Advance to step 2 first
+    await user.click(screen.getByRole('button', { name: /next step/i }))
+
+    const prevBtn = screen.getByRole('button', { name: /prev step/i })
+    // Prev Step should now be enabled at step 2
+    expect(prevBtn).toBeEnabled()
+
+    await user.click(prevBtn)
+
+    // Back at step 1 — Prev Step should be disabled again
+    expect(prevBtn).toBeDisabled()
   })
 })
 
@@ -727,7 +803,7 @@ describe('ResumeEditor — template / style selector', () => {
   it('renders the Template <select> with industry options', () => {
     renderEditor()
 
-    const select = screen.getByDisplayValue('Modern') as HTMLSelectElement
+    const select = screen.getByTestId('template-select') as HTMLSelectElement
     expect(select).toBeInTheDocument()
     expect(select.options.length).toBeGreaterThanOrEqual(5)
   })
@@ -736,7 +812,7 @@ describe('ResumeEditor — template / style selector', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const select = screen.getByDisplayValue('Modern')
+    const select = screen.getByTestId('template-select')
     await user.selectOptions(select, 'tech')
 
     expect((select as HTMLSelectElement).value).toBe('tech')

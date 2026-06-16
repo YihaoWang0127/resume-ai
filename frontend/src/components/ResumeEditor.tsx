@@ -154,9 +154,14 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [currentStep, setCurrentStep] = useState(1)
   const [zoomLevel, setZoomLevel] = useState(100)
   const [centerCollapsed, setCenterCollapsed] = useState(false)
+  const [centerWidth, setCenterWidth] = useState(380)
   const accumRef = useRef('')
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null)
   const exportMenuRef = useRef<HTMLDivElement>(null)
+  const centerDragRef = useRef<{ startX: number; startW: number } | null>(null)
+  const sectionRefs = useRef<Record<Tab, HTMLDivElement | null>>({
+    contact: null, summary: null, experience: null, education: null, skills: null, ats: null,
+  })
 
   useEffect(() => {
     if (!exportMenuOpen) return
@@ -599,6 +604,33 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       skills: [...r.skills, newSkill()],
     }))
 
+  // ── center panel resize ────────────────────────────────────────────────────
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!centerDragRef.current) return
+      const delta = e.clientX - centerDragRef.current.startX
+      const newW = Math.max(260, Math.min(600, centerDragRef.current.startW + delta))
+      setCenterWidth(newW)
+    }
+    const onMouseUp = () => { centerDragRef.current = null }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
+
+  const scrollToSection = (id: Tab) => {
+    setTab(id)
+    if (centerCollapsed) {
+      setCenterCollapsed(false)
+      setTimeout(() => sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+    } else {
+      sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   // ── completion helpers ─────────────────────────────────────────────────────
   const isContactComplete = !!(resume.metadata.fullName && resume.metadata.email)
   const isSummaryComplete = !!(resume.summary?.trim())
@@ -614,7 +646,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     return false
   }
   const wordCount = resume.summary?.split(/\s+/).filter(Boolean).length ?? 0
-  const currentSectionDef = SECTION_DEFS.find((s) => s.id === tab)!
   const aiSuggestionCount =
     resume.experience.reduce((a, e) => a + e.bullets.length, 0) + (resume.summary ? 3 : 0)
   const avatarInitial = (
@@ -822,7 +853,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               return (
                 <button
                   key={s.id}
-                  onClick={() => setTab(s.id)}
+                  onClick={() => scrollToSection(s.id)}
                   className={cn(
                     'w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors border-l-2',
                     tab === s.id
@@ -873,17 +904,29 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         </aside>
 
         {/* CENTER EDITOR ────────────────────────────────────────────────────── */}
-        <div className={cn(
-          'relative flex-col overflow-hidden bg-background',
-          mobileViewTab === 'edit' ? 'flex' : 'hidden',
-          centerCollapsed ? 'lg:hidden' : 'lg:flex lg:w-[380px] xl:w-[420px] lg:shrink-0',
-        )}>
+        <div
+          className={cn(
+            'relative flex-col overflow-hidden bg-background border-r border-border',
+            mobileViewTab === 'edit' ? 'flex' : 'hidden',
+            centerCollapsed ? 'lg:hidden' : 'lg:flex lg:shrink-0',
+          )}
+          style={centerCollapsed ? {} : { width: centerWidth }}
+        >
+          {/* Minimize button — top-left */}
+          <button
+            onClick={() => setCenterCollapsed(true)}
+            title="Minimize editor"
+            className="absolute top-2 left-2 z-20 hidden lg:flex p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          >
+            <ChevronLeft className="size-3.5" />
+          </button>
+
           {/* Mobile: horizontal section tab strip */}
           <div className="lg:hidden shrink-0 flex overflow-x-auto scrollbar-none bg-background border-b border-border">
             {SECTION_DEFS.map((s) => (
               <button
                 key={s.id}
-                onClick={() => setTab(s.id)}
+                onClick={() => scrollToSection(s.id)}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors border-b-2 min-h-[44px] shrink-0',
                   tab === s.id
@@ -897,34 +940,15 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             ))}
           </div>
 
-          {/* Scrollable form area */}
-          <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5">
-
-            {/* Section header */}
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  {tab === 'contact' ? 'Contact Information' : currentSectionDef?.label}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-0.5">{currentSectionDef?.description}</p>
-              </div>
-              {tab !== 'ats' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleEnrich}
-                  disabled={streamLoading}
-                  className="shrink-0 flex items-center gap-1.5 text-xs rounded-lg border-primary/30 text-primary hover:bg-primary/10 h-9 px-3"
-                >
-                  <Sparkles className="size-3.5" />
-                  <span className="hidden sm:block">Auto Fill with AI</span>
-                  <span className="sm:hidden">AI Fill</span>
-                </Button>
-              )}
-            </div>
+          {/* Scrollable form area — ALL sections visible, scroll-to on tab click */}
+          <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-10">
 
             {/* ── CONTACT ── */}
-            {tab === 'contact' && (
+            <div ref={(el) => { sectionRefs.current.contact = el }} className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Contact Information</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Add your contact details and professional links.</p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-xs font-medium text-muted-foreground">Full Name</label>
@@ -988,371 +1012,272 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   />
                 </div>
               </div>
-            )}
+            </div>
 
             {/* ── SUMMARY ── */}
-            {tab === 'summary' && (
-              <div className="space-y-3">
-                <div className="bg-background rounded-xl border border-border overflow-hidden shadow-sm">
-                  <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-secondary/20">
-                    <select className="text-xs text-foreground bg-background border border-border rounded-md px-2 py-1 mr-1 outline-none focus:ring-1 focus:ring-primary/40">
-                      <option>Paragraph</option>
-                    </select>
-                    <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                      <Bold className="size-3.5 text-foreground" />
-                    </button>
-                    <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                      <Italic className="size-3.5 text-foreground" />
-                    </button>
-                    <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                      <Underline className="size-3.5 text-foreground" />
-                    </button>
-                    <div className="w-px h-4 bg-border mx-0.5" />
-                    <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                      <List className="size-3.5 text-foreground" />
-                    </button>
-                    <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                      <ListOrdered className="size-3.5 text-foreground" />
-                    </button>
-                    <div className="flex-1" />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleEnrich}
-                      disabled={streamLoading}
-                      className="flex items-center gap-1.5 text-xs rounded-lg border-primary/30 text-primary hover:bg-primary/10 h-7 px-2.5"
-                    >
-                      <Sparkles className="size-3" />
-                      Improve with AI
-                    </Button>
-                  </div>
-                  <div className="relative">
-                    <textarea
-                      rows={8}
-                      className="w-full px-4 py-3 text-sm text-foreground bg-background outline-none resize-none placeholder:text-muted-foreground"
-                      placeholder="A brief professional summary…"
-                      value={resume.summary ?? ''}
-                      onChange={(e) =>
-                        setResume((r: ResumeSchema): ResumeSchema => ({
-                          ...r,
-                          summary: e.target.value || undefined,
-                        }))
-                      }
-                    />
-                    {isSummaryComplete && (
-                      <div className="absolute bottom-2.5 right-2.5 size-2 rounded-full bg-green-500" />
-                    )}
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground px-1">
-                  {wordCount} words{atsResult ? ` • ${atsResult.suggestions.length} suggestions available` : ''}
-                </p>
+            <div ref={(el) => { sectionRefs.current.summary = el }} className="space-y-3">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Summary</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Write a brief professional summary.</p>
               </div>
-            )}
+              <div className="bg-background rounded-xl border border-border overflow-hidden shadow-sm">
+                <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-secondary/20">
+                  <select className="text-xs text-foreground bg-background border border-border rounded-md px-2 py-1 mr-1 outline-none focus:ring-1 focus:ring-primary/40">
+                    <option>Paragraph</option>
+                  </select>
+                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                    <Bold className="size-3.5 text-foreground" />
+                  </button>
+                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                    <Italic className="size-3.5 text-foreground" />
+                  </button>
+                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                    <Underline className="size-3.5 text-foreground" />
+                  </button>
+                  <div className="w-px h-4 bg-border mx-0.5" />
+                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                    <List className="size-3.5 text-foreground" />
+                  </button>
+                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                    <ListOrdered className="size-3.5 text-foreground" />
+                  </button>
+                </div>
+                <div className="relative">
+                  <textarea
+                    rows={8}
+                    className="w-full px-4 py-3 text-sm text-foreground bg-background outline-none resize-none placeholder:text-muted-foreground"
+                    placeholder="A brief professional summary…"
+                    value={resume.summary ?? ''}
+                    onChange={(e) =>
+                      setResume((r: ResumeSchema): ResumeSchema => ({
+                        ...r,
+                        summary: e.target.value || undefined,
+                      }))
+                    }
+                  />
+                  {isSummaryComplete && (
+                    <div className="absolute bottom-2.5 right-2.5 size-2 rounded-full bg-green-500" />
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground px-1">
+                {wordCount} words{atsResult ? ` • ${atsResult.suggestions.length} suggestions available` : ''}
+              </p>
+            </div>
 
             {/* ── EXPERIENCE ── */}
-            {tab === 'experience' && (
-              <div className="space-y-4">
-                {resume.experience.map((exp, i) => (
-                  <div key={i} className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-foreground leading-tight">
-                          {exp.title || 'Job Title'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {exp.company || 'Company'}{exp.startDate ? ` · ${exp.startDate}${exp.current ? ' – Present' : exp.endDate ? ` – ${exp.endDate}` : ''}` : ''}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => removeExp(i)}
-                        className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-muted-foreground">Job Title</label>
-                        <input className={field} placeholder="Software Engineer" value={exp.title} onChange={(e) => setExp(i, 'title', e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-muted-foreground">Company</label>
-                        <input className={field} placeholder="Company Name" value={exp.company} onChange={(e) => setExp(i, 'company', e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-muted-foreground">Start Date</label>
-                        <input className={field} placeholder="Jan 2022" value={exp.startDate} onChange={(e) => setExp(i, 'startDate', e.target.value)} />
-                      </div>
-                      {!exp.current && (
-                        <div className="space-y-1">
-                          <label className="block text-xs font-medium text-muted-foreground">End Date</label>
-                          <input className={field} placeholder="Dec 2023" value={exp.endDate ?? ''} onChange={(e) => setExp(i, 'endDate', e.target.value)} />
-                        </div>
-                      )}
-                      <label className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          className="accent-primary"
-                          checked={exp.current}
-                          onChange={(e) => {
-                            setExp(i, 'current', e.target.checked)
-                            if (e.target.checked) setExp(i, 'endDate', undefined)
-                          }}
-                        />
-                        Currently working here
-                      </label>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Achievements / Bullets</p>
-                      {exp.bullets.map((b, bi) => (
-                        <div key={bi} className="flex gap-2 items-start">
-                          <span className="mt-2 text-primary text-xs shrink-0">•</span>
-                          <input
-                            className={cn(fieldSm, 'flex-1')}
-                            placeholder="Achievement or responsibility…"
-                            value={b}
-                            onChange={(e) => setBullet(i, bi, e.target.value)}
-                          />
-                          {exp.bullets.length > 1 && (
-                            <button onClick={() => removeBullet(i, bi)} className="mt-1.5 text-muted-foreground hover:text-destructive rounded p-0.5">
-                              <X className="size-3" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      <button onClick={() => addBullet(i)} className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-                        <Plus className="size-3" /> Add bullet
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                <button
-                  onClick={addExp}
-                  className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                >
-                  <Plus className="size-4" /> Add Experience
-                </button>
+            <div ref={(el) => { sectionRefs.current.experience = el }} className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Experience</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Add your work experience and achievements.</p>
               </div>
-            )}
+              {resume.experience.map((exp, i) => (
+                <div key={i} className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground leading-tight">{exp.title || 'Job Title'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {exp.company || 'Company'}{exp.startDate ? ` · ${exp.startDate}${exp.current ? ' – Present' : exp.endDate ? ` – ${exp.endDate}` : ''}` : ''}
+                      </p>
+                    </div>
+                    <button onClick={() => removeExp(i)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-muted-foreground">Job Title</label>
+                      <input className={field} placeholder="Software Engineer" value={exp.title} onChange={(e) => setExp(i, 'title', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-muted-foreground">Company</label>
+                      <input className={field} placeholder="Company Name" value={exp.company} onChange={(e) => setExp(i, 'company', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-muted-foreground">Start Date</label>
+                      <input className={field} placeholder="Jan 2022" value={exp.startDate} onChange={(e) => setExp(i, 'startDate', e.target.value)} />
+                    </div>
+                    {!exp.current && (
+                      <div className="space-y-1">
+                        <label className="block text-xs font-medium text-muted-foreground">End Date</label>
+                        <input className={field} placeholder="Dec 2023" value={exp.endDate ?? ''} onChange={(e) => setExp(i, 'endDate', e.target.value)} />
+                      </div>
+                    )}
+                    <label className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                      <input type="checkbox" className="accent-primary" checked={exp.current} onChange={(e) => { setExp(i, 'current', e.target.checked); if (e.target.checked) setExp(i, 'endDate', undefined) }} />
+                      Currently working here
+                    </label>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Achievements / Bullets</p>
+                    {exp.bullets.map((b, bi) => (
+                      <div key={bi} className="flex gap-2 items-start">
+                        <span className="mt-2 text-primary text-xs shrink-0">•</span>
+                        <input className={cn(fieldSm, 'flex-1')} placeholder="Achievement or responsibility…" value={b} onChange={(e) => setBullet(i, bi, e.target.value)} />
+                        {exp.bullets.length > 1 && (
+                          <button onClick={() => removeBullet(i, bi)} className="mt-1.5 text-muted-foreground hover:text-destructive rounded p-0.5">
+                            <X className="size-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={() => addBullet(i)} className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
+                      <Plus className="size-3" /> Add bullet
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={addExp} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="size-4" /> Add Experience
+              </button>
+            </div>
 
             {/* ── EDUCATION ── */}
-            {tab === 'education' && (
-              <div className="space-y-4">
-                {resume.education.map((edu, i) => (
-                  <div key={i} className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">{edu.institution || 'Institution'}</span>
-                      <button onClick={() => removeEdu(i)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                    <input className={field} placeholder="Institution name" value={edu.institution} onChange={(e) => setEdu(i, 'institution', e.target.value)} />
-                    <div className="grid grid-cols-2 gap-2">
-                      <input className={field} placeholder="Degree (B.S.)" value={edu.degree} onChange={(e) => setEdu(i, 'degree', e.target.value)} />
-                      <input className={field} placeholder="Field of study" value={edu.field} onChange={(e) => setEdu(i, 'field', e.target.value)} />
-                      <input className={cn(field, 'col-span-2')} placeholder="Graduation year (2024)" value={edu.graduationYear} onChange={(e) => setEdu(i, 'graduationYear', e.target.value)} />
-                    </div>
-                  </div>
-                ))}
-                <button
-                  onClick={addEdu}
-                  className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                >
-                  <Plus className="size-4" /> Add Education
-                </button>
+            <div ref={(el) => { sectionRefs.current.education = el }} className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Education</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Add your educational background.</p>
               </div>
-            )}
+              {resume.education.map((edu, i) => (
+                <div key={i} className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-foreground">{edu.institution || 'Institution'}</span>
+                    <button onClick={() => removeEdu(i)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                  <input className={field} placeholder="Institution name" value={edu.institution} onChange={(e) => setEdu(i, 'institution', e.target.value)} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className={field} placeholder="Degree (B.S.)" value={edu.degree} onChange={(e) => setEdu(i, 'degree', e.target.value)} />
+                    <input className={field} placeholder="Field of study" value={edu.field} onChange={(e) => setEdu(i, 'field', e.target.value)} />
+                    <input className={cn(field, 'col-span-2')} placeholder="Graduation year (2024)" value={edu.graduationYear} onChange={(e) => setEdu(i, 'graduationYear', e.target.value)} />
+                  </div>
+                </div>
+              ))}
+              <button onClick={addEdu} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="size-4" /> Add Education
+              </button>
+            </div>
 
             {/* ── SKILLS ── */}
-            {tab === 'skills' && (
-              <div className="space-y-4">
-                {resume.skills.map((group, gi) => (
-                  <div key={gi} className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <input
-                        className={cn(field, 'flex-1 font-medium')}
-                        placeholder="Category (Languages, Frameworks…)"
-                        value={group.category}
-                        onChange={(e) => setSkillCat(gi, e.target.value)}
-                      />
-                      <button onClick={() => removeSkillGroup(gi)} className="shrink-0 p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {group.items.map((item, ii) => (
-                        <div key={ii} className="flex items-center gap-1 bg-secondary/60 border border-border rounded-lg px-2.5 py-1">
-                          <input
-                            className="bg-transparent text-xs outline-none w-20 text-foreground placeholder:text-muted-foreground"
-                            placeholder="Skill"
-                            value={item}
-                            onChange={(e) => setSkillItem(gi, ii, e.target.value)}
-                          />
-                          {group.items.length > 1 && (
-                            <button onClick={() => removeSkillItem(gi, ii)} className="text-muted-foreground hover:text-destructive">
-                              <X className="size-3" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      <button onClick={() => addSkillItem(gi)} className="flex items-center gap-0.5 px-2.5 py-1 text-xs text-primary hover:bg-primary/10 rounded-lg font-medium transition-colors">
-                        <Plus className="size-3" /> Add
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                <button
-                  onClick={addSkillGroup}
-                  className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                >
-                  <Plus className="size-4" /> Add Category
-                </button>
+            <div ref={(el) => { sectionRefs.current.skills = el }} className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Skills</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">List your technical and soft skills.</p>
               </div>
-            )}
+              {resume.skills.map((group, gi) => (
+                <div key={gi} className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <input className={cn(field, 'flex-1 font-medium')} placeholder="Category (Languages, Frameworks…)" value={group.category} onChange={(e) => setSkillCat(gi, e.target.value)} />
+                    <button onClick={() => removeSkillGroup(gi)} className="shrink-0 p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.items.map((item, ii) => (
+                      <div key={ii} className="flex items-center gap-1 bg-secondary/60 border border-border rounded-lg px-2.5 py-1">
+                        <input className="bg-transparent text-xs outline-none w-20 text-foreground placeholder:text-muted-foreground" placeholder="Skill" value={item} onChange={(e) => setSkillItem(gi, ii, e.target.value)} />
+                        {group.items.length > 1 && (
+                          <button onClick={() => removeSkillItem(gi, ii)} className="text-muted-foreground hover:text-destructive"><X className="size-3" /></button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={() => addSkillItem(gi)} className="flex items-center gap-0.5 px-2.5 py-1 text-xs text-primary hover:bg-primary/10 rounded-lg font-medium transition-colors">
+                      <Plus className="size-3" /> Add
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={addSkillGroup} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                <Plus className="size-4" /> Add Category
+              </button>
+            </div>
 
             {/* ── ATS SCORE ── */}
-            {tab === 'ats' && (
-              <div className="space-y-4">
-                <div className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
-                  <label className="block text-xs font-medium text-muted-foreground">Job Description</label>
-                  <textarea
-                    className={cn(field, 'min-h-32 resize-none')}
-                    placeholder="Paste the job description here…"
-                    value={atsJobDesc}
-                    onChange={(e) => setAtsJobDesc(e.target.value)}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleAnalyzeATS}
-                    disabled={!atsJobDesc.trim() || atsLoading}
-                    className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90"
-                  >
-                    {atsLoading ? <Loader2 className="size-3.5 animate-spin mr-2" /> : <Sparkles className="size-3.5 mr-2" />}
-                    Analyze ATS Score
-                  </Button>
-                </div>
-                {atsError && <p className="text-xs text-destructive px-1">{atsError}</p>}
-                {atsResult && (
-                  <div className="bg-background rounded-xl border border-border p-4 space-y-4 shadow-sm">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className={cn('text-4xl font-bold',
-                        atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>
-                        {atsResult.overallScore}
-                      </span>
-                      <span className="text-sm text-muted-foreground">/ 100</span>
-                    </div>
-                    {atsResult.summary && <p className="text-sm text-muted-foreground">{atsResult.summary}</p>}
-                    {atsResult.matchedKeywords.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Matched Keywords</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {atsResult.matchedKeywords.map((kw, i) => (
-                            <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-primary/40 text-primary bg-primary/10">{kw}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {atsResult.missingKeywords.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Missing Keywords</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {atsResult.missingKeywords.map((kw, i) => (
-                            <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-destructive/40 text-destructive bg-destructive/10">{kw}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {atsResult.suggestions.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suggestions</p>
-                        <ul className="space-y-1.5">
-                          {atsResult.suggestions.map((s, i) => (
-                            <li key={i} className="flex gap-2 items-start">
-                              <span className="text-primary text-xs mt-0.5 shrink-0">•</span>
-                              <span className="text-sm text-foreground">{s}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+            <div ref={(el) => { sectionRefs.current.ats = el }} className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">ATS Score</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Analyze your resume against a job description.</p>
+              </div>
+              <div className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                <label className="block text-xs font-medium text-muted-foreground">Job Description</label>
+                <textarea className={cn(field, 'min-h-32 resize-none')} placeholder="Paste the job description here…" value={atsJobDesc} onChange={(e) => setAtsJobDesc(e.target.value)} />
+                <Button size="sm" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsLoading} className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90">
+                  {atsLoading ? <Loader2 className="size-3.5 animate-spin mr-2" /> : <Sparkles className="size-3.5 mr-2" />}
+                  Analyze ATS Score
+                </Button>
+              </div>
+              {atsError && <p className="text-xs text-destructive px-1">{atsError}</p>}
+              {atsResult && (
+                <div className="bg-background rounded-xl border border-border p-4 space-y-4 shadow-sm">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className={cn('text-4xl font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>{atsResult.overallScore}</span>
+                    <span className="text-sm text-muted-foreground">/ 100</span>
                   </div>
-                )}
-              </div>
-            )}
-
-          </div>
-
-          {/* Streaming panel (Tailor only — Enrich uses the right-panel comparison flow) */}
-          {stream && enrichmentState === 'idle' && (
-            <div
-              className="absolute bottom-0 left-0 right-0 z-50 border-t border-border bg-background shadow-[0_-8px_24px_-12px_rgba(0,113,227,0.25)] flex flex-col rounded-t-xl"
-              style={panelCollapsed ? undefined : { height: panelHeight }}
-            >
-              <div
-                onMouseDown={handleDragStart}
-                className="shrink-0 flex items-center justify-center h-3 cursor-ns-resize hover:bg-foreground/5 group"
-              >
-                <div className="flex flex-col gap-[3px] opacity-25 group-hover:opacity-60 transition-opacity">
-                  <div className="w-6 h-px bg-muted-foreground" />
-                  <div className="w-6 h-px bg-muted-foreground" />
-                  <div className="w-6 h-px bg-muted-foreground" />
-                </div>
-              </div>
-              <div className="shrink-0 h-0.5 bg-border overflow-hidden">
-                <div className="h-full bg-primary ease-out" style={{ width: `${streamProgress}%`, transition: `width ${stream.done ? '0.3s' : '30s'} ease-out` }} />
-              </div>
-              <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2">
-                <span className="text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 min-w-0 truncate">
-                  {!stream.done ? (
-                    <span className="flex items-center gap-1.5 text-primary">
-                      <Loader2 className="size-3 animate-spin shrink-0" />
-                      {STREAMING_MESSAGES[msgIndex]}
-                    </span>
-                  ) : stream.error ? (
-                    <span className="text-destructive truncate">✗ Something went wrong</span>
-                  ) : (
-                    <span className="text-primary">✓ Done — your enriched resume is ready!</span>
+                  {atsResult.summary && <p className="text-sm text-muted-foreground">{atsResult.summary}</p>}
+                  {atsResult.matchedKeywords.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Matched Keywords</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {atsResult.matchedKeywords.map((kw, i) => <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-primary/40 text-primary bg-primary/10">{kw}</span>)}
+                      </div>
+                    </div>
                   )}
-                </span>
-                <div className="flex items-center gap-2 shrink-0">
-                  {stream.done && !stream.error && (
-                    <button onClick={applyStreamed} className="px-3 py-1 text-xs font-bold uppercase tracking-wide bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors">
-                      Apply changes
-                    </button>
+                  {atsResult.missingKeywords.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Missing Keywords</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {atsResult.missingKeywords.map((kw, i) => <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-destructive/40 text-destructive bg-destructive/10">{kw}</span>)}
+                      </div>
+                    </div>
                   )}
-                  <button onClick={() => setStream(null)} className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-destructive-foreground bg-destructive hover:bg-destructive/90 rounded-lg transition-colors">
-                    Dismiss
-                  </button>
-                  <button onClick={() => setPanelCollapsed((c) => !c)} className="p-1 border border-border bg-secondary text-muted-foreground hover:bg-secondary/70 rounded-lg transition-colors">
-                    {panelCollapsed ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-                  </button>
-                </div>
-              </div>
-              {!panelCollapsed && (
-                <div className="flex-1 min-h-0 overflow-y-scroll px-3 pb-3 scrollbar-thin scrollbar-thumb-[#D2D2D7] scrollbar-track-transparent">
-                  <StreamingOutput text={stream.text} isStreaming={!stream.done} />
+                  {atsResult.suggestions.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suggestions</p>
+                      <ul className="space-y-1.5">
+                        {atsResult.suggestions.map((s, i) => (
+                          <li key={i} className="flex gap-2 items-start">
+                            <span className="text-primary text-xs mt-0.5 shrink-0">•</span>
+                            <span className="text-sm text-foreground">{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
+
+          </div>
         </div>
 
-        {/* CENTER/RIGHT COLLAPSE TOGGLE ─────────────────────────────────────── */}
-        <button
-          onClick={() => setCenterCollapsed(c => !c)}
-          title={centerCollapsed ? 'Show editor' : 'Minimize editor'}
-          className="hidden lg:flex shrink-0 items-center justify-center w-5 bg-background border-x border-border hover:bg-secondary/60 transition-colors text-muted-foreground hover:text-foreground"
-        >
-          {centerCollapsed ? <ChevronRight className="size-3.5" /> : <ChevronLeft className="size-3.5" />}
-        </button>
+        {/* CENTER / RIGHT RESIZE HANDLE ──────────────────────────────────────── */}
+        {!centerCollapsed && (
+          <div
+            onMouseDown={(e) => {
+              centerDragRef.current = { startX: e.clientX, startW: centerWidth }
+              e.preventDefault()
+            }}
+            className="hidden lg:flex shrink-0 w-1.5 cursor-col-resize bg-border hover:bg-primary/50 transition-colors z-10"
+          />
+        )}
 
         {/* RIGHT PREVIEW ────────────────────────────────────────────────────── */}
         <div className={cn(
-          'border-r border-border flex flex-col overflow-hidden flex-1',
+          'flex flex-col overflow-hidden flex-1 relative',
           mobileViewTab === 'preview' ? 'flex' : 'hidden',
           'lg:flex',
         )}>
+          {/* Re-open button when center is collapsed */}
+          {centerCollapsed && (
+            <button
+              onClick={() => setCenterCollapsed(false)}
+              title="Show editor"
+              className="absolute top-2 left-2 z-20 hidden lg:flex p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background border border-border shadow-sm transition-colors"
+            >
+              <ChevronRight className="size-3.5" />
+            </button>
+          )}
           {enrichmentState === 'comparing' && enrichedResume && originalResume ? (
             <ComparisonView
               originalResume={originalResume}
@@ -1367,6 +1292,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-muted-foreground">Template</span>
                   <select
+                    data-testid="template-select"
                     className="text-xs border border-border rounded-lg px-2 py-1 bg-background text-foreground outline-none focus:ring-1 focus:ring-primary/50"
                     value={selectedIndustry}
                     onChange={(e) => setSelectedIndustry(e.target.value)}
@@ -1387,14 +1313,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       { hex: '#7c3aed', id: 'creative' },
                       { hex: '#1e3a5f', id: 'finance' },
                     ].map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => setSelectedIndustry(s.id)}
-                        title={s.id}
-                        className={cn(
-                          'size-5 rounded-full border-2 transition-transform hover:scale-110',
-                          selectedIndustry === s.id ? 'border-foreground scale-110' : 'border-transparent',
-                        )}
+                      <button key={s.id} onClick={() => setSelectedIndustry(s.id)} title={s.id}
+                        className={cn('size-5 rounded-full border-2 transition-transform hover:scale-110', selectedIndustry === s.id ? 'border-foreground scale-110' : 'border-transparent')}
                         style={{ background: s.hex }}
                       />
                     ))}
@@ -1404,31 +1324,67 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   </button>
                 </div>
               </div>
-              {/* Preview content */}
-              <div className="flex-1 overflow-auto bg-muted/60 p-4">
+              {/* Preview content + streaming panel overlay */}
+              <div className="flex-1 overflow-auto bg-muted/60 p-4 relative">
                 <div className="relative">
                   <div
                     className={cn('transition-all duration-300', enrichmentState === 'loading' && 'opacity-30 blur-sm pointer-events-none')}
                     style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
                   >
-                    <ResumePreview
-                      resume={resume}
-                      flashSections={flashSections}
-                      industry={selectedIndustry}
-                      detectedIndustry={resume.detectedIndustry}
-                    />
+                    <ResumePreview resume={resume} flashSections={flashSections} industry={selectedIndustry} detectedIndustry={resume.detectedIndustry} />
                   </div>
                   {enrichmentState === 'loading' && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="bg-card border border-border shadow-lg rounded-xl px-6 py-5 flex flex-col items-center gap-3 text-center max-w-xs">
                         <Loader2 className="size-6 animate-spin text-primary" />
-                        <p className="text-xs font-bold uppercase tracking-wider text-foreground">
-                          {ENRICHMENT_LOADING_MESSAGES[enrichMsgIndex]}
-                        </p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-foreground">{ENRICHMENT_LOADING_MESSAGES[enrichMsgIndex]}</p>
                       </div>
                     </div>
                   )}
                 </div>
+                {/* Streaming panel — shows in right panel so it's always visible */}
+                {stream && enrichmentState === 'idle' && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 z-50 border-t border-border bg-background shadow-[0_-8px_24px_-12px_rgba(0,113,227,0.25)] flex flex-col rounded-t-xl"
+                    style={panelCollapsed ? undefined : { height: panelHeight }}
+                  >
+                    <div onMouseDown={handleDragStart} className="shrink-0 flex items-center justify-center h-3 cursor-ns-resize hover:bg-foreground/5 group">
+                      <div className="flex flex-col gap-[3px] opacity-25 group-hover:opacity-60 transition-opacity">
+                        <div className="w-6 h-px bg-muted-foreground" />
+                        <div className="w-6 h-px bg-muted-foreground" />
+                        <div className="w-6 h-px bg-muted-foreground" />
+                      </div>
+                    </div>
+                    <div className="shrink-0 h-0.5 bg-border overflow-hidden">
+                      <div className="h-full bg-primary ease-out" style={{ width: `${streamProgress}%`, transition: `width ${stream.done ? '0.3s' : '30s'} ease-out` }} />
+                    </div>
+                    <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2">
+                      <span className="text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 min-w-0 truncate">
+                        {!stream.done ? (
+                          <span className="flex items-center gap-1.5 text-primary"><Loader2 className="size-3 animate-spin shrink-0" />{STREAMING_MESSAGES[msgIndex]}</span>
+                        ) : stream.error ? (
+                          <span className="text-destructive truncate">✗ Something went wrong</span>
+                        ) : (
+                          <span className="text-primary">✓ Done — your enriched resume is ready!</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {stream.done && !stream.error && (
+                          <button onClick={applyStreamed} className="px-3 py-1 text-xs font-bold uppercase tracking-wide bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors">Apply changes</button>
+                        )}
+                        <button onClick={() => setStream(null)} className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-destructive-foreground bg-destructive hover:bg-destructive/90 rounded-lg transition-colors">Dismiss</button>
+                        <button onClick={() => setPanelCollapsed((c) => !c)} className="p-1 border border-border bg-secondary text-muted-foreground hover:bg-secondary/70 rounded-lg transition-colors">
+                          {panelCollapsed ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    {!panelCollapsed && (
+                      <div className="flex-1 min-h-0 overflow-y-scroll px-3 pb-3 scrollbar-thin scrollbar-thumb-[#D2D2D7] scrollbar-track-transparent">
+                        <StreamingOutput text={stream.text} isStreaming={!stream.done} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -1506,8 +1462,18 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           )}
           <button
             type="button"
+            onClick={() => setCurrentStep((s) => Math.max(s - 1, 1))}
+            disabled={currentStep === 1}
+            className="flex items-center gap-1.5 px-4 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors min-h-[32px] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ArrowLeft className="size-3.5" />
+            Prev Step
+          </button>
+          <button
+            type="button"
             onClick={() => setCurrentStep((s) => Math.min(s + 1, 4))}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors min-h-[32px]"
+            disabled={currentStep === 4}
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors min-h-[32px] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Next Step
             <ArrowRight className="size-3.5" />
