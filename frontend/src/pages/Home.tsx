@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { Sparkles, CheckCircle2, Eye, ChevronDown, User } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/contexts/AuthContext'
+import ResumeUploader from '@/components/ResumeUploader'
+import type { ResumeSchema } from '@/types/resume'
 
 const CHECKLIST = [
   'AI Content Enhancement',
@@ -13,12 +15,18 @@ const CHECKLIST = [
 const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb', 'Stripe']
 
 export default function Home() {
-  const { user, loading, openAuthModal } = useAuth()
+  const { user, loading, isGuest, openAuthModal } = useAuth()
   const navigate = useNavigate()
+
+  const handleParsed = (resume: ResumeSchema) => {
+    navigate('/editor', { state: { resume, from: '/' } })
+  }
 
   const handleEnhance = () => {
     if (loading) return
-    if (user) {
+    if (isGuest) {
+      document.getElementById('guest-uploader')?.scrollIntoView({ behavior: 'smooth' })
+    } else if (user) {
       navigate('/dashboard')
     } else {
       openAuthModal()
@@ -217,6 +225,18 @@ export default function Home() {
             </div>
           </div>
         </div>
+        {/* ── Guest Upload Section ─────────────────────────────── */}
+        {isGuest && (
+          <section id="guest-uploader" className="py-12 max-w-2xl mx-auto px-6">
+            <h2 className="text-2xl font-bold text-center text-foreground mb-2">
+              Upload your resume to get started
+            </h2>
+            <p className="text-center text-muted-foreground text-sm mb-6">
+              Upload your resume and get AI-powered improvements in seconds.
+            </p>
+            <ResumeUploader onParsed={handleParsed} />
+          </section>
+        )}
       </main>
 
       {/* Footer */}

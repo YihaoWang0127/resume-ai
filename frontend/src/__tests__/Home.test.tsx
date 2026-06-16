@@ -15,6 +15,14 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 vi.mock('@/components/Navbar', () => ({ default: () => <nav data-testid="navbar" /> }))
 
+vi.mock('@/components/ResumeUploader', () => ({
+  default: ({ onParsed }: { onParsed: (r: unknown) => void }) => (
+    <div data-testid="resume-uploader">
+      <button onClick={() => onParsed({ name: 'Test User' })}>Upload</button>
+    </div>
+  ),
+}))
+
 // ── imports after mocks ───────────────────────────────────────────────────────
 
 import { useAuth } from '@/contexts/AuthContext'
@@ -193,19 +201,29 @@ describe('Home — "Enhance My Resume" button (no session)', () => {
 // ── CTA button behavior — guest session ──────────────────────────────────────
 
 describe('Home — "Enhance My Resume" button (anonymous guest)', () => {
-  it('navigates to /dashboard when isGuest is true', async () => {
+  it('scrolls to #guest-uploader when isGuest is true', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
       isGuest: true,
       loading: false,
     })
+
+    const mockScrollIntoView = vi.fn()
+    const mockGetElementById = vi.spyOn(document, 'getElementById').mockReturnValue({
+      scrollIntoView: mockScrollIntoView,
+    } as unknown as HTMLElement)
+
     const user = userEvent.setup()
     renderHome()
 
     await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+    expect(mockGetElementById).toHaveBeenCalledWith('guest-uploader')
+    expect(mockScrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' })
+    expect(mockNavigate).not.toHaveBeenCalled()
     expect(openAuthModal).not.toHaveBeenCalled()
+
+    mockGetElementById.mockRestore()
   })
 })
 
@@ -225,6 +243,42 @@ describe('Home — "Enhance My Resume" button (authenticated)', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
     expect(openAuthModal).not.toHaveBeenCalled()
+  })
+})
+
+// ── Guest uploader section ────────────────────────────────────────────────────
+
+describe('Home — guest uploader section', () => {
+  it('renders #guest-uploader with heading when isGuest is true', () => {
+    setupAuth({
+      user: { id: 'anon1', is_anonymous: true } as any,
+      isGuest: true,
+      loading: false,
+    })
+    renderHome()
+
+    expect(screen.getByText('Upload your resume to get started')).toBeInTheDocument()
+    expect(screen.getByTestId('resume-uploader')).toBeInTheDocument()
+  })
+
+  it('does NOT render #guest-uploader when a real user is signed in (isGuest: false)', () => {
+    setupAuth({
+      user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
+      isGuest: false,
+      loading: false,
+    })
+    renderHome()
+
+    expect(screen.queryByText('Upload your resume to get started')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
+  })
+
+  it('does NOT render #guest-uploader when user is null (no session)', () => {
+    setupAuth({ user: null, isGuest: false, loading: false })
+    renderHome()
+
+    expect(screen.queryByText('Upload your resume to get started')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
   })
 })
 
