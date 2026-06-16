@@ -124,20 +124,27 @@ describe('Navbar — anonymous guest session (isGuest: true)', () => {
 })
 
 describe('Navbar — center nav links', () => {
-  it('renders all four nav links when no onBack or children props are present', () => {
+  it('renders all five nav links when no onBack or children props are present', () => {
     renderNavbar()
     expect(screen.getByText('Features')).toBeInTheDocument()
     expect(screen.getByText('How It Works')).toBeInTheDocument()
-    expect(screen.getByText('Templates')).toBeInTheDocument()
+    expect(screen.getByText('Examples')).toBeInTheDocument()
     expect(screen.getByText('Pricing')).toBeInTheDocument()
+    expect(screen.getByText('Blog')).toBeInTheDocument()
+  })
+
+  it('does not render the removed "Templates" link', () => {
+    renderNavbar()
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument()
   })
 
   it('hides center nav links when onBack prop is provided', () => {
     render(<Navbar onBack={vi.fn()} />, { wrapper: MemoryRouter })
     expect(screen.queryByText('Features')).not.toBeInTheDocument()
     expect(screen.queryByText('How It Works')).not.toBeInTheDocument()
-    expect(screen.queryByText('Templates')).not.toBeInTheDocument()
+    expect(screen.queryByText('Examples')).not.toBeInTheDocument()
     expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
+    expect(screen.queryByText('Blog')).not.toBeInTheDocument()
   })
 
   it('hides center nav links when children are provided', () => {
@@ -149,8 +156,9 @@ describe('Navbar — center nav links', () => {
     )
     expect(screen.queryByText('Features')).not.toBeInTheDocument()
     expect(screen.queryByText('How It Works')).not.toBeInTheDocument()
-    expect(screen.queryByText('Templates')).not.toBeInTheDocument()
+    expect(screen.queryByText('Examples')).not.toBeInTheDocument()
     expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
+    expect(screen.queryByText('Blog')).not.toBeInTheDocument()
   })
 })
 

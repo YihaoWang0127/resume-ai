@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import type { ResumeSchema } from '@/types/resume'
 
 // ── module mocks ──────────────────────────────────────────────────────────────
 
@@ -15,13 +14,6 @@ vi.mock('react-router-dom', async (importOriginal) => {
 })
 
 vi.mock('@/components/Navbar', () => ({ default: () => <nav data-testid="navbar" /> }))
-vi.mock('@/components/ResumeUploader', () => ({
-  default: ({ onParsed }: { onParsed: (r: ResumeSchema) => void }) => (
-    <div data-testid="resume-uploader">
-      <button onClick={() => onParsed(mockResume)}>Upload</button>
-    </div>
-  ),
-}))
 
 // ── imports after mocks ───────────────────────────────────────────────────────
 
@@ -31,14 +23,6 @@ import Home from '@/pages/Home'
 const mockUseAuth = vi.mocked(useAuth)
 
 const openAuthModal = vi.fn()
-
-const mockResume: ResumeSchema = {
-  metadata: { fullName: 'Jane Smith', email: 'jane@example.com' },
-  summary: 'Engineer',
-  experience: [],
-  education: [],
-  skills: [],
-}
 
 function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
   mockUseAuth.mockReturnValue({
@@ -141,28 +125,42 @@ describe('Home — trust bar', () => {
   })
 })
 
-// ── Upload section ────────────────────────────────────────────────────────────
+// ── Resume preview card ───────────────────────────────────────────────────────
 
-describe('Home — upload section', () => {
-  it('renders the ResumeUploader component', () => {
+describe('Home — resume preview card', () => {
+  it('renders the Preview tab in the top bar', () => {
     renderHome()
-    expect(screen.getByTestId('resume-uploader')).toBeInTheDocument()
+    expect(screen.getByText('Preview')).toBeInTheDocument()
   })
 
-  it('renders the upload section heading', () => {
+  it('renders the Suggestions tab in the top bar', () => {
     renderHome()
-    expect(screen.getByText(/Ready to enhance your resume\?/i)).toBeInTheDocument()
+    expect(screen.getByText('Suggestions')).toBeInTheDocument()
   })
 
-  it('navigates to /editor after a successful parse', async () => {
-    const user = userEvent.setup()
+  it('renders the Download tab in the top bar', () => {
     renderHome()
+    expect(screen.getByText('Download')).toBeInTheDocument()
+  })
 
-    await user.click(screen.getByRole('button', { name: 'Upload' }))
+  it('renders the ATS Score label in the AI Suggestions panel', () => {
+    renderHome()
+    expect(screen.getByText(/ATS Score/i)).toBeInTheDocument()
+  })
 
-    expect(mockNavigate).toHaveBeenCalledWith('/editor', {
-      state: { resume: mockResume, from: '/' },
-    })
+  it('renders the Professional Summary section in the resume content', () => {
+    renderHome()
+    expect(screen.getByText('Professional Summary')).toBeInTheDocument()
+  })
+
+  it('renders the Experience section in the resume content', () => {
+    renderHome()
+    expect(screen.getByText('Experience')).toBeInTheDocument()
+  })
+
+  it('renders the Education section in the resume content', () => {
+    renderHome()
+    expect(screen.getByText('Education')).toBeInTheDocument()
   })
 })
 
@@ -212,62 +210,28 @@ describe('Home — "Enhance My Resume" button (authenticated)', () => {
 // ── "See Example" button ──────────────────────────────────────────────────────
 
 describe('Home — "See Example" button', () => {
-  it('calls scrollIntoView on the #uploader element', async () => {
-    const scrollIntoView = vi.fn()
-    const el = document.createElement('div')
-    el.id = 'uploader'
-    el.scrollIntoView = scrollIntoView
-    document.body.appendChild(el)
-
+  it('calls openAuthModal when user is null (same as "Enhance My Resume")', async () => {
+    setupAuth({ user: null, loading: false })
     const user = userEvent.setup()
     renderHome()
 
     await user.click(screen.getByRole('button', { name: /See Example/i }))
 
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' })
-
-    document.body.removeChild(el)
-  })
-})
-
-// ── Guest overlay on uploader ─────────────────────────────────────────────────
-
-describe('Home — guest overlay on uploader', () => {
-  it('shows a clickable overlay when the user is not logged in', () => {
-    setupAuth({ user: null, loading: false })
-    renderHome()
-    // The overlay div sits above the uploader; clicking it calls openAuthModal
-    const uploader = screen.getByTestId('resume-uploader')
-    // The overlay is a sibling — find its parent's relative container
-    const container = uploader.closest('div.relative')
-    expect(container).not.toBeNull()
-    const overlay = container!.querySelector('div.absolute')
-    expect(overlay).not.toBeNull()
-  })
-
-  it('calls openAuthModal when the guest overlay is clicked', async () => {
-    setupAuth({ user: null, loading: false })
-    const user = userEvent.setup()
-    renderHome()
-
-    const uploader = screen.getByTestId('resume-uploader')
-    const container = uploader.closest('div.relative')!
-    const overlay = container.querySelector<HTMLElement>('div.absolute')!
-    await user.click(overlay)
-
     expect(openAuthModal).toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalledWith('/dashboard')
   })
 
-  it('does not render the guest overlay when user is logged in', () => {
+  it('navigates to /dashboard when a real user is logged in', async () => {
     setupAuth({
       user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
       loading: false,
     })
+    const user = userEvent.setup()
     renderHome()
 
-    const uploader = screen.getByTestId('resume-uploader')
-    const container = uploader.closest('div.relative')!
-    const overlay = container.querySelector('div.absolute')
-    expect(overlay).toBeNull()
+    await user.click(screen.getByRole('button', { name: /See Example/i }))
+
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+    expect(openAuthModal).not.toHaveBeenCalled()
   })
 })

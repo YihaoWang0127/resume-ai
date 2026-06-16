@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings, Menu, X, Sparkles } from 'lucide-react'
+import { ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings, Menu, X, Sparkles } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { cn, getInitials } from '@/lib/utils'
@@ -14,8 +14,9 @@ interface Props {
 const NAV_LINKS = [
   { label: 'Features', href: '#' },
   { label: 'How It Works', href: '#' },
-  { label: 'Templates', href: '#' },
+  { label: 'Examples', href: '#' },
   { label: 'Pricing', href: '#' },
+  { label: 'Blog', href: '#' },
 ]
 
 export default function Navbar({ onBack, children }: Props) {
@@ -41,7 +42,7 @@ export default function Navbar({ onBack, children }: Props) {
   const displayName = fullName.trim() || user?.email || ''
 
   return (
-    <nav className="relative shrink-0 border-b border-border px-6 h-14 flex items-center justify-between bg-background">
+    <nav className="relative shrink-0 border-b border-border px-6 h-16 flex items-center justify-between bg-background">
       {/* Left: logo + optional back */}
       <div className="flex items-center gap-3">
         <button
@@ -49,8 +50,8 @@ export default function Navbar({ onBack, children }: Props) {
           onClick={() => navigate('/')}
           className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
         >
-          <div className="size-7 bg-primary rounded flex items-center justify-center shrink-0">
-            <FileText className="size-4 text-primary-foreground" />
+          <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
+            <span className="text-primary-foreground font-bold text-sm">R</span>
           </div>
           <span className="font-display font-bold text-sm tracking-widest uppercase text-foreground">
             Resume AI

@@ -1,9 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, CheckCircle2, ArrowRight, Eye } from 'lucide-react'
-import ResumeUploader from '@/components/ResumeUploader'
+import { Sparkles, CheckCircle2, Eye, ChevronDown, User } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/contexts/AuthContext'
-import type { ResumeSchema } from '@/types/resume'
 
 const CHECKLIST = [
   'AI Content Enhancement',
@@ -18,10 +16,6 @@ export default function Home() {
   const { user, loading, openAuthModal } = useAuth()
   const navigate = useNavigate()
 
-  const handleParsed = (resume: ResumeSchema) => {
-    navigate('/editor', { state: { resume, from: '/' } })
-  }
-
   const handleEnhance = () => {
     if (!loading && user) {
       navigate('/dashboard')
@@ -30,19 +24,14 @@ export default function Home() {
     }
   }
 
-  const handleSeeExample = () => {
-    const el = document.getElementById('uploader')
-    if (el) el.scrollIntoView({ behavior: 'smooth' })
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-[#EEF2FF] flex flex-col overflow-x-hidden">
       <Navbar />
 
       <main className="flex-1">
         {/* ── Hero Section ─────────────────────────────────────── */}
-        <section className="px-6 pt-16 pb-10 max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-8 lg:gap-12 items-start pt-16 pb-8 px-8 max-w-7xl mx-auto">
 
             {/* Left: text + CTAs */}
             <div className="flex flex-col gap-6">
@@ -53,7 +42,7 @@ export default function Home() {
               </div>
 
               {/* Headline */}
-              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
                 <span className="block text-foreground">Your Resume.</span>
                 <span className="block text-primary">Enhanced by AI.</span>
               </h1>
@@ -81,11 +70,11 @@ export default function Home() {
                   className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary/90 transition-colors min-h-[44px]"
                 >
                   Enhance My Resume
-                  <ArrowRight className="size-4 shrink-0" />
+                  <Sparkles className="size-4 shrink-0" />
                 </button>
                 <button
                   type="button"
-                  onClick={handleSeeExample}
+                  onClick={handleEnhance}
                   className="inline-flex items-center gap-2 border border-border bg-background rounded-lg px-6 py-3 font-semibold text-sm hover:bg-secondary transition-colors min-h-[44px]"
                 >
                   See Example
@@ -96,11 +85,12 @@ export default function Home() {
               {/* Social proof */}
               <div className="flex items-center gap-3">
                 <div className="flex -space-x-2">
-                  {['JK', 'SM', 'AR'].map((initials) => (
-                    <div
-                      key={initials}
-                      className="size-8 rounded-full bg-primary/20 border-2 border-background flex items-center justify-center text-[10px] font-bold text-primary"
-                    >
+                  {[
+                    { initials: 'JK', bg: 'bg-orange-400' },
+                    { initials: 'SM', bg: 'bg-purple-400' },
+                    { initials: 'AR', bg: 'bg-blue-400' },
+                  ].map(({ initials, bg }) => (
+                    <div key={initials} className={`size-9 rounded-full ${bg} border-2 border-white flex items-center justify-center text-[11px] font-bold text-white`}>
                       {initials}
                     </div>
                   ))}
@@ -114,71 +104,95 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right: decorative resume preview card (desktop only) */}
-            <div className="hidden lg:flex items-center justify-center">
-              <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-5 space-y-4">
-                {/* Card header */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-foreground">Software Engineer</span>
-                  <span className="bg-green-100 text-green-700 rounded-full text-xs px-2.5 py-0.5 font-medium">
-                    ATS Score 98%
-                  </span>
+            {/* Right: Detailed Resume Preview Card */}
+            <div className="hidden lg:block">
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                {/* Card top bar */}
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="size-7 rounded bg-gray-100 flex items-center justify-center">
+                      <User className="size-4 text-gray-400" />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-800">Software Engineer</span>
+                    <span className="bg-green-100 text-green-700 rounded-full text-xs px-2.5 py-0.5 font-semibold">
+                      ATS Score 98%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-primary border-b-2 border-primary pb-0.5">Preview</span>
+                    <span className="text-sm text-gray-400">Suggestions <span className="bg-gray-100 rounded px-1.5 py-0.5 text-xs font-medium text-gray-600">12</span></span>
+                    <span className="text-sm text-gray-400 flex items-center gap-1">Download <ChevronDown className="size-3" /></span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {/* AI Suggestions panel */}
-                  <div className="bg-secondary/50 rounded-lg p-3 space-y-2.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-foreground">AI Suggestions</span>
-                      <span className="bg-primary text-primary-foreground rounded-full text-[10px] px-1.5 py-px font-bold">4</span>
+                {/* Card body — two panels */}
+                <div className="flex divide-x divide-gray-100">
+                  {/* Left: AI Suggestions */}
+                  <div className="w-[200px] shrink-0 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-800">AI Suggestions</span>
+                      <span className="bg-primary text-primary-foreground rounded-full text-[10px] px-1.5 py-px font-bold">12</span>
                     </div>
                     {[
-                      { label: 'Improve Impact', done: true },
-                      { label: 'Quantify Results', done: true },
-                      { label: 'Keyword Match', done: false },
-                      { label: 'Skills Enhancement', done: false },
+                      { label: 'Improve Impact', sub: 'Add more impact to your bullet points.', color: 'text-green-500' },
+                      { label: 'Quantify Results', sub: 'Add metrics to showcase your achievements.', color: 'text-blue-400' },
+                      { label: 'Keyword Match', sub: 'Great match with job description.', color: 'text-blue-400' },
+                      { label: 'Skills Enhancement', sub: 'Add in-demand skills for this role.', color: 'text-green-500' },
                     ].map((s) => (
-                      <div key={s.label} className="flex items-start gap-1.5">
-                        <CheckCircle2 className={`size-3 shrink-0 mt-0.5 ${s.done ? 'text-green-500' : 'text-primary'}`} />
+                      <div key={s.label} className="flex items-start gap-2">
+                        <CheckCircle2 className={`size-4 shrink-0 mt-0.5 ${s.color}`} />
                         <div>
-                          <p className="text-[10px] font-semibold text-foreground leading-tight">{s.label}</p>
-                          <p className="text-[9px] text-muted-foreground leading-tight">AI recommendation</p>
+                          <p className="text-xs font-semibold text-gray-800 leading-tight">{s.label}</p>
+                          <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{s.sub}</p>
                         </div>
                       </div>
                     ))}
-                    <button type="button" className="text-[10px] text-primary font-medium hover:underline">
+                    <button type="button" className="text-xs text-primary font-medium hover:underline flex items-center gap-1">
                       View All Suggestions →
                     </button>
                   </div>
 
-                  {/* Resume preview panel */}
-                  <div className="space-y-2">
+                  {/* Right: Resume content */}
+                  <div className="flex-1 p-4 space-y-3 text-[11px]">
                     <div>
-                      <p className="text-sm font-bold text-foreground leading-tight">Alex Johnson</p>
-                      <p className="text-[10px] text-muted-foreground">Software Engineer</p>
-                      <p className="text-[9px] text-muted-foreground leading-tight mt-0.5">alex@email.com · (555) 123-4567 · San Francisco, CA</p>
+                      <p className="text-base font-bold text-gray-900 leading-tight">Alex Johnson</p>
+                      <p className="text-xs text-gray-500">Software Engineer</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">alex.johnson@email.com · (555) 123-4567 · San Francisco, CA · linkedin.com/in/alexjohnson</p>
                     </div>
 
                     <div>
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-foreground mb-1">Professional Summary</p>
-                      <div className="space-y-0.5">
-                        <div className="h-1.5 bg-muted rounded-full w-full" />
-                        <div className="h-1.5 bg-muted rounded-full w-4/5" />
-                      </div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 mb-1 border-b border-gray-200 pb-0.5">Professional Summary</p>
+                      <p className="text-[10px] text-gray-600 leading-relaxed">Results-driven software engineer with 5+ years of experience building scalable web applications. Passionate about clean code, user experience, and delivering impactful solutions.</p>
                     </div>
 
                     <div>
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-foreground mb-1">Experience</p>
-                      <div className="flex items-center justify-between mb-0.5">
-                        <p className="text-[9px] font-semibold text-foreground">Senior Software Engineer</p>
-                        <p className="text-[8px] text-muted-foreground">2021–Present</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 mb-1 border-b border-gray-200 pb-0.5">Experience</p>
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-[10px] font-bold text-gray-800">Senior Software Engineer</p>
+                        <p className="text-[9px] text-gray-400">2021 - Present</p>
                       </div>
-                      <p className="text-[8px] text-muted-foreground mb-1">Tech Corp</p>
-                      <div className="space-y-0.5 pl-2">
-                        {[100, 90, 95, 80].map((w, i) => (
-                          <div key={i} className="h-1 bg-muted rounded-full" style={{ width: `${w}%` }} />
+                      <p className="text-[10px] text-gray-500 mb-1">Tech Corp</p>
+                      <ul className="space-y-0.5 pl-2">
+                        {[
+                          'Developed and maintained scalable web applications serving 100K+ users',
+                          'Improved application performance by 40% through code optimization',
+                          'Led a team of 4 engineers and mentored junior developers',
+                          'Implemented CI/CD pipelines reducing deployment time by 60%',
+                        ].map((bullet) => (
+                          <li key={bullet} className="text-[9px] text-gray-500 flex gap-1">
+                            <span className="shrink-0">·</span>{bullet}
+                          </li>
                         ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 mb-1 border-b border-gray-200 pb-0.5">Education</p>
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-[10px] font-bold text-gray-800">Bachelor of Science in Computer Science</p>
+                        <p className="text-[9px] text-gray-400">2017 - 2021</p>
                       </div>
+                      <p className="text-[10px] text-gray-500">University of California, Berkeley</p>
                     </div>
                   </div>
                 </div>
@@ -188,38 +202,20 @@ export default function Home() {
         </section>
 
         {/* ── Trust Bar ────────────────────────────────────────── */}
-        <section className="border-t border-border py-10 mt-2">
-          <p className="text-center text-sm text-muted-foreground mb-6">
-            Trusted by professionals from top companies
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-8 px-6">
-            {COMPANIES.map((name) => (
-              <span key={name} className="text-lg font-semibold text-muted-foreground/50">
-                {name}
-              </span>
-            ))}
+        <div className="py-12 px-8 max-w-7xl mx-auto">
+          <div className="bg-white/70 rounded-2xl py-10 px-8">
+            <p className="text-center text-sm text-gray-500 mb-8">
+              Trusted by professionals from top companies
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-10">
+              {COMPANIES.map((name) => (
+                <span key={name} className="text-xl font-bold text-gray-300 hover:text-gray-400 transition-colors">
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
-        </section>
-
-        {/* ── Upload Section ───────────────────────────────────── */}
-        <section id="uploader" className="py-12 max-w-2xl mx-auto px-6">
-          <h2 className="text-2xl font-bold text-center text-foreground mb-2">
-            Ready to enhance your resume?
-          </h2>
-          <p className="text-center text-muted-foreground text-sm mb-6">
-            Upload your resume and get AI-powered improvements in seconds.
-          </p>
-          <div className="relative">
-            <ResumeUploader onParsed={handleParsed} />
-            {!loading && !user && (
-              <div
-                className="absolute inset-0 cursor-pointer"
-                onClick={openAuthModal}
-                onDragOver={(e) => { e.preventDefault(); openAuthModal() }}
-              />
-            )}
-          </div>
-        </section>
+        </div>
       </main>
 
       {/* Footer */}
