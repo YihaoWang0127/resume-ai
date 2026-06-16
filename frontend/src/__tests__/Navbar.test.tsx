@@ -167,6 +167,138 @@ describe('Navbar — center nav links', () => {
   })
 })
 
+describe('Navbar — nav dropdown panels', () => {
+  it('opens the Features panel when "Features" button is clicked', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+
+    // Panel header text unique to FeaturesPanel
+    expect(screen.getByText('What you get')).toBeInTheDocument()
+  })
+
+  it('closes the Features panel when "Features" button is clicked again (toggle)', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.getByText('What you get')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.queryByText('What you get')).not.toBeInTheDocument()
+  })
+
+  it('opens the "How It Works" panel when that button is clicked', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /How It Works/i }))
+
+    expect(screen.getByText('Three simple steps')).toBeInTheDocument()
+  })
+
+  it('switches from Features panel to "How It Works" panel (only one open at a time)', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    // Open Features
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.getByText('What you get')).toBeInTheDocument()
+
+    // Click How It Works — Features panel should close, How It Works opens
+    await user.click(screen.getByRole('button', { name: /How It Works/i }))
+    expect(screen.queryByText('What you get')).not.toBeInTheDocument()
+    expect(screen.getByText('Three simple steps')).toBeInTheDocument()
+  })
+
+  it('closes the open panel when Escape key is pressed', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.getByText('What you get')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByText('What you get')).not.toBeInTheDocument()
+  })
+
+  it('closes the open panel when clicking outside the nav area', async () => {
+    const user = userEvent.setup()
+    const { container } = renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.getByText('What you get')).toBeInTheDocument()
+
+    // Click on the document body outside the navbar
+    await user.click(container.ownerDocument.body)
+    expect(screen.queryByText('What you get')).not.toBeInTheDocument()
+  })
+
+  it('opens the Pricing panel showing Free and Pro tiers', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Pricing/i }))
+
+    expect(screen.getByText('Simple pricing')).toBeInTheDocument()
+    expect(screen.getByText('Free')).toBeInTheDocument()
+    expect(screen.getByText('Pro')).toBeInTheDocument()
+  })
+
+  it('opens the Examples panel showing "Coming Soon"', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /^Examples$/i }))
+
+    // ExamplesPanel renders "Coming Soon" text
+    const comingSoonEls = screen.getAllByText('Coming Soon')
+    expect(comingSoonEls.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('opens the Blog panel showing "Coming Soon"', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /^Blog$/i }))
+
+    const comingSoonEls = screen.getAllByText('Coming Soon')
+    expect(comingSoonEls.length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText(/Tips, guides, and industry insights/i)).toBeInTheDocument()
+  })
+
+  it('nav panel buttons are not rendered when onBack prop is provided', () => {
+    render(<Navbar onBack={vi.fn()} />, { wrapper: MemoryRouter })
+    // Nav buttons are hidden when onBack is set — no panel triggers exist
+    expect(screen.queryByRole('button', { name: /^Features$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Pricing$/i })).not.toBeInTheDocument()
+  })
+
+  it('FeaturesPanel lists AI Enhancement, ATS Optimization, Cover Letters, One-Click Export', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+
+    expect(screen.getByText('AI Enhancement')).toBeInTheDocument()
+    expect(screen.getByText('ATS Optimization')).toBeInTheDocument()
+    expect(screen.getByText('Cover Letters')).toBeInTheDocument()
+    expect(screen.getByText('One-Click Export')).toBeInTheDocument()
+  })
+
+  it('HowItWorksPanel lists Upload, Enhance, Export steps', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /How It Works/i }))
+
+    expect(screen.getByText('Upload')).toBeInTheDocument()
+    expect(screen.getByText('Enhance')).toBeInTheDocument()
+    expect(screen.getByText('Export')).toBeInTheDocument()
+  })
+})
+
 describe('Navbar — signed in', () => {
   it('shows initials in the avatar fallback when there is no avatar image', () => {
     setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })

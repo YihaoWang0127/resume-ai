@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, CheckCircle2, Eye, ChevronDown, User } from 'lucide-react'
+import { Sparkles, CheckCircle2, Eye, ChevronDown, User, X } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/contexts/AuthContext'
 import ResumeUploader from '@/components/ResumeUploader'
+import Modal from '@/components/Modal'
 import type { ResumeSchema } from '@/types/resume'
 
 const CHECKLIST = [
@@ -17,15 +19,17 @@ const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb',
 export default function Home() {
   const { user, loading, isGuest, openAuthModal } = useAuth()
   const navigate = useNavigate()
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
 
   const handleParsed = (resume: ResumeSchema) => {
+    setUploadModalOpen(false)
     navigate('/editor', { state: { resume, from: '/' } })
   }
 
   const handleEnhance = () => {
     if (loading) return
     if (isGuest) {
-      document.getElementById('guest-uploader')?.scrollIntoView({ behavior: 'smooth' })
+      setUploadModalOpen(true)
     } else if (user) {
       navigate('/dashboard')
     } else {
@@ -83,8 +87,8 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleEnhance}
-                  className="inline-flex items-center gap-2 border border-border bg-background rounded-lg px-6 py-3 font-semibold text-sm hover:bg-secondary transition-colors min-h-[44px]"
+                  disabled
+                  className="inline-flex items-center gap-2 border border-border bg-background rounded-lg px-6 py-3 font-semibold text-sm min-h-[44px] opacity-50 cursor-not-allowed"
                 >
                   See Example
                   <Eye className="size-4 shrink-0" />
@@ -225,19 +229,25 @@ export default function Home() {
             </div>
           </div>
         </div>
-        {/* ── Guest Upload Section ─────────────────────────────── */}
-        {isGuest && (
-          <section id="guest-uploader" className="py-12 max-w-2xl mx-auto px-6">
-            <h2 className="text-2xl font-bold text-center text-foreground mb-2">
-              Upload your resume to get started
-            </h2>
-            <p className="text-center text-muted-foreground text-sm mb-6">
-              Upload your resume and get AI-powered improvements in seconds.
-            </p>
-            <ResumeUploader onParsed={handleParsed} />
-          </section>
-        )}
       </main>
+
+      {/* Guest upload modal */}
+      <Modal open={uploadModalOpen} overlayClassName="p-4" className="rounded-xl max-w-lg p-0">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+          <h2 className="text-base font-bold text-foreground uppercase tracking-wide">
+            Upload Resume
+          </h2>
+          <button
+            onClick={() => setUploadModalOpen(false)}
+            className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="p-6">
+          <ResumeUploader onParsed={handleParsed} />
+        </div>
+      </Modal>
 
       {/* Footer */}
       <footer className="shrink-0 border-t border-border px-6 py-6">

@@ -201,29 +201,25 @@ describe('Home — "Enhance My Resume" button (no session)', () => {
 // ── CTA button behavior — guest session ──────────────────────────────────────
 
 describe('Home — "Enhance My Resume" button (anonymous guest)', () => {
-  it('scrolls to #guest-uploader when isGuest is true', async () => {
+  it('opens the upload modal when isGuest is true', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
       isGuest: true,
       loading: false,
     })
 
-    const mockScrollIntoView = vi.fn()
-    const mockGetElementById = vi.spyOn(document, 'getElementById').mockReturnValue({
-      scrollIntoView: mockScrollIntoView,
-    } as unknown as HTMLElement)
-
     const user = userEvent.setup()
     renderHome()
 
+    // Modal should not be visible before clicking
+    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
 
-    expect(mockGetElementById).toHaveBeenCalledWith('guest-uploader')
-    expect(mockScrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' })
+    expect(screen.getByRole('heading', { name: /Upload Resume/i })).toBeInTheDocument()
+    expect(screen.getByTestId('resume-uploader')).toBeInTheDocument()
     expect(mockNavigate).not.toHaveBeenCalled()
     expect(openAuthModal).not.toHaveBeenCalled()
-
-    mockGetElementById.mockRestore()
   })
 })
 
@@ -246,10 +242,10 @@ describe('Home — "Enhance My Resume" button (authenticated)', () => {
   })
 })
 
-// ── Guest uploader section ────────────────────────────────────────────────────
+// ── Guest upload modal ────────────────────────────────────────────────────────
 
-describe('Home — guest uploader section', () => {
-  it('renders #guest-uploader with heading when isGuest is true', () => {
+describe('Home — guest upload modal', () => {
+  it('upload modal is NOT visible by default when isGuest is true', () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
       isGuest: true,
@@ -257,11 +253,49 @@ describe('Home — guest uploader section', () => {
     })
     renderHome()
 
-    expect(screen.getByText('Upload your resume to get started')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
+  })
+
+  it('upload modal appears after clicking Enhance when isGuest is true', async () => {
+    setupAuth({
+      user: { id: 'anon1', is_anonymous: true } as any,
+      isGuest: true,
+      loading: false,
+    })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+
+    expect(screen.getByRole('heading', { name: /Upload Resume/i })).toBeInTheDocument()
     expect(screen.getByTestId('resume-uploader')).toBeInTheDocument()
   })
 
-  it('does NOT render #guest-uploader when a real user is signed in (isGuest: false)', () => {
+  it('clicking the X button closes the upload modal', async () => {
+    setupAuth({
+      user: { id: 'anon1', is_anonymous: true } as any,
+      isGuest: true,
+      loading: false,
+    })
+    const user = userEvent.setup()
+    renderHome()
+
+    // Open the modal first
+    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+    expect(screen.getByRole('heading', { name: /Upload Resume/i })).toBeInTheDocument()
+
+    // The X close button is the only button in the modal header (next to the heading).
+    // It has no text — find the button sibling of the "Upload Resume" heading.
+    const heading = screen.getByRole('heading', { name: /Upload Resume/i })
+    const headerDiv = heading.parentElement!
+    const closeButton = headerDiv.querySelector('button')!
+    await user.click(closeButton)
+
+    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
+  })
+
+  it('upload modal is NOT visible for a real authenticated user (no Enhance click)', () => {
     setupAuth({
       user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
       isGuest: false,
@@ -269,49 +303,52 @@ describe('Home — guest uploader section', () => {
     })
     renderHome()
 
-    expect(screen.queryByText('Upload your resume to get started')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
     expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
   })
 
-  it('does NOT render #guest-uploader when user is null (no session)', () => {
+  it('upload modal is NOT visible when user is null (no session)', () => {
     setupAuth({ user: null, isGuest: false, loading: false })
     renderHome()
 
-    expect(screen.queryByText('Upload your resume to get started')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
     expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
   })
 })
 
 // ── "See Example" button ──────────────────────────────────────────────────────
 
-describe('Home — "See Example" button', () => {
-  it('calls openAuthModal when no session (user null, isGuest false)', async () => {
+describe('Home — "See Example" button (disabled)', () => {
+  it('is rendered as a disabled button', () => {
+    renderHome()
+    const btn = screen.getByRole('button', { name: /See Example/i })
+    expect(btn).toBeDisabled()
+  })
+
+  it('has the cursor-not-allowed style class', () => {
+    renderHome()
+    const btn = screen.getByRole('button', { name: /See Example/i })
+    expect(btn.className).toContain('cursor-not-allowed')
+  })
+
+  it('has the opacity-50 style class', () => {
+    renderHome()
+    const btn = screen.getByRole('button', { name: /See Example/i })
+    expect(btn.className).toContain('opacity-50')
+  })
+
+  it('does not call openAuthModal when clicked while disabled (no session)', async () => {
     setupAuth({ user: null, isGuest: false, loading: false })
     const user = userEvent.setup()
     renderHome()
 
     await user.click(screen.getByRole('button', { name: /See Example/i }))
 
-    expect(openAuthModal).toHaveBeenCalled()
+    expect(openAuthModal).not.toHaveBeenCalled()
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
-  it('navigates to /editor when isGuest is true', async () => {
-    setupAuth({
-      user: { id: 'anon1', is_anonymous: true } as any,
-      isGuest: true,
-      loading: false,
-    })
-    const user = userEvent.setup()
-    renderHome()
-
-    await user.click(screen.getByRole('button', { name: /See Example/i }))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/editor')
-    expect(openAuthModal).not.toHaveBeenCalled()
-  })
-
-  it('navigates to /dashboard when a real user is logged in', async () => {
+  it('does not navigate or open modals when clicked while disabled (authenticated)', async () => {
     setupAuth({
       user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
       isGuest: false,
@@ -322,7 +359,23 @@ describe('Home — "See Example" button', () => {
 
     await user.click(screen.getByRole('button', { name: /See Example/i }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(openAuthModal).not.toHaveBeenCalled()
+  })
+
+  it('does not open the upload modal when clicked while disabled (guest)', async () => {
+    setupAuth({
+      user: { id: 'anon1', is_anonymous: true } as any,
+      isGuest: true,
+      loading: false,
+    })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /See Example/i }))
+
+    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
     expect(openAuthModal).not.toHaveBeenCalled()
   })
 })
