@@ -1,146 +1,253 @@
-import { useState, useRef, useEffect } from 'react'
-import { Sparkles } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import ResumeUploader from '@/components/ResumeUploader'
+import { Sparkles, CheckCircle2, Eye, ChevronDown, User, X } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/contexts/AuthContext'
+import ResumeUploader from '@/components/ResumeUploader'
+import Modal from '@/components/Modal'
 import type { ResumeSchema } from '@/types/resume'
 
-const FEATURES = [
-  { label: 'AI ENRICHMENT', desc: 'AI rewrites every bullet point with strong action verbs, quantified impact, and ATS-friendly keywords.' },
-  { label: 'JD TAILORING', desc: "Paste any job description and AI rewrites your resume to match the role's keywords and requirements." },
-  { label: 'ATS OPTIMIZATION', desc: 'Automatically injects relevant keywords so your resume passes Applicant Tracking Systems.' },
-  { label: 'STYLE DETECTION', desc: 'AI detects your industry (Tech, Finance, Creative, Healthcare) and applies matching typography.' },
-  { label: 'LIVE PREVIEW', desc: 'See your resume update in real-time as you edit, with 5 industry style presets to switch between.' },
-  { label: 'PDF & DOCX EXPORT', desc: 'Export your polished resume as PDF or Word document with native Save As dialog.' },
-  { label: 'ONE-CLICK DOWNLOAD', desc: 'Download your resume or cover letter instantly in your preferred format.' },
-  { label: 'POWERED BY CLAUDE', desc: "Built on Anthropic's Claude AI — the most capable AI for nuanced, professional writing." },
+const CHECKLIST = [
+  'AI Content Enhancement',
+  'ATS Optimization',
+  'Smart Suggestions',
+  'HR-Approved Templates',
 ]
 
-export default function Home() {
-  const { user, loading, openAuthModal } = useAuth()
-  const navigate = useNavigate()
-  const [expandedFeature, setExpandedFeature] = useState<number | null>(null)
-  const chipsRef = useRef<HTMLDivElement>(null)
+const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb', 'Stripe']
 
-  useEffect(() => {
-    if (expandedFeature === null) return
-    const handler = (e: MouseEvent) => {
-      if (chipsRef.current && !chipsRef.current.contains(e.target as Node)) {
-        setExpandedFeature(null)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [expandedFeature])
+export default function Home() {
+  const { user, loading, isGuest, openAuthModal } = useAuth()
+  const navigate = useNavigate()
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
 
   const handleParsed = (resume: ResumeSchema) => {
+    setUploadModalOpen(false)
     navigate('/editor', { state: { resume, from: '/' } })
   }
 
+  const handleEnhance = () => {
+    if (loading) return
+    if (isGuest) {
+      setUploadModalOpen(true)
+    } else if (user) {
+      navigate('/dashboard')
+    } else {
+      openAuthModal()
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-[#EEF2FF] dark:bg-gray-950 flex flex-col overflow-x-hidden">
       <Navbar />
 
-      {/* Hero */}
-      <main className="relative flex-1 px-6 pt-10 overflow-hidden">
-        {/* Ambient glow */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/2 top-[-220px] -translate-x-1/2 w-[760px] h-[760px] rounded-full bg-primary/10 blur-[120px]" />
-          <div className="absolute right-[-100px] top-[160px] w-[320px] h-[320px] rounded-full bg-primary/[0.06] blur-[100px]" />
-        </div>
+      <main className="flex-1">
+        {/* ── Hero Section ─────────────────────────────────────── */}
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-8 lg:gap-12 items-start pt-16 pb-8 px-8 max-w-7xl mx-auto">
 
-        <div className="relative w-full max-w-2xl mx-auto">
+            {/* Left: text + CTAs */}
+            <div className="flex flex-col gap-6">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary rounded-full px-4 py-1.5 text-sm font-medium w-fit">
+                <Sparkles className="size-4 shrink-0" />
+                AI-Powered Resume Enhancement
+              </div>
 
-          {/* Headline + Subtitle */}
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 border border-primary/40 rounded-full px-4 py-1.5 text-xs text-primary uppercase tracking-widest">
-              <Sparkles className="size-3.5" />
-              AI-powered resume builder
-            </div>
-            <h1
-              className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-none mt-4"
-            >
-              <span className="block text-foreground uppercase">Your Resume.</span>
-              <span className="block text-primary uppercase">Enhanced by AI.</span>
-            </h1>
-            <p className="text-sm text-muted-foreground mt-4">
-              AI-powered resume enrichment, tailoring, and export — in seconds.
-            </p>
-          </div>
+              {/* Headline */}
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
+                <span className="block text-foreground">Your Resume.</span>
+                <span className="block text-primary">Enhanced by AI.</span>
+              </h1>
 
-          {/* Feature chips — always 2 columns, click to expand */}
-          <div ref={chipsRef} className="grid grid-cols-2 gap-2 max-w-2xl mx-auto mt-8">
-            {FEATURES.map((feature, i) => {
-              const isLeft = i % 2 === 0
-              const row = Math.floor(i / 2)
-              const popupVClass = row === 0
-                ? 'md:top-0'
-                : row === 1
-                ? 'md:top-[-25%]'
-                : row === 2
-                ? 'md:bottom-[-25%]'
-                : 'md:bottom-0'
-              const arrowV: React.CSSProperties = row < 2 ? { top: '10px' } : { bottom: '10px' }
-              return (
-                <div key={feature.label} className="relative">
-                  <button
-                    onClick={() => setExpandedFeature(expandedFeature === i ? null : i)}
-                    className="w-full flex items-center border border-primary/60 bg-background px-3 py-2 text-xs text-primary uppercase font-medium tracking-wider rounded-lg whitespace-nowrap hover:bg-primary/5 transition-colors"
-                  >
-                    ✦ {feature.label}
-                  </button>
-                  {expandedFeature === i && (
-                    <>
-                      {/* Mobile backdrop */}
-                      <div
-                        className="fixed inset-0 z-40 bg-black/30 md:hidden"
-                        onClick={() => setExpandedFeature(null)}
-                      />
-                      <div
-                        style={{
-                          animation: isLeft ? 'chipFadeInLeft 0.15s ease' : 'chipFadeInRight 0.15s ease',
-                        }}
-                        className={`fixed inset-x-4 bottom-4 z-50 max-w-lg mx-auto max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-card p-4 text-sm text-primary shadow-dropdown md:absolute md:inset-x-auto md:bottom-auto md:z-10 md:mx-0 md:w-56 md:max-h-none md:max-w-none md:overflow-visible md:p-3 ${popupVClass} ${
-                          isLeft ? 'md:right-full md:mr-1' : 'md:left-full md:ml-1'
-                        }`}
-                      >
-                        <div className="hidden md:block">
-                          {isLeft ? (
-                            <>
-                              <div style={{ position: 'absolute', right: '-9px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '8px solid hsl(var(--border))' }} />
-                              <div style={{ position: 'absolute', right: '-7px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '8px solid hsl(var(--card))' }} />
-                            </>
-                          ) : (
-                            <>
-                              <div style={{ position: 'absolute', left: '-9px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderRight: '8px solid hsl(var(--border))' }} />
-                              <div style={{ position: 'absolute', left: '-7px', ...arrowV, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderRight: '8px solid hsl(var(--card))' }} />
-                            </>
-                          )}
-                        </div>
-                        {feature.desc}
-                      </div>
-                    </>
-                  )}
+              {/* Subtitle */}
+              <p className="text-base text-muted-foreground leading-relaxed max-w-lg">
+                Improve your resume, stand out to recruiters, and land more interviews with the power of AI.
+              </p>
+
+              {/* Feature checklist */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                {CHECKLIST.map((item) => (
+                  <div key={item} className="flex items-center gap-2">
+                    <CheckCircle2 className="size-4 text-primary shrink-0" />
+                    <span className="text-sm font-medium text-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleEnhance}
+                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary/90 transition-colors min-h-[44px]"
+                >
+                  Enhance My Resume
+                  <Sparkles className="size-4 shrink-0" />
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-2 border border-border bg-background rounded-lg px-6 py-3 font-semibold text-sm min-h-[44px] opacity-50 cursor-not-allowed"
+                >
+                  See Example
+                  <Eye className="size-4 shrink-0" />
+                </button>
+              </div>
+
+              {/* Social proof */}
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  {[
+                    { initials: 'JK', bg: 'bg-orange-400' },
+                    { initials: 'SM', bg: 'bg-purple-400' },
+                    { initials: 'AR', bg: 'bg-blue-400' },
+                  ].map(({ initials, bg }) => (
+                    <div key={initials} className={`size-9 rounded-full ${bg} border-2 border-white dark:border-gray-800 flex items-center justify-center text-[11px] font-bold text-white`}>
+                      {initials}
+                    </div>
+                  ))}
                 </div>
-              )
-            })}
-          </div>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex text-amber-400 text-xs gap-px leading-none">
+                    {'★★★★★'}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Loved by 20,000+ job seekers</p>
+                </div>
+              </div>
+            </div>
 
-          {/* Uploader — intercepted when no session */}
-          <div className="relative mt-8">
-            <ResumeUploader onParsed={handleParsed} />
-            {!loading && !user && (
-              <div
-                className="absolute inset-0 cursor-pointer"
-                onClick={openAuthModal}
-                onDragOver={(e) => { e.preventDefault(); openAuthModal() }}
-              />
-            )}
-          </div>
+            {/* Right: Detailed Resume Preview Card */}
+            <div className="hidden lg:block">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
+                {/* Card top bar */}
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-700/50">
+                  <div className="flex items-center gap-3">
+                    <div className="size-7 rounded bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                      <User className="size-4 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Software Engineer</span>
+                    <span className="bg-green-100 text-green-700 rounded-full text-xs px-2.5 py-0.5 font-semibold">
+                      ATS Score 98%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-primary border-b-2 border-primary pb-0.5">Preview</span>
+                    <span className="text-sm text-gray-400 dark:text-gray-500">Suggestions <span className="bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400">12</span></span>
+                    <span className="text-sm text-gray-400 dark:text-gray-500 flex items-center gap-1">Download <ChevronDown className="size-3" /></span>
+                  </div>
+                </div>
 
+                {/* Card body — two panels */}
+                <div className="flex divide-x divide-gray-100 dark:divide-gray-700/50">
+                  {/* Left: AI Suggestions */}
+                  <div className="w-[200px] shrink-0 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">AI Suggestions</span>
+                      <span className="bg-primary text-primary-foreground rounded-full text-[10px] px-1.5 py-px font-bold">12</span>
+                    </div>
+                    {[
+                      { label: 'Improve Impact', sub: 'Add more impact to your bullet points.', color: 'text-green-500' },
+                      { label: 'Quantify Results', sub: 'Add metrics to showcase your achievements.', color: 'text-blue-400' },
+                      { label: 'Keyword Match', sub: 'Great match with job description.', color: 'text-blue-400' },
+                      { label: 'Skills Enhancement', sub: 'Add in-demand skills for this role.', color: 'text-green-500' },
+                    ].map((s) => (
+                      <div key={s.label} className="flex items-start gap-2">
+                        <CheckCircle2 className={`size-4 shrink-0 mt-0.5 ${s.color}`} />
+                        <div>
+                          <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight">{s.label}</p>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-0.5">{s.sub}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" className="text-xs text-primary font-medium hover:underline flex items-center gap-1">
+                      View All Suggestions →
+                    </button>
+                  </div>
+
+                  {/* Right: Resume content */}
+                  <div className="flex-1 p-4 space-y-3 text-[11px]">
+                    <div>
+                      <p className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">Alex Johnson</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">Software Engineer</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">alex.johnson@email.com · (555) 123-4567 · San Francisco, CA · linkedin.com/in/alexjohnson</p>
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 border-b border-gray-200 dark:border-gray-700/50 pb-0.5">Professional Summary</p>
+                      <p className="text-[10px] text-gray-600 dark:text-gray-400 leading-relaxed">Results-driven software engineer with 5+ years of experience building scalable web applications. Passionate about clean code, user experience, and delivering impactful solutions.</p>
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 border-b border-gray-200 dark:border-gray-700/50 pb-0.5">Experience</p>
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-[10px] font-bold text-gray-800 dark:text-gray-200">Senior Software Engineer</p>
+                        <p className="text-[9px] text-gray-400 dark:text-gray-500">2021 - Present</p>
+                      </div>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-500 mb-1">Tech Corp</p>
+                      <ul className="space-y-0.5 pl-2">
+                        {[
+                          'Developed and maintained scalable web applications serving 100K+ users',
+                          'Improved application performance by 40% through code optimization',
+                          'Led a team of 4 engineers and mentored junior developers',
+                          'Implemented CI/CD pipelines reducing deployment time by 60%',
+                        ].map((bullet) => (
+                          <li key={bullet} className="text-[9px] text-gray-500 dark:text-gray-500 flex gap-1">
+                            <span className="shrink-0">·</span>{bullet}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 border-b border-gray-200 dark:border-gray-700/50 pb-0.5">Education</p>
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-[10px] font-bold text-gray-800 dark:text-gray-200">Bachelor of Science in Computer Science</p>
+                        <p className="text-[9px] text-gray-400 dark:text-gray-500">2017 - 2021</p>
+                      </div>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-500">University of California, Berkeley</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Trust Bar ────────────────────────────────────────── */}
+        <div className="py-12 px-8 max-w-7xl mx-auto">
+          <div className="bg-white/70 dark:bg-gray-800/70 rounded-2xl py-10 px-8">
+            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-8">
+              Trusted by professionals from top companies
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-10">
+              {COMPANIES.map((name) => (
+                <span key={name} className="text-xl font-bold text-gray-300 dark:text-gray-600 hover:text-gray-400 dark:hover:text-gray-500 transition-colors">
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </main>
+
+      {/* Guest upload modal */}
+      <Modal open={uploadModalOpen} overlayClassName="p-4" className="rounded-xl max-w-lg p-0">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+          <h2 className="text-base font-bold text-foreground uppercase tracking-wide">
+            Upload Resume
+          </h2>
+          <button
+            onClick={() => setUploadModalOpen(false)}
+            className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="p-6">
+          <ResumeUploader onParsed={handleParsed} />
+        </div>
+      </Modal>
 
       {/* Footer */}
       <footer className="shrink-0 border-t border-border px-6 py-6">
@@ -154,8 +261,6 @@ export default function Home() {
           </p>
         </div>
       </footer>
-
-      <style>{`@keyframes chipFadeInLeft { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } } @keyframes chipFadeInRight { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }`}</style>
     </div>
   )
 }

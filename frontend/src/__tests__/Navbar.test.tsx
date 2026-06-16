@@ -46,12 +46,54 @@ function renderNavbar() {
 }
 
 describe('Navbar — signed out', () => {
-  it('shows a Guest trigger', () => {
+  it('shows "Get Started Free" button and no "Sign in" text link', () => {
     renderNavbar()
-    expect(screen.getByText('Guest')).toBeInTheDocument()
+    expect(screen.getByText('Get Started Free')).toBeInTheDocument()
+    expect(screen.queryByText('Sign in')).not.toBeInTheDocument()
   })
 
-  it('opens the guest menu showing Profile, AI, Settings and Sign In / Sign Up', async () => {
+  it('does not show a Guest dropdown trigger', () => {
+    renderNavbar()
+    expect(screen.queryByText('Guest')).not.toBeInTheDocument()
+  })
+
+  it('calls openAuthModal when "Get Started Free" is clicked', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByText('Get Started Free'))
+
+    expect(openAuthModal).toHaveBeenCalled()
+  })
+
+  it('does not show the user dropdown menu', () => {
+    renderNavbar()
+    expect(screen.queryByText('Sign Out')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
+  })
+})
+
+describe('Navbar — anonymous guest session (isGuest: true)', () => {
+  it('shows "Guest" avatar dropdown trigger instead of Sign in / Get Started Free', () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    renderNavbar()
+    expect(screen.getByText('Guest')).toBeInTheDocument()
+    expect(screen.queryByText('Sign in')).not.toBeInTheDocument()
+    expect(screen.queryByText('Get Started Free')).not.toBeInTheDocument()
+  })
+
+  it('does not show Dashboard in the guest dropdown', async () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByText('Guest'))
+
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
+  })
+
+  it('shows Profile, AI, Settings and "Sign In / Sign Up" in the guest dropdown', async () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
     const user = userEvent.setup()
     renderNavbar()
 
@@ -61,10 +103,21 @@ describe('Navbar — signed out', () => {
     expect(screen.getByText('AI')).toBeInTheDocument()
     expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
   })
 
-  it('navigates to /profile when Profile is clicked', async () => {
+  it('calls openAuthModal when "Sign In / Sign Up" is clicked from the guest dropdown', async () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByText('Guest'))
+    await user.click(screen.getByText('Sign In / Sign Up'))
+
+    expect(openAuthModal).toHaveBeenCalled()
+  })
+
+  it('navigates to /profile when Profile is clicked from the guest dropdown', async () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
     const user = userEvent.setup()
     renderNavbar()
 
@@ -73,114 +126,176 @@ describe('Navbar — signed out', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('/profile')
   })
+})
 
-  it('navigates to /ai when AI is clicked', async () => {
-    const user = userEvent.setup()
+describe('Navbar — center nav links', () => {
+  it('renders all five nav links when no onBack or children props are present', () => {
     renderNavbar()
-
-    await user.click(screen.getByText('Guest'))
-    await user.click(screen.getByText('AI'))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/ai')
+    expect(screen.getByText('Features')).toBeInTheDocument()
+    expect(screen.getByText('How It Works')).toBeInTheDocument()
+    expect(screen.getByText('Examples')).toBeInTheDocument()
+    expect(screen.getByText('Pricing')).toBeInTheDocument()
+    expect(screen.getByText('Blog')).toBeInTheDocument()
   })
 
-  it('navigates to /settings when Settings is clicked', async () => {
-    const user = userEvent.setup()
+  it('does not render the removed "Templates" link', () => {
     renderNavbar()
-
-    await user.click(screen.getByText('Guest'))
-    await user.click(screen.getByText('Settings'))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/settings')
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument()
   })
 
-  it('calls openAuthModal when Sign In / Sign Up is clicked', async () => {
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Guest'))
-    await user.click(screen.getByText('Sign In / Sign Up'))
-
-    expect(openAuthModal).toHaveBeenCalled()
+  it('hides center nav links when onBack prop is provided', () => {
+    render(<Navbar onBack={vi.fn()} />, { wrapper: MemoryRouter })
+    expect(screen.queryByText('Features')).not.toBeInTheDocument()
+    expect(screen.queryByText('How It Works')).not.toBeInTheDocument()
+    expect(screen.queryByText('Examples')).not.toBeInTheDocument()
+    expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
+    expect(screen.queryByText('Blog')).not.toBeInTheDocument()
   })
 
-  it('closes the guest menu when clicking the trigger again', async () => {
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Guest'))
-    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
-
-    await user.click(screen.getByText('Guest'))
-    expect(screen.queryByText('Sign In / Sign Up')).not.toBeInTheDocument()
-  })
-
-  it('closes the guest menu when clicking outside of it', async () => {
-    const user = userEvent.setup()
+  it('hides center nav links when children are provided', () => {
     render(
-      <div>
-        <Navbar />
-        <button>Outside</button>
-      </div>,
+      <Navbar>
+        <button>Action</button>
+      </Navbar>,
       { wrapper: MemoryRouter }
     )
-
-    await user.click(screen.getByText('Guest'))
-    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
-
-    await user.click(screen.getByText('Outside'))
-    expect(screen.queryByText('Sign In / Sign Up')).not.toBeInTheDocument()
+    expect(screen.queryByText('Features')).not.toBeInTheDocument()
+    expect(screen.queryByText('How It Works')).not.toBeInTheDocument()
+    expect(screen.queryByText('Examples')).not.toBeInTheDocument()
+    expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
+    expect(screen.queryByText('Blog')).not.toBeInTheDocument()
   })
 })
 
-describe('Navbar — anonymous guest session (isGuest: true)', () => {
-  it('shows a Guest trigger for an anonymous user', () => {
-    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
-    renderNavbar()
-    expect(screen.getByText('Guest')).toBeInTheDocument()
-  })
-
-  it('opens the guest menu showing Profile, AI, Settings and Sign In / Sign Up', async () => {
-    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+describe('Navbar — nav dropdown panels', () => {
+  it('opens the Features panel when "Features" button is clicked', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
-    await user.click(screen.getByText('Guest'))
+    await user.click(screen.getByRole('button', { name: /Features/i }))
 
-    expect(screen.getByText('Profile')).toBeInTheDocument()
-    expect(screen.getByText('AI')).toBeInTheDocument()
-    expect(screen.getByText('Settings')).toBeInTheDocument()
-    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
+    // Panel header text unique to FeaturesPanel
+    expect(screen.getByText('What you get')).toBeInTheDocument()
   })
 
-  it('calls openAuthModal when Sign In / Sign Up is clicked', async () => {
-    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+  it('closes the Features panel when "Features" button is clicked again (toggle)', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
-    await user.click(screen.getByText('Guest'))
-    await user.click(screen.getByText('Sign In / Sign Up'))
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.getByText('What you get')).toBeInTheDocument()
 
-    expect(openAuthModal).toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.queryByText('What you get')).not.toBeInTheDocument()
   })
 
-  it('closes the guest menu when clicking outside of it', async () => {
-    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+  it('opens the "How It Works" panel when that button is clicked', async () => {
     const user = userEvent.setup()
-    render(
-      <div>
-        <Navbar />
-        <button>Outside</button>
-      </div>,
-      { wrapper: MemoryRouter }
-    )
+    renderNavbar()
 
-    await user.click(screen.getByText('Guest'))
-    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /How It Works/i }))
 
-    await user.click(screen.getByText('Outside'))
-    expect(screen.queryByText('Sign In / Sign Up')).not.toBeInTheDocument()
+    expect(screen.getByText('Three simple steps')).toBeInTheDocument()
+  })
+
+  it('switches from Features panel to "How It Works" panel (only one open at a time)', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    // Open Features
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.getByText('What you get')).toBeInTheDocument()
+
+    // Click How It Works — Features panel should close, How It Works opens
+    await user.click(screen.getByRole('button', { name: /How It Works/i }))
+    expect(screen.queryByText('What you get')).not.toBeInTheDocument()
+    expect(screen.getByText('Three simple steps')).toBeInTheDocument()
+  })
+
+  it('closes the open panel when Escape key is pressed', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.getByText('What you get')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByText('What you get')).not.toBeInTheDocument()
+  })
+
+  it('closes the open panel when clicking outside the nav area', async () => {
+    const user = userEvent.setup()
+    const { container } = renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+    expect(screen.getByText('What you get')).toBeInTheDocument()
+
+    // Click on the document body outside the navbar
+    await user.click(container.ownerDocument.body)
+    expect(screen.queryByText('What you get')).not.toBeInTheDocument()
+  })
+
+  it('opens the Pricing panel showing Free and Pro tiers', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Pricing/i }))
+
+    expect(screen.getByText('Simple pricing')).toBeInTheDocument()
+    expect(screen.getByText('Free')).toBeInTheDocument()
+    expect(screen.getByText('Pro')).toBeInTheDocument()
+  })
+
+  it('opens the Examples panel showing "Coming Soon"', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /^Examples$/i }))
+
+    // ExamplesPanel renders "Coming Soon" text
+    const comingSoonEls = screen.getAllByText('Coming Soon')
+    expect(comingSoonEls.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('opens the Blog panel showing "Coming Soon"', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /^Blog$/i }))
+
+    const comingSoonEls = screen.getAllByText('Coming Soon')
+    expect(comingSoonEls.length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText(/Tips, guides, and industry insights/i)).toBeInTheDocument()
+  })
+
+  it('nav panel buttons are not rendered when onBack prop is provided', () => {
+    render(<Navbar onBack={vi.fn()} />, { wrapper: MemoryRouter })
+    // Nav buttons are hidden when onBack is set — no panel triggers exist
+    expect(screen.queryByRole('button', { name: /^Features$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Pricing$/i })).not.toBeInTheDocument()
+  })
+
+  it('FeaturesPanel lists AI Enhancement, ATS Optimization, Cover Letters, One-Click Export', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /Features/i }))
+
+    expect(screen.getByText('AI Enhancement')).toBeInTheDocument()
+    expect(screen.getByText('ATS Optimization')).toBeInTheDocument()
+    expect(screen.getByText('Cover Letters')).toBeInTheDocument()
+    expect(screen.getByText('One-Click Export')).toBeInTheDocument()
+  })
+
+  it('HowItWorksPanel lists Upload, Enhance, Export steps', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /How It Works/i }))
+
+    expect(screen.getByText('Upload')).toBeInTheDocument()
+    expect(screen.getByText('Enhance')).toBeInTheDocument()
+    expect(screen.getByText('Export')).toBeInTheDocument()
   })
 })
 
