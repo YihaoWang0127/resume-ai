@@ -164,37 +164,72 @@ describe('Home — resume preview card', () => {
   })
 })
 
-// ── CTA button behavior — guest ───────────────────────────────────────────────
+// ── CTA button behavior — no session ─────────────────────────────────────────
 
-describe('Home — "Enhance My Resume" button (guest / unauthenticated)', () => {
-  it('calls openAuthModal when user is null', async () => {
-    setupAuth({ user: null, loading: false })
+describe('Home — "Enhance My Resume" button (no session)', () => {
+  it('calls openAuthModal when user is null and isGuest is false', async () => {
+    setupAuth({ user: null, isGuest: false, loading: false })
     const user = userEvent.setup()
     renderHome()
 
     await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
 
     expect(openAuthModal).toHaveBeenCalled()
-    expect(mockNavigate).not.toHaveBeenCalledWith('/dashboard')
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
-  it('calls openAuthModal when loading is still true', async () => {
-    setupAuth({ user: null, loading: true })
+  it('does nothing when loading is still true', async () => {
+    setupAuth({ user: null, isGuest: false, loading: true })
     const user = userEvent.setup()
     renderHome()
 
     await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
 
-    expect(openAuthModal).toHaveBeenCalled()
+    expect(openAuthModal).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+})
+
+// ── CTA button behavior — guest session ──────────────────────────────────────
+
+describe('Home — "Enhance My Resume" button (anonymous guest)', () => {
+  it('navigates to /editor when isGuest is true', async () => {
+    setupAuth({
+      user: { id: 'anon1', is_anonymous: true } as any,
+      isGuest: true,
+      loading: false,
+    })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+
+    expect(mockNavigate).toHaveBeenCalledWith('/editor')
+    expect(openAuthModal).not.toHaveBeenCalled()
+  })
+
+  it('does NOT navigate to /dashboard when isGuest is true', async () => {
+    setupAuth({
+      user: { id: 'anon1', is_anonymous: true } as any,
+      isGuest: true,
+      loading: false,
+    })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+
+    expect(mockNavigate).not.toHaveBeenCalledWith('/dashboard')
   })
 })
 
 // ── CTA button behavior — authenticated ──────────────────────────────────────
 
 describe('Home — "Enhance My Resume" button (authenticated)', () => {
-  it('navigates to /dashboard when a real user is logged in', async () => {
+  it('navigates to /dashboard when a real user is logged in (isGuest: false)', async () => {
     setupAuth({
       user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
+      isGuest: false,
       loading: false,
     })
     const user = userEvent.setup()
@@ -210,20 +245,36 @@ describe('Home — "Enhance My Resume" button (authenticated)', () => {
 // ── "See Example" button ──────────────────────────────────────────────────────
 
 describe('Home — "See Example" button', () => {
-  it('calls openAuthModal when user is null (same as "Enhance My Resume")', async () => {
-    setupAuth({ user: null, loading: false })
+  it('calls openAuthModal when no session (user null, isGuest false)', async () => {
+    setupAuth({ user: null, isGuest: false, loading: false })
     const user = userEvent.setup()
     renderHome()
 
     await user.click(screen.getByRole('button', { name: /See Example/i }))
 
     expect(openAuthModal).toHaveBeenCalled()
-    expect(mockNavigate).not.toHaveBeenCalledWith('/dashboard')
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('navigates to /editor when isGuest is true', async () => {
+    setupAuth({
+      user: { id: 'anon1', is_anonymous: true } as any,
+      isGuest: true,
+      loading: false,
+    })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /See Example/i }))
+
+    expect(mockNavigate).toHaveBeenCalledWith('/editor')
+    expect(openAuthModal).not.toHaveBeenCalled()
   })
 
   it('navigates to /dashboard when a real user is logged in', async () => {
     setupAuth({
       user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
+      isGuest: false,
       loading: false,
     })
     const user = userEvent.setup()

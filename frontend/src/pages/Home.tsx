@@ -13,11 +13,14 @@ const CHECKLIST = [
 const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb', 'Stripe']
 
 export default function Home() {
-  const { user, loading, openAuthModal } = useAuth()
+  const { user, loading, isGuest, openAuthModal } = useAuth()
   const navigate = useNavigate()
 
   const handleEnhance = () => {
-    if (!loading && user) {
+    if (loading) return
+    if (isGuest) {
+      navigate('/editor')
+    } else if (user) {
       navigate('/dashboard')
     } else {
       openAuthModal()
@@ -25,7 +28,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#EEF2FF] flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-[#EEF2FF] dark:bg-gray-950 flex flex-col overflow-x-hidden">
       <Navbar />
 
       <main className="flex-1">
@@ -90,7 +93,7 @@ export default function Home() {
                     { initials: 'SM', bg: 'bg-purple-400' },
                     { initials: 'AR', bg: 'bg-blue-400' },
                   ].map(({ initials, bg }) => (
-                    <div key={initials} className={`size-9 rounded-full ${bg} border-2 border-white flex items-center justify-center text-[11px] font-bold text-white`}>
+                    <div key={initials} className={`size-9 rounded-full ${bg} border-2 border-white dark:border-gray-800 flex items-center justify-center text-[11px] font-bold text-white`}>
                       {initials}
                     </div>
                   ))}
@@ -106,31 +109,31 @@ export default function Home() {
 
             {/* Right: Detailed Resume Preview Card */}
             <div className="hidden lg:block">
-              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
                 {/* Card top bar */}
-                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-700/50">
                   <div className="flex items-center gap-3">
-                    <div className="size-7 rounded bg-gray-100 flex items-center justify-center">
-                      <User className="size-4 text-gray-400" />
+                    <div className="size-7 rounded bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                      <User className="size-4 text-gray-400 dark:text-gray-500" />
                     </div>
-                    <span className="text-sm font-semibold text-gray-800">Software Engineer</span>
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Software Engineer</span>
                     <span className="bg-green-100 text-green-700 rounded-full text-xs px-2.5 py-0.5 font-semibold">
                       ATS Score 98%
                     </span>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-sm font-medium text-primary border-b-2 border-primary pb-0.5">Preview</span>
-                    <span className="text-sm text-gray-400">Suggestions <span className="bg-gray-100 rounded px-1.5 py-0.5 text-xs font-medium text-gray-600">12</span></span>
-                    <span className="text-sm text-gray-400 flex items-center gap-1">Download <ChevronDown className="size-3" /></span>
+                    <span className="text-sm text-gray-400 dark:text-gray-500">Suggestions <span className="bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400">12</span></span>
+                    <span className="text-sm text-gray-400 dark:text-gray-500 flex items-center gap-1">Download <ChevronDown className="size-3" /></span>
                   </div>
                 </div>
 
                 {/* Card body — two panels */}
-                <div className="flex divide-x divide-gray-100">
+                <div className="flex divide-x divide-gray-100 dark:divide-gray-700/50">
                   {/* Left: AI Suggestions */}
                   <div className="w-[200px] shrink-0 p-4 space-y-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-800">AI Suggestions</span>
+                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">AI Suggestions</span>
                       <span className="bg-primary text-primary-foreground rounded-full text-[10px] px-1.5 py-px font-bold">12</span>
                     </div>
                     {[
@@ -142,8 +145,8 @@ export default function Home() {
                       <div key={s.label} className="flex items-start gap-2">
                         <CheckCircle2 className={`size-4 shrink-0 mt-0.5 ${s.color}`} />
                         <div>
-                          <p className="text-xs font-semibold text-gray-800 leading-tight">{s.label}</p>
-                          <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{s.sub}</p>
+                          <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight">{s.label}</p>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-0.5">{s.sub}</p>
                         </div>
                       </div>
                     ))}
@@ -155,23 +158,23 @@ export default function Home() {
                   {/* Right: Resume content */}
                   <div className="flex-1 p-4 space-y-3 text-[11px]">
                     <div>
-                      <p className="text-base font-bold text-gray-900 leading-tight">Alex Johnson</p>
-                      <p className="text-xs text-gray-500">Software Engineer</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">alex.johnson@email.com · (555) 123-4567 · San Francisco, CA · linkedin.com/in/alexjohnson</p>
+                      <p className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">Alex Johnson</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">Software Engineer</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">alex.johnson@email.com · (555) 123-4567 · San Francisco, CA · linkedin.com/in/alexjohnson</p>
                     </div>
 
                     <div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 mb-1 border-b border-gray-200 pb-0.5">Professional Summary</p>
-                      <p className="text-[10px] text-gray-600 leading-relaxed">Results-driven software engineer with 5+ years of experience building scalable web applications. Passionate about clean code, user experience, and delivering impactful solutions.</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 border-b border-gray-200 dark:border-gray-700/50 pb-0.5">Professional Summary</p>
+                      <p className="text-[10px] text-gray-600 dark:text-gray-400 leading-relaxed">Results-driven software engineer with 5+ years of experience building scalable web applications. Passionate about clean code, user experience, and delivering impactful solutions.</p>
                     </div>
 
                     <div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 mb-1 border-b border-gray-200 pb-0.5">Experience</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 border-b border-gray-200 dark:border-gray-700/50 pb-0.5">Experience</p>
                       <div className="flex items-baseline justify-between">
-                        <p className="text-[10px] font-bold text-gray-800">Senior Software Engineer</p>
-                        <p className="text-[9px] text-gray-400">2021 - Present</p>
+                        <p className="text-[10px] font-bold text-gray-800 dark:text-gray-200">Senior Software Engineer</p>
+                        <p className="text-[9px] text-gray-400 dark:text-gray-500">2021 - Present</p>
                       </div>
-                      <p className="text-[10px] text-gray-500 mb-1">Tech Corp</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-500 mb-1">Tech Corp</p>
                       <ul className="space-y-0.5 pl-2">
                         {[
                           'Developed and maintained scalable web applications serving 100K+ users',
@@ -179,7 +182,7 @@ export default function Home() {
                           'Led a team of 4 engineers and mentored junior developers',
                           'Implemented CI/CD pipelines reducing deployment time by 60%',
                         ].map((bullet) => (
-                          <li key={bullet} className="text-[9px] text-gray-500 flex gap-1">
+                          <li key={bullet} className="text-[9px] text-gray-500 dark:text-gray-500 flex gap-1">
                             <span className="shrink-0">·</span>{bullet}
                           </li>
                         ))}
@@ -187,12 +190,12 @@ export default function Home() {
                     </div>
 
                     <div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 mb-1 border-b border-gray-200 pb-0.5">Education</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 border-b border-gray-200 dark:border-gray-700/50 pb-0.5">Education</p>
                       <div className="flex items-baseline justify-between">
-                        <p className="text-[10px] font-bold text-gray-800">Bachelor of Science in Computer Science</p>
-                        <p className="text-[9px] text-gray-400">2017 - 2021</p>
+                        <p className="text-[10px] font-bold text-gray-800 dark:text-gray-200">Bachelor of Science in Computer Science</p>
+                        <p className="text-[9px] text-gray-400 dark:text-gray-500">2017 - 2021</p>
                       </div>
-                      <p className="text-[10px] text-gray-500">University of California, Berkeley</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-500">University of California, Berkeley</p>
                     </div>
                   </div>
                 </div>
@@ -203,13 +206,13 @@ export default function Home() {
 
         {/* ── Trust Bar ────────────────────────────────────────── */}
         <div className="py-12 px-8 max-w-7xl mx-auto">
-          <div className="bg-white/70 rounded-2xl py-10 px-8">
-            <p className="text-center text-sm text-gray-500 mb-8">
+          <div className="bg-white/70 dark:bg-gray-800/70 rounded-2xl py-10 px-8">
+            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-8">
               Trusted by professionals from top companies
             </p>
             <div className="flex flex-wrap items-center justify-center gap-10">
               {COMPANIES.map((name) => (
-                <span key={name} className="text-xl font-bold text-gray-300 hover:text-gray-400 transition-colors">
+                <span key={name} className="text-xl font-bold text-gray-300 dark:text-gray-600 hover:text-gray-400 dark:hover:text-gray-500 transition-colors">
                   {name}
                 </span>
               ))}

@@ -83,43 +83,57 @@ describe('Navbar — signed out', () => {
 })
 
 describe('Navbar — anonymous guest session (isGuest: true)', () => {
-  it('shows "Sign in" text link and "Get Started Free" button for anonymous users', () => {
+  it('shows "Guest" avatar dropdown trigger instead of Sign in / Get Started Free', () => {
     setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
     renderNavbar()
-    expect(screen.getByText('Sign in')).toBeInTheDocument()
-    expect(screen.getByText('Get Started Free')).toBeInTheDocument()
+    expect(screen.getByText('Guest')).toBeInTheDocument()
+    expect(screen.queryByText('Sign in')).not.toBeInTheDocument()
+    expect(screen.queryByText('Get Started Free')).not.toBeInTheDocument()
   })
 
-  it('does not show a Guest dropdown trigger for anonymous users', () => {
-    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
-    renderNavbar()
-    expect(screen.queryByText('Guest')).not.toBeInTheDocument()
-  })
-
-  it('calls openAuthModal when "Sign in" is clicked for anonymous users', async () => {
+  it('does not show Dashboard in the guest dropdown', async () => {
     setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
     const user = userEvent.setup()
     renderNavbar()
 
-    await user.click(screen.getByText('Sign in'))
+    await user.click(screen.getByText('Guest'))
 
-    expect(openAuthModal).toHaveBeenCalled()
-  })
-
-  it('calls openAuthModal when "Get Started Free" is clicked for anonymous users', async () => {
-    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Get Started Free'))
-
-    expect(openAuthModal).toHaveBeenCalled()
-  })
-
-  it('does not show Dashboard in the nav for anonymous users', () => {
-    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
-    renderNavbar()
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
+  })
+
+  it('shows Profile, AI, Settings and "Sign In / Sign Up" in the guest dropdown', async () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByText('Guest'))
+
+    expect(screen.getByText('Profile')).toBeInTheDocument()
+    expect(screen.getByText('AI')).toBeInTheDocument()
+    expect(screen.getByText('Settings')).toBeInTheDocument()
+    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
+  })
+
+  it('calls openAuthModal when "Sign In / Sign Up" is clicked from the guest dropdown', async () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByText('Guest'))
+    await user.click(screen.getByText('Sign In / Sign Up'))
+
+    expect(openAuthModal).toHaveBeenCalled()
+  })
+
+  it('navigates to /profile when Profile is clicked from the guest dropdown', async () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByText('Guest'))
+    await user.click(screen.getByText('Profile'))
+
+    expect(mockNavigate).toHaveBeenCalledWith('/profile')
   })
 })
 

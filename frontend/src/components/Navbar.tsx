@@ -102,8 +102,60 @@ export default function Navbar({ onBack, children }: Props) {
           </div>
         )}
         {!loading && (
-          isGuest || !user ? (
-            /* Guest / unauthenticated: SaaS-style Sign in + Get Started Free */
+          isGuest ? (
+            /* ── Guest: avatar dropdown ── */
+            <div ref={userMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen((o) => !o)}
+                className="flex items-center gap-2 px-3 py-1.5 border border-border hover:border-primary/50 rounded transition-colors"
+              >
+                <Avatar size="sm" className="border border-primary/40">
+                  <AvatarFallback className="bg-primary/20 text-[10px] font-bold text-primary uppercase">
+                    <User className="size-3.5" />
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:block text-xs text-muted-foreground truncate max-w-[160px]">
+                  Guest
+                </span>
+                <ChevronDown className={`size-3 text-muted-foreground transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-primary/30 rounded-lg py-1 min-w-[180px] shadow-dropdown">
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/profile') }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                  >
+                    <User className="size-3.5" />
+                    Profile
+                  </button>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/ai') }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                  >
+                    <Sparkles className="size-3.5" />
+                    AI
+                  </button>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/settings') }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                  >
+                    <Settings className="size-3.5" />
+                    Settings
+                  </button>
+                  <div className="h-px bg-border mx-2 my-1" />
+                  <button
+                    onClick={() => { setUserMenuOpen(false); openAuthModal() }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary/10 transition-colors text-left"
+                  >
+                    <User className="size-3.5" />
+                    Sign In / Sign Up
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : !user ? (
+            /* ── No session: SaaS Sign in + Get Started Free ── */
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -120,8 +172,8 @@ export default function Navbar({ onBack, children }: Props) {
                 Get Started Free
               </button>
             </div>
-          ) : user ? (
-            /* Authenticated user: keep existing avatar + dropdown exactly */
+          ) : (
+            /* ── Authenticated user: avatar dropdown ── */
             <div ref={userMenuRef} className="relative">
               <button
                 type="button"
@@ -180,7 +232,7 @@ export default function Navbar({ onBack, children }: Props) {
                 </div>
               )}
             </div>
-          ) : null
+          )
         )}
         {children && (
           <button
