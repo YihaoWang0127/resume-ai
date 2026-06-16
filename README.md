@@ -48,7 +48,9 @@
 - **Error Pages** — custom 404/500 with ErrorBoundary
 - **Enrich with AI — Review & Compare** — clicking "Enrich with AI" shows a loading overlay (blurred preview + cycling status messages) on the live preview, then opens a side-by-side **Split View** or **Unified View** comparison of the original vs. AI-enriched resume with diff highlights, so you can **Accept** to apply the changes or **Discard** to keep the original
 - **Persistent Account Sidebar** — Profile, Dashboard, AI, and Settings share a route-aware `AccountSidebar` (Notion/Linear/Vercel-dashboard style) for switching between account pages without reopening the navbar menu; vertical sticky sidebar on desktop, horizontal scrollable tab bar on mobile, with the active page highlighted; the "Dashboard" tab is hidden for guest/signed-out users since the Dashboard page redirects them to `/`
-- **Guest Navbar Menu** — guest/signed-out users get a "Guest" dropdown in the navbar (avatar + chevron) with quick links to Profile, AI, and Settings plus a "Sign In / Sign Up" action, instead of a bare "Sign In" button
+- **Navbar Desktop Links** — center nav bar on desktop with anchor links to Features, How It Works, Templates, and Pricing sections of the landing page
+- **Guest / Unauthenticated Navbar** — guests and signed-out users see "Sign in" + "Get Started Free" buttons in the navbar instead of an avatar dropdown; authenticated users retain the avatar menu
+- **Landing Page Hero Redesign** — two-column hero layout: left column has a badge, headline, feature checklist, primary/secondary CTAs, and social proof; right column shows a decorative resume mock card; a trust bar with company logos appears below the hero; expandable feature chips removed
 
 ### Profile (`/profile`)
 - **Account** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only, with a Verified / Not Verified status pill and resend-verification action

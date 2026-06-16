@@ -46,141 +46,111 @@ function renderNavbar() {
 }
 
 describe('Navbar — signed out', () => {
-  it('shows a Guest trigger', () => {
+  it('shows "Sign in" text link and "Get Started Free" button', () => {
     renderNavbar()
-    expect(screen.getByText('Guest')).toBeInTheDocument()
+    expect(screen.getByText('Sign in')).toBeInTheDocument()
+    expect(screen.getByText('Get Started Free')).toBeInTheDocument()
   })
 
-  it('opens the guest menu showing Profile, AI, Settings and Sign In / Sign Up', async () => {
+  it('does not show a Guest dropdown trigger', () => {
+    renderNavbar()
+    expect(screen.queryByText('Guest')).not.toBeInTheDocument()
+  })
+
+  it('calls openAuthModal when "Sign in" is clicked', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
-    await user.click(screen.getByText('Guest'))
-
-    expect(screen.getByText('Profile')).toBeInTheDocument()
-    expect(screen.getByText('AI')).toBeInTheDocument()
-    expect(screen.getByText('Settings')).toBeInTheDocument()
-    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
-  })
-
-  it('navigates to /profile when Profile is clicked', async () => {
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Guest'))
-    await user.click(screen.getByText('Profile'))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/profile')
-  })
-
-  it('navigates to /ai when AI is clicked', async () => {
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Guest'))
-    await user.click(screen.getByText('AI'))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/ai')
-  })
-
-  it('navigates to /settings when Settings is clicked', async () => {
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Guest'))
-    await user.click(screen.getByText('Settings'))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/settings')
-  })
-
-  it('calls openAuthModal when Sign In / Sign Up is clicked', async () => {
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Guest'))
-    await user.click(screen.getByText('Sign In / Sign Up'))
+    await user.click(screen.getByText('Sign in'))
 
     expect(openAuthModal).toHaveBeenCalled()
   })
 
-  it('closes the guest menu when clicking the trigger again', async () => {
+  it('calls openAuthModal when "Get Started Free" is clicked', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
-    await user.click(screen.getByText('Guest'))
-    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
+    await user.click(screen.getByText('Get Started Free'))
 
-    await user.click(screen.getByText('Guest'))
-    expect(screen.queryByText('Sign In / Sign Up')).not.toBeInTheDocument()
+    expect(openAuthModal).toHaveBeenCalled()
   })
 
-  it('closes the guest menu when clicking outside of it', async () => {
-    const user = userEvent.setup()
-    render(
-      <div>
-        <Navbar />
-        <button>Outside</button>
-      </div>,
-      { wrapper: MemoryRouter }
-    )
-
-    await user.click(screen.getByText('Guest'))
-    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
-
-    await user.click(screen.getByText('Outside'))
-    expect(screen.queryByText('Sign In / Sign Up')).not.toBeInTheDocument()
+  it('does not show the user dropdown menu', () => {
+    renderNavbar()
+    expect(screen.queryByText('Sign Out')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
   })
 })
 
 describe('Navbar — anonymous guest session (isGuest: true)', () => {
-  it('shows a Guest trigger for an anonymous user', () => {
+  it('shows "Sign in" text link and "Get Started Free" button for anonymous users', () => {
     setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
     renderNavbar()
-    expect(screen.getByText('Guest')).toBeInTheDocument()
+    expect(screen.getByText('Sign in')).toBeInTheDocument()
+    expect(screen.getByText('Get Started Free')).toBeInTheDocument()
   })
 
-  it('opens the guest menu showing Profile, AI, Settings and Sign In / Sign Up', async () => {
+  it('does not show a Guest dropdown trigger for anonymous users', () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    renderNavbar()
+    expect(screen.queryByText('Guest')).not.toBeInTheDocument()
+  })
+
+  it('calls openAuthModal when "Sign in" is clicked for anonymous users', async () => {
     setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
     const user = userEvent.setup()
     renderNavbar()
 
-    await user.click(screen.getByText('Guest'))
-
-    expect(screen.getByText('Profile')).toBeInTheDocument()
-    expect(screen.getByText('AI')).toBeInTheDocument()
-    expect(screen.getByText('Settings')).toBeInTheDocument()
-    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
-  })
-
-  it('calls openAuthModal when Sign In / Sign Up is clicked', async () => {
-    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Guest'))
-    await user.click(screen.getByText('Sign In / Sign Up'))
+    await user.click(screen.getByText('Sign in'))
 
     expect(openAuthModal).toHaveBeenCalled()
   })
 
-  it('closes the guest menu when clicking outside of it', async () => {
+  it('calls openAuthModal when "Get Started Free" is clicked for anonymous users', async () => {
     setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
     const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByText('Get Started Free'))
+
+    expect(openAuthModal).toHaveBeenCalled()
+  })
+
+  it('does not show Dashboard in the nav for anonymous users', () => {
+    setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
+    renderNavbar()
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
+  })
+})
+
+describe('Navbar — center nav links', () => {
+  it('renders all four nav links when no onBack or children props are present', () => {
+    renderNavbar()
+    expect(screen.getByText('Features')).toBeInTheDocument()
+    expect(screen.getByText('How It Works')).toBeInTheDocument()
+    expect(screen.getByText('Templates')).toBeInTheDocument()
+    expect(screen.getByText('Pricing')).toBeInTheDocument()
+  })
+
+  it('hides center nav links when onBack prop is provided', () => {
+    render(<Navbar onBack={vi.fn()} />, { wrapper: MemoryRouter })
+    expect(screen.queryByText('Features')).not.toBeInTheDocument()
+    expect(screen.queryByText('How It Works')).not.toBeInTheDocument()
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument()
+    expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
+  })
+
+  it('hides center nav links when children are provided', () => {
     render(
-      <div>
-        <Navbar />
-        <button>Outside</button>
-      </div>,
+      <Navbar>
+        <button>Action</button>
+      </Navbar>,
       { wrapper: MemoryRouter }
     )
-
-    await user.click(screen.getByText('Guest'))
-    expect(screen.getByText('Sign In / Sign Up')).toBeInTheDocument()
-
-    await user.click(screen.getByText('Outside'))
-    expect(screen.queryByText('Sign In / Sign Up')).not.toBeInTheDocument()
+    expect(screen.queryByText('Features')).not.toBeInTheDocument()
+    expect(screen.queryByText('How It Works')).not.toBeInTheDocument()
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument()
+    expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
   })
 })
 
