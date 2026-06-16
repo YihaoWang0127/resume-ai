@@ -155,23 +155,14 @@ export default function Navbar({ onBack, children }: Props) {
               )}
             </div>
           ) : !user ? (
-            /* ── No session: SaaS Sign in + Get Started Free ── */
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={openAuthModal}
-                className="hidden sm:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 min-h-[44px]"
-              >
-                Sign in
-              </button>
-              <button
-                type="button"
-                onClick={openAuthModal}
-                className="flex items-center justify-center px-4 py-2 min-h-[44px] bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap"
-              >
-                Get Started Free
-              </button>
-            </div>
+            /* ── No session: Get Started Free only ── */
+            <button
+              type="button"
+              onClick={openAuthModal}
+              className="flex items-center justify-center px-4 py-2 min-h-[44px] bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap"
+            >
+              Get Started Free
+            </button>
           ) : (
             /* ── Authenticated user: avatar dropdown ── */
             <div ref={userMenuRef} className="relative">

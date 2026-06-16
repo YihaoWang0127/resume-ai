@@ -13,14 +13,12 @@ const CHECKLIST = [
 const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb', 'Stripe']
 
 export default function Home() {
-  const { user, loading, isGuest, openAuthModal } = useAuth()
+  const { user, loading, openAuthModal } = useAuth()
   const navigate = useNavigate()
 
   const handleEnhance = () => {
     if (loading) return
-    if (isGuest) {
-      navigate('/editor')
-    } else if (user) {
+    if (user) {
       navigate('/dashboard')
     } else {
       openAuthModal()

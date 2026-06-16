@@ -193,7 +193,7 @@ describe('Home — "Enhance My Resume" button (no session)', () => {
 // ── CTA button behavior — guest session ──────────────────────────────────────
 
 describe('Home — "Enhance My Resume" button (anonymous guest)', () => {
-  it('navigates to /editor when isGuest is true', async () => {
+  it('navigates to /dashboard when isGuest is true', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
       isGuest: true,
@@ -204,22 +204,8 @@ describe('Home — "Enhance My Resume" button (anonymous guest)', () => {
 
     await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/editor')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
     expect(openAuthModal).not.toHaveBeenCalled()
-  })
-
-  it('does NOT navigate to /dashboard when isGuest is true', async () => {
-    setupAuth({
-      user: { id: 'anon1', is_anonymous: true } as any,
-      isGuest: true,
-      loading: false,
-    })
-    const user = userEvent.setup()
-    renderHome()
-
-    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
-
-    expect(mockNavigate).not.toHaveBeenCalledWith('/dashboard')
   })
 })
 

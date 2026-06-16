@@ -46,24 +46,15 @@ function renderNavbar() {
 }
 
 describe('Navbar — signed out', () => {
-  it('shows "Sign in" text link and "Get Started Free" button', () => {
+  it('shows "Get Started Free" button and no "Sign in" text link', () => {
     renderNavbar()
-    expect(screen.getByText('Sign in')).toBeInTheDocument()
     expect(screen.getByText('Get Started Free')).toBeInTheDocument()
+    expect(screen.queryByText('Sign in')).not.toBeInTheDocument()
   })
 
   it('does not show a Guest dropdown trigger', () => {
     renderNavbar()
     expect(screen.queryByText('Guest')).not.toBeInTheDocument()
-  })
-
-  it('calls openAuthModal when "Sign in" is clicked', async () => {
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Sign in'))
-
-    expect(openAuthModal).toHaveBeenCalled()
   })
 
   it('calls openAuthModal when "Get Started Free" is clicked', async () => {
