@@ -1262,17 +1262,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           />
         )}
 
-        {/* Re-expand strip — shown when center is collapsed, sits in the flow before right panel */}
-        {centerCollapsed && (
-          <button
-            onClick={() => setCenterCollapsed(false)}
-            title="Show editor"
-            className="hidden lg:flex shrink-0 flex-col items-center justify-center w-6 border-r border-border bg-background hover:bg-secondary/60 transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <ChevronRight className="size-3.5" />
-          </button>
-        )}
-
         {/* RIGHT PREVIEW ────────────────────────────────────────────────────── */}
         <div className={cn(
           'flex flex-col overflow-hidden flex-1',
@@ -1291,6 +1280,18 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               {/* Preview panel header */}
               <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 bg-background border-b border-border">
                 <div className="flex items-center gap-2">
+                  {/* Re-open button sits left of "Live Preview" label — never blocks it */}
+                  {centerCollapsed && (
+                    <button
+                      onClick={() => setCenterCollapsed(false)}
+                      title="Show editor"
+                      className="hidden lg:flex p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-secondary/30 border border-border transition-colors"
+                    >
+                      <ChevronRight className="size-3.5" />
+                    </button>
+                  )}
+                  <span className="text-xs font-semibold text-foreground hidden sm:block">Live Preview</span>
+                  <div className="w-px h-3 bg-border hidden sm:block" />
                   <span className="text-xs font-medium text-muted-foreground">Template</span>
                   <select
                     data-testid="template-select"
