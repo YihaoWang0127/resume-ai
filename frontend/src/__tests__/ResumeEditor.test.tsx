@@ -763,9 +763,10 @@ describe('ResumeEditor — guest banner', () => {
 })
 
 // ── center panel collapse toggle ──────────────────────────────────────────────
-// A narrow vertical strip button sits between the center editor column and the
-// right preview panel (desktop-only, hidden via CSS on mobile). Clicking it
-// collapses/expands the center editor column.
+// The collapse button is positioned at the top-right corner of the center panel
+// (absolute top-2 right-2) and uses ChevronLeft / p-1.5. When collapsed, the
+// re-open button appears at top-2 left-2 on the right preview panel's outer
+// container and uses ChevronRight / p-1.5.
 
 describe('ResumeEditor — center panel collapse toggle', () => {
   it('renders the collapse toggle button with "Minimize editor" title by default', () => {
@@ -794,6 +795,78 @@ describe('ResumeEditor — center panel collapse toggle', () => {
 
     expect(screen.getByTitle('Minimize editor')).toBeInTheDocument()
     expect(screen.queryByTitle('Show editor')).not.toBeInTheDocument()
+  })
+
+  it('collapse button has p-1.5 padding class', () => {
+    renderEditor()
+    const collapseBtn = screen.getByTitle('Minimize editor')
+    expect(collapseBtn.className).toContain('p-1.5')
+  })
+
+  it('re-open button has p-1.5 padding class', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByTitle('Minimize editor'))
+
+    const expandBtn = screen.getByTitle('Show editor')
+    expect(expandBtn.className).toContain('p-1.5')
+  })
+
+  it('collapse button is positioned at top-right of the center panel', () => {
+    renderEditor()
+    const collapseBtn = screen.getByTitle('Minimize editor')
+    // The button carries both top-2 and right-2 positioning classes
+    expect(collapseBtn.className).toContain('top-2')
+    expect(collapseBtn.className).toContain('right-2')
+  })
+
+  it('re-open button is positioned at top-left of the right panel outer container', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByTitle('Minimize editor'))
+
+    const expandBtn = screen.getByTitle('Show editor')
+    expect(expandBtn.className).toContain('top-2')
+    expect(expandBtn.className).toContain('left-2')
+  })
+
+  it('re-open "Show editor" button is absent when the center panel is expanded', () => {
+    renderEditor()
+    // On initial render the panel is expanded — no "Show editor" button
+    expect(screen.queryByTitle('Show editor')).not.toBeInTheDocument()
+  })
+
+  it('"Minimize editor" button is absent while the center panel is collapsed', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByTitle('Minimize editor'))
+
+    // After collapsing, the collapse button is conditionally removed from the DOM
+    expect(screen.queryByTitle('Minimize editor')).not.toBeInTheDocument()
+  })
+})
+
+// ── center panel content area padding ─────────────────────────────────────────
+// The scrollable form area inside the center panel has extra top padding so
+// the collapse button (absolute top-right) does not overlap the first field.
+// On small screens: pt-8; on large screens (lg:): pt-10.
+
+describe('ResumeEditor — center panel content area padding', () => {
+  it('scrollable form area has the pt-8 top-padding class', () => {
+    const { container } = renderEditor()
+    // Find the scrollable div that wraps all sections (it has both overflow-y-auto
+    // and the extra pt-8 class applied in this change).
+    const scrollArea = container.querySelector('.overflow-y-auto.pt-8')
+    expect(scrollArea).not.toBeNull()
+  })
+
+  it('scrollable form area has the lg:pt-10 responsive top-padding class', () => {
+    const { container } = renderEditor()
+    const scrollArea = container.querySelector('.lg\\:pt-10')
+    expect(scrollArea).not.toBeNull()
   })
 })
 

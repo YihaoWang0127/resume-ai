@@ -912,14 +912,14 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           )}
           style={centerCollapsed ? {} : { width: centerWidth }}
         >
-          {/* Minimize button — top-left (conditionally rendered so JSDOM tests can detect its absence) */}
+          {/* Minimize button — top-right corner of center panel (conditionally rendered so JSDOM tests can detect its absence) */}
           {!centerCollapsed && (
             <button
               onClick={() => setCenterCollapsed(true)}
               title="Minimize editor"
-              className="absolute top-2 left-2 z-20 hidden lg:flex p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+              className="absolute top-2 right-2 z-20 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             >
-              <ChevronLeft className="size-3.5" />
+              <ChevronLeft className="size-4" />
             </button>
           )}
 
@@ -943,7 +943,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           </div>
 
           {/* Scrollable form area — ALL sections visible, scroll-to on tab click */}
-          <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-10">
+          <div className="flex-1 overflow-y-auto p-4 pt-8 lg:p-6 lg:pt-10 space-y-10">
 
             {/* ── CONTACT ── */}
             <div ref={(el) => { sectionRefs.current.contact = el }} className="space-y-4">
@@ -1266,10 +1266,20 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
         {/* RIGHT PREVIEW ────────────────────────────────────────────────────── */}
         <div className={cn(
-          'flex flex-col overflow-hidden flex-1',
+          'relative flex flex-col overflow-hidden flex-1',
           mobileViewTab === 'preview' ? 'flex' : 'hidden',
           'lg:flex',
         )}>
+          {/* Re-open button — absolutely positioned at top-left, mirrors the close button exactly */}
+          {centerCollapsed && (
+            <button
+              onClick={() => setCenterCollapsed(false)}
+              title="Show editor"
+              className="absolute top-2 left-2 z-20 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          )}
           {enrichmentState === 'comparing' && enrichedResume && originalResume ? (
             <ComparisonView
               originalResume={originalResume}
@@ -1282,16 +1292,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               {/* Preview panel header */}
               <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 bg-background border-b border-border">
                 <div className="flex items-center gap-2">
-                  {/* Re-open button sits left of "Live Preview" label — never blocks it */}
-                  {centerCollapsed && (
-                    <button
-                      onClick={() => setCenterCollapsed(false)}
-                      title="Show editor"
-                      className="hidden lg:flex p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-secondary/30 border border-border transition-colors"
-                    >
-                      <ChevronRight className="size-3.5" />
-                    </button>
-                  )}
                   <span className="text-xs font-semibold text-foreground hidden sm:block">Live Preview</span>
                   <div className="w-px h-3 bg-border hidden sm:block" />
                   <span className="text-xs font-medium text-muted-foreground">Template</span>
