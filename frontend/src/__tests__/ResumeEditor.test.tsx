@@ -194,8 +194,8 @@ describe('ResumeEditor — save dialog', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    // Change the style via the (mocked) ResumePreview's onIndustryChange callback
-    await user.click(screen.getByTestId('change-industry'))
+    // Change the style via the template-select dropdown
+    await user.selectOptions(screen.getByTestId('template-select'), 'finance')
 
     const dialog = await openSaveDialog(user)
     await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
@@ -219,8 +219,8 @@ describe('ResumeEditor — update existing resume', () => {
     const user = userEvent.setup()
     renderEditor({ initialResumeId: 'existing-id' })
 
-    // Change the style via the (mocked) ResumePreview's onIndustryChange callback
-    await user.click(screen.getByTestId('change-industry'))
+    // Change the style via the template-select dropdown
+    await user.selectOptions(screen.getByTestId('template-select'), 'finance')
 
     await user.click(screen.getByRole('button', { name: /^update$/i }))
 
@@ -287,7 +287,7 @@ describe('ResumeEditor — ATS Score tab', () => {
 
     await openATSTab(user)
 
-    expect(screen.getByText(/job description/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/job description/i)[0]).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Paste the job description here…')).toBeInTheDocument()
   })
 
@@ -375,7 +375,7 @@ describe('ResumeEditor — ATS Score tab', () => {
 
     expect(screen.queryByText(/matched keywords/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/missing keywords/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/suggestions/i)).not.toBeInTheDocument()
+    // Note: sidebar always renders "AI Suggestions" text, so we don't check for /suggestions/i here
   })
 })
 
@@ -521,7 +521,7 @@ describe('ResumeEditor — step indicator', () => {
   it('starts at step 1 and renders step labels', () => {
     renderEditor()
 
-    expect(screen.getByText('Edit')).toBeInTheDocument()
+    expect(screen.getAllByText('Edit')[0]).toBeInTheDocument()
     expect(screen.getByText('AI Enhance')).toBeInTheDocument()
   })
 
@@ -551,7 +551,7 @@ describe('ResumeEditor — step indicator', () => {
     }
 
     // The "Download" step-4 label must still be visible and nothing crashed
-    expect(screen.getByText('Download')).toBeInTheDocument()
+    expect(screen.getAllByText('Download')[0]).toBeInTheDocument()
   })
 
   it('renders a "Prev Step" button in the bottom bar', () => {

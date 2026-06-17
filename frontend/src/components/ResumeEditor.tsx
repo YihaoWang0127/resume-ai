@@ -912,14 +912,16 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           )}
           style={centerCollapsed ? {} : { width: centerWidth }}
         >
-          {/* Minimize button — top-left */}
-          <button
-            onClick={() => setCenterCollapsed(true)}
-            title="Minimize editor"
-            className="absolute top-2 left-2 z-20 hidden lg:flex p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-          >
-            <ChevronLeft className="size-3.5" />
-          </button>
+          {/* Minimize button — top-left (conditionally rendered so JSDOM tests can detect its absence) */}
+          {!centerCollapsed && (
+            <button
+              onClick={() => setCenterCollapsed(true)}
+              title="Minimize editor"
+              className="absolute top-2 left-2 z-20 hidden lg:flex p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            >
+              <ChevronLeft className="size-3.5" />
+            </button>
+          )}
 
           {/* Mobile: horizontal section tab strip */}
           <div className="lg:hidden shrink-0 flex overflow-x-auto scrollbar-none bg-background border-b border-border">
@@ -1420,7 +1422,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             >
               <Minus className="size-3" />
             </button>
-            <span className="px-2 text-xs text-foreground font-medium min-w-[44px] text-center border-x border-border">{zoomLevel}%</span>
+            <div><span className="px-2 text-xs text-foreground font-medium min-w-[44px] text-center border-x border-border">{zoomLevel}%</span></div>
             <button
               type="button"
               onClick={() => {
