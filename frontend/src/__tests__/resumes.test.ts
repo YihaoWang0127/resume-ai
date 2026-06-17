@@ -113,9 +113,9 @@ describe('updateResume', () => {
     await updateResume('resume-1', mockResume, 'New Title')
     expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ title: 'New Title' }))
 
-    setupUpdateChain()
+    const { mockUpdate: mockUpdate2 } = setupUpdateChain()
     await updateResume('resume-1', mockResume)
-    const updateArg = mockUpdate.mock.calls[0][0] as Record<string, unknown>
+    const updateArg = mockUpdate2.mock.calls[0][0] as Record<string, unknown>
     expect(updateArg).not.toHaveProperty('title')
   })
 })
