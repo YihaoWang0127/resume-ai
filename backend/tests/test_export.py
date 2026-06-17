@@ -10,30 +10,33 @@ FAKE_PDF = b"%PDF-1.7 fake-pdf-content-for-testing"
 FAKE_DOCX = b"PK\x03\x04fake-docx-content-for-testing"
 
 
-def test_export_pdf_returns_bytes(
+@pytest.mark.parametrize(
+    "fmt, mock_target, fake_bytes, expected_mime, expected_ext",
+    [
+        ("pdf", "app.routes.export.generate_pdf", FAKE_PDF, PDF_MIME, ".pdf"),
+        ("docx", "app.routes.export.generate_docx", FAKE_DOCX, DOCX_MIME, ".docx"),
+    ],
+)
+def test_export_format(
     client: TestClient,
     sample_resume: dict,
     mocker,
+    fmt: str,
+    mock_target: str,
+    fake_bytes: bytes,
+    expected_mime: str,
+    expected_ext: str,
 ) -> None:
-    mocker.patch("app.routes.export.generate_pdf", return_value=FAKE_PDF)
+    mocker.patch(mock_target, return_value=fake_bytes)
 
-    resp = client.post("/api/export", json={"resume": sample_resume, "format": "pdf"})
+    resp = client.post("/api/export", json={"resume": sample_resume, "format": fmt})
 
     assert resp.status_code == 200
-    assert resp.content == FAKE_PDF
-
-
-def test_export_docx_returns_bytes(
-    client: TestClient,
-    sample_resume: dict,
-    mocker,
-) -> None:
-    mocker.patch("app.routes.export.generate_docx", return_value=FAKE_DOCX)
-
-    resp = client.post("/api/export", json={"resume": sample_resume, "format": "docx"})
-
-    assert resp.status_code == 200
-    assert resp.content == FAKE_DOCX
+    assert resp.content == fake_bytes
+    assert expected_mime in resp.headers["content-type"]
+    disposition = resp.headers.get("content-disposition", "")
+    assert expected_ext in disposition
+    assert "attachment" in disposition
 
 
 def test_export_invalid_format(
@@ -42,58 +45,6 @@ def test_export_invalid_format(
 ) -> None:
     resp = client.post("/api/export", json={"resume": sample_resume, "format": "xml"})
     assert resp.status_code == 422
-
-
-def test_export_content_type_pdf(
-    client: TestClient,
-    sample_resume: dict,
-    mocker,
-) -> None:
-    mocker.patch("app.routes.export.generate_pdf", return_value=FAKE_PDF)
-
-    resp = client.post("/api/export", json={"resume": sample_resume, "format": "pdf"})
-
-    assert PDF_MIME in resp.headers["content-type"]
-
-
-def test_export_content_type_docx(
-    client: TestClient,
-    sample_resume: dict,
-    mocker,
-) -> None:
-    mocker.patch("app.routes.export.generate_docx", return_value=FAKE_DOCX)
-
-    resp = client.post("/api/export", json={"resume": sample_resume, "format": "docx"})
-
-    assert DOCX_MIME in resp.headers["content-type"]
-
-
-def test_export_content_disposition_pdf(
-    client: TestClient,
-    sample_resume: dict,
-    mocker,
-) -> None:
-    mocker.patch("app.routes.export.generate_pdf", return_value=FAKE_PDF)
-
-    resp = client.post("/api/export", json={"resume": sample_resume, "format": "pdf"})
-
-    disposition = resp.headers.get("content-disposition", "")
-    assert ".pdf" in disposition
-    assert "attachment" in disposition
-
-
-def test_export_content_disposition_docx(
-    client: TestClient,
-    sample_resume: dict,
-    mocker,
-) -> None:
-    mocker.patch("app.routes.export.generate_docx", return_value=FAKE_DOCX)
-
-    resp = client.post("/api/export", json={"resume": sample_resume, "format": "docx"})
-
-    disposition = resp.headers.get("content-disposition", "")
-    assert ".docx" in disposition
-    assert "attachment" in disposition
 
 
 @pytest.mark.parametrize("industry", ["general", "tech", "finance", "creative", "healthcare"])

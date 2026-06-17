@@ -37,6 +37,16 @@ const savedRecord = {
 
 beforeEach(() => vi.clearAllMocks())
 
+// Helper: build the standard update chain returning savedRecord
+function setupUpdateChain(resolvedData: unknown = savedRecord) {
+  const mockSingle = vi.fn().mockResolvedValue({ data: resolvedData, error: null })
+  const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
+  const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
+  const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+  mockFrom.mockReturnValue({ update: mockUpdate } as any)
+  return { mockSingle, mockSelect, mockEq, mockUpdate }
+}
+
 // ── saveResume ────────────────────────────────────────────────────────────────
 
 describe('saveResume', () => {
@@ -84,11 +94,7 @@ describe('saveResume', () => {
 
 describe('updateResume', () => {
   it('calls .update().eq("id", id) with resume data', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ data: savedRecord, error: null })
-    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ update: mockUpdate } as any)
+    const { mockUpdate, mockEq } = setupUpdateChain()
 
     const result = await updateResume('resume-1', mockResume)
 
@@ -101,27 +107,14 @@ describe('updateResume', () => {
     expect(result).toEqual(savedRecord)
   })
 
-  it('includes title in the update payload when provided', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ data: savedRecord, error: null })
-    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ update: mockUpdate } as any)
+  it('includes title in the update payload when provided, omits it when not', async () => {
+    const { mockUpdate } = setupUpdateChain()
 
     await updateResume('resume-1', mockResume, 'New Title')
-
     expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ title: 'New Title' }))
-  })
 
-  it('omits title from payload when not provided', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ data: savedRecord, error: null })
-    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ update: mockUpdate } as any)
-
+    setupUpdateChain()
     await updateResume('resume-1', mockResume)
-
     const updateArg = mockUpdate.mock.calls[0][0] as Record<string, unknown>
     expect(updateArg).not.toHaveProperty('title')
   })
@@ -131,11 +124,7 @@ describe('updateResume', () => {
 
 describe('updateAtsScore', () => {
   it('calls .update() with ats_score and ats_score_updated_at, then .eq("id", id)', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({ data: { ...savedRecord, ats_score: 85 }, error: null })
-    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
-    const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ update: mockUpdate } as any)
+    const { mockUpdate, mockEq } = setupUpdateChain({ ...savedRecord, ats_score: 85 })
 
     const result = await updateAtsScore('resume-1', 85)
 

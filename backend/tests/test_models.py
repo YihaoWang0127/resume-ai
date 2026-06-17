@@ -43,14 +43,10 @@ def test_resume_schema_empty_lists() -> None:
     assert r.projects == []
 
 
-def test_resume_schema_detected_industry_default() -> None:
-    r = ResumeSchema()
-    assert r.detected_industry == "general"
-
-
-def test_resume_schema_detected_industry_set() -> None:
-    r = ResumeSchema(detected_industry="tech")
-    assert r.detected_industry == "tech"
+@pytest.mark.parametrize("industry, expected", [(None, "general"), ("tech", "tech")])
+def test_resume_schema_detected_industry(industry: str | None, expected: str) -> None:
+    r = ResumeSchema() if industry is None else ResumeSchema(detected_industry=industry)
+    assert r.detected_industry == expected
 
 
 def test_experience_item_present_when_no_end_date() -> None:

@@ -59,25 +59,12 @@ describe('getPreferences', () => {
     expect(await getPreferences()).toBeNull()
   })
 
-  it('returns null when the table does not exist yet (PGRST205)', async () => {
+  it.each([
+    ['PGRST205', 'Could not find the table'],
+    ['42P01', 'relation "user_preferences" does not exist'],
+  ])('returns null when the table does not exist yet (%s)', async (code, message) => {
     mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
-    const mockMaybeSingle = vi.fn().mockResolvedValue({
-      data: null,
-      error: { code: 'PGRST205', message: 'Could not find the table' },
-    })
-    const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ select: mockSelect } as any)
-
-    expect(await getPreferences()).toBeNull()
-  })
-
-  it('returns null when the table does not exist yet (42P01)', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
-    const mockMaybeSingle = vi.fn().mockResolvedValue({
-      data: null,
-      error: { code: '42P01', message: 'relation "user_preferences" does not exist' },
-    })
+    const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: { code, message } })
     const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle })
     const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
     mockFrom.mockReturnValue({ select: mockSelect } as any)

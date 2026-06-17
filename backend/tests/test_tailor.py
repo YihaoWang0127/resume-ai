@@ -50,7 +50,7 @@ def test_tailor_missing_resume(client: TestClient) -> None:
     assert resp.status_code == 422
 
 
-def test_tailor_prompt_contains_jd(
+def test_tailor_prompt_contains_jd_and_resume(
     client: TestClient,
     sample_resume: dict,
     mocker,
@@ -69,25 +69,5 @@ def test_tailor_prompt_contains_jd(
     )
 
     assert JOB_DESC in captured.get("user", "")
-
-
-def test_tailor_prompt_contains_resume(
-    client: TestClient,
-    sample_resume: dict,
-    mocker,
-) -> None:
-    captured: dict = {}
-
-    async def fake_stream(system: str, user: str):
-        captured["user"] = user
-        yield "{}"
-
-    mocker.patch("app.routes.tailor.stream_text", new=fake_stream)
-
-    client.post(
-        "/api/tailor",
-        json={"resume": sample_resume, "job_description": JOB_DESC},
-    )
-
     assert "Jane Smith" in captured.get("user", "")
     assert "Google" in captured.get("user", "")

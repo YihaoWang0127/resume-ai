@@ -79,58 +79,21 @@ describe('AccountSidebar — nav links', () => {
 })
 
 describe('AccountSidebar — active link highlighting', () => {
-  it('highlights Dashboard when on /dashboard', () => {
-    renderSidebar('/dashboard')
+  it.each([
+    ['/dashboard', 'Dashboard', 'Profile'],
+    ['/profile', 'Profile', 'Dashboard'],
+    ['/ai', 'AI', 'Settings'],
+    ['/settings', 'Settings', 'AI'],
+  ])('highlights %s link when on %s', (path, activeLabel, inactiveLabel) => {
+    renderSidebar(path)
 
-    const dashboardButtons = screen.getAllByText('Dashboard').map((el) => el.closest('button')!)
-    for (const button of dashboardButtons) {
+    const activeButtons = screen.getAllByText(activeLabel).map((el) => el.closest('button')!)
+    for (const button of activeButtons) {
       expect(button.className).toMatch(/bg-primary/)
     }
 
-    const profileButtons = screen.getAllByText('Profile').map((el) => el.closest('button')!)
-    for (const button of profileButtons) {
-      expect(button.className).not.toMatch(/bg-primary/)
-    }
-  })
-
-  it('highlights Profile when on /profile', () => {
-    renderSidebar('/profile')
-
-    const profileButtons = screen.getAllByText('Profile').map((el) => el.closest('button')!)
-    for (const button of profileButtons) {
-      expect(button.className).toMatch(/bg-primary/)
-    }
-
-    const dashboardButtons = screen.getAllByText('Dashboard').map((el) => el.closest('button')!)
-    for (const button of dashboardButtons) {
-      expect(button.className).not.toMatch(/bg-primary/)
-    }
-  })
-
-  it('highlights AI when on /ai', () => {
-    renderSidebar('/ai')
-
-    const aiButtons = screen.getAllByText('AI').map((el) => el.closest('button')!)
-    for (const button of aiButtons) {
-      expect(button.className).toMatch(/bg-primary/)
-    }
-
-    const settingsButtons = screen.getAllByText('Settings').map((el) => el.closest('button')!)
-    for (const button of settingsButtons) {
-      expect(button.className).not.toMatch(/bg-primary/)
-    }
-  })
-
-  it('highlights Settings when on /settings', () => {
-    renderSidebar('/settings')
-
-    const settingsButtons = screen.getAllByText('Settings').map((el) => el.closest('button')!)
-    for (const button of settingsButtons) {
-      expect(button.className).toMatch(/bg-primary/)
-    }
-
-    const aiButtons = screen.getAllByText('AI').map((el) => el.closest('button')!)
-    for (const button of aiButtons) {
+    const inactiveButtons = screen.getAllByText(inactiveLabel).map((el) => el.closest('button')!)
+    for (const button of inactiveButtons) {
       expect(button.className).not.toMatch(/bg-primary/)
     }
   })
