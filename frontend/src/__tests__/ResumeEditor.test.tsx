@@ -763,9 +763,12 @@ describe('ResumeEditor — guest banner', () => {
 })
 
 // ── center panel collapse toggle ──────────────────────────────────────────────
-// A narrow vertical strip button sits between the center editor column and the
-// right preview panel (desktop-only, hidden via CSS on mobile). Clicking it
-// collapses/expands the center editor column.
+// A single toggle button lives in the Live Preview header (first child of the
+// flex items-center gap-2 div) and is ALWAYS rendered.
+// Classes: shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground …
+// Title is "Minimize editor" when expanded, "Show editor" when collapsed.
+// NO absolute, NO top-2/left-2, NO z-20, NO border, NO bg-secondary/30.
+// The center panel gets lg:hidden when collapsed + transition-all duration-200.
 
 describe('ResumeEditor — center panel collapse toggle', () => {
   it('renders the collapse toggle button with "Minimize editor" title by default', () => {
@@ -794,6 +797,88 @@ describe('ResumeEditor — center panel collapse toggle', () => {
 
     expect(screen.getByTitle('Minimize editor')).toBeInTheDocument()
     expect(screen.queryByTitle('Show editor')).not.toBeInTheDocument()
+  })
+
+  it('collapse button has p-1.5 padding class', () => {
+    renderEditor()
+    const collapseBtn = screen.getByTitle('Minimize editor')
+    expect(collapseBtn.className).toContain('p-1.5')
+  })
+
+  it('re-open button has p-1.5 padding class', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByTitle('Minimize editor'))
+
+    const expandBtn = screen.getByTitle('Show editor')
+    expect(expandBtn.className).toContain('p-1.5')
+  })
+
+  it('toggle button is in-flow inside the preview header — no absolute positioning', () => {
+    renderEditor()
+    const collapseBtn = screen.getByTitle('Minimize editor')
+    // The button lives in the preview panel header, never absolutely positioned
+    expect(collapseBtn.className).not.toContain('absolute')
+    expect(collapseBtn.className).not.toContain('top-2')
+    expect(collapseBtn.className).not.toContain('left-2')
+    expect(collapseBtn.className).toContain('shrink-0')
+    expect(collapseBtn.className).toContain('p-1.5')
+  })
+
+  it('single toggle button: same element, title changes between expand and collapse', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    // Expanded: title is "Minimize editor", button is in preview header (shrink-0, no absolute)
+    const collapseBtn = screen.getByTitle('Minimize editor')
+    expect(collapseBtn.className).not.toContain('absolute')
+    expect(collapseBtn.className).toContain('shrink-0')
+    expect(collapseBtn.className).toContain('p-1.5')
+
+    await user.click(collapseBtn)
+
+    // Collapsed: same structural position, title changes to "Show editor"
+    const expandBtn = screen.getByTitle('Show editor')
+    expect(expandBtn.className).not.toContain('absolute')
+    expect(expandBtn.className).toContain('shrink-0')
+    expect(expandBtn.className).toContain('p-1.5')
+  })
+
+  it('toggle button always remains in the DOM — title is "Minimize editor" when expanded', () => {
+    renderEditor()
+    // On initial render the panel is expanded — single toggle button with "Minimize editor" title
+    expect(screen.getByTitle('Minimize editor')).toBeInTheDocument()
+    expect(screen.queryByTitle('Show editor')).not.toBeInTheDocument()
+  })
+
+  it('toggle button always remains in the DOM — title is "Show editor" when collapsed', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByTitle('Minimize editor'))
+
+    // After collapsing, the single toggle button title changes to "Show editor"
+    expect(screen.getByTitle('Show editor')).toBeInTheDocument()
+    expect(screen.queryByTitle('Minimize editor')).not.toBeInTheDocument()
+  })
+})
+
+// ── center panel content area padding ─────────────────────────────────────────
+// The scrollable form area inside the center panel uses p-4 lg:p-6 padding.
+
+describe('ResumeEditor — center panel content area padding', () => {
+  it('scrollable form area has the p-4 padding class', () => {
+    const { container } = renderEditor()
+    // Find the scrollable div that wraps all sections (overflow-y-auto p-4 lg:p-6).
+    const scrollArea = container.querySelector('.overflow-y-auto.p-4')
+    expect(scrollArea).not.toBeNull()
+  })
+
+  it('scrollable form area has the lg:p-6 responsive padding class', () => {
+    const { container } = renderEditor()
+    const scrollArea = container.querySelector('.lg\\:p-6')
+    expect(scrollArea).not.toBeNull()
   })
 })
 
