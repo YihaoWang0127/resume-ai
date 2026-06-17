@@ -763,10 +763,11 @@ describe('ResumeEditor — guest banner', () => {
 })
 
 // ── center panel collapse toggle ──────────────────────────────────────────────
-// The collapse button is positioned at the top-right corner of the center panel
-// (absolute top-2 right-2) and uses ChevronLeft / p-1.5. When collapsed, the
-// re-open button appears at top-2 left-2 on the right preview panel's outer
-// container and uses ChevronRight / p-1.5.
+// The collapse button is positioned at the top-left corner of the center panel
+// (absolute top-2 left-2) and uses ChevronLeft / p-1.5. When collapsed, the
+// re-open button is placed in-flow inside the preview panel header as the first
+// child of the inner label div — classes include shrink-0 hidden lg:flex p-1.5 mr-1
+// (no absolute, no z-20).
 
 describe('ResumeEditor — center panel collapse toggle', () => {
   it('renders the collapse toggle button with "Minimize editor" title by default', () => {
@@ -813,38 +814,50 @@ describe('ResumeEditor — center panel collapse toggle', () => {
     expect(expandBtn.className).toContain('p-1.5')
   })
 
-  it('collapse button is positioned at top-right of the center panel', () => {
+  it('collapse button is positioned at top-left of the center panel', () => {
     renderEditor()
     const collapseBtn = screen.getByTitle('Minimize editor')
-    // The button carries both top-2 and right-2 positioning classes
+    // The button carries both top-2 and left-2 positioning classes
     expect(collapseBtn.className).toContain('top-2')
-    expect(collapseBtn.className).toContain('right-2')
+    expect(collapseBtn.className).toContain('left-2')
   })
 
-  it('re-open button is positioned at top-left of the right panel outer container', async () => {
+  it('toggle button stays absolute top-left of the center panel in both states', async () => {
     const user = userEvent.setup()
     renderEditor()
 
-    await user.click(screen.getByTitle('Minimize editor'))
+    // Expanded: button title is "Minimize editor", still absolute top-2 left-2
+    const collapseBtn = screen.getByTitle('Minimize editor')
+    expect(collapseBtn.className).toContain('absolute')
+    expect(collapseBtn.className).toContain('top-2')
+    expect(collapseBtn.className).toContain('left-2')
+    expect(collapseBtn.className).toContain('p-1.5')
 
+    await user.click(collapseBtn)
+
+    // Collapsed: same button, now titled "Show editor", still absolute top-2 left-2
     const expandBtn = screen.getByTitle('Show editor')
+    expect(expandBtn.className).toContain('absolute')
     expect(expandBtn.className).toContain('top-2')
     expect(expandBtn.className).toContain('left-2')
+    expect(expandBtn.className).toContain('p-1.5')
   })
 
-  it('re-open "Show editor" button is absent when the center panel is expanded', () => {
+  it('toggle button always remains in the DOM — title is "Minimize editor" when expanded', () => {
     renderEditor()
-    // On initial render the panel is expanded — no "Show editor" button
+    // On initial render the panel is expanded — single toggle button with "Minimize editor" title
+    expect(screen.getByTitle('Minimize editor')).toBeInTheDocument()
     expect(screen.queryByTitle('Show editor')).not.toBeInTheDocument()
   })
 
-  it('"Minimize editor" button is absent while the center panel is collapsed', async () => {
+  it('toggle button always remains in the DOM — title is "Show editor" when collapsed', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByTitle('Minimize editor'))
 
-    // After collapsing, the collapse button is conditionally removed from the DOM
+    // After collapsing, the single toggle button title changes to "Show editor"
+    expect(screen.getByTitle('Show editor')).toBeInTheDocument()
     expect(screen.queryByTitle('Minimize editor')).not.toBeInTheDocument()
   })
 })

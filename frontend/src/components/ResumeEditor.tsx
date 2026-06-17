@@ -908,21 +908,21 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           className={cn(
             'relative flex-col overflow-hidden bg-background border-r border-border',
             mobileViewTab === 'edit' ? 'flex' : 'hidden',
-            centerCollapsed ? 'lg:hidden' : 'lg:flex lg:shrink-0',
+            centerCollapsed ? 'lg:flex lg:w-10 lg:shrink-0' : 'lg:flex lg:shrink-0',
           )}
           style={centerCollapsed ? {} : { width: centerWidth }}
         >
-          {/* Minimize button — top-right corner of center panel (conditionally rendered so JSDOM tests can detect its absence) */}
-          {!centerCollapsed && (
-            <button
-              onClick={() => setCenterCollapsed(true)}
-              title="Minimize editor"
-              className="absolute top-2 right-2 z-20 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-          )}
+          {/* Toggle button — always rendered, toggles between minimize and re-open */}
+          <button
+            onClick={() => setCenterCollapsed((prev) => !prev)}
+            title={centerCollapsed ? 'Show editor' : 'Minimize editor'}
+            className="absolute top-2 left-2 z-20 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          >
+            {centerCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+          </button>
 
+          {!centerCollapsed && (
+          <>
           {/* Mobile: horizontal section tab strip */}
           <div className="lg:hidden shrink-0 flex overflow-x-auto scrollbar-none bg-background border-b border-border">
             {SECTION_DEFS.map((s) => (
@@ -1251,6 +1251,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             </div>
 
           </div>
+          </>
+          )}
         </div>
 
         {/* CENTER / RIGHT RESIZE HANDLE ──────────────────────────────────────── */}
@@ -1270,16 +1272,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           mobileViewTab === 'preview' ? 'flex' : 'hidden',
           'lg:flex',
         )}>
-          {/* Re-open button — absolutely positioned at top-left, mirrors the close button exactly */}
-          {centerCollapsed && (
-            <button
-              onClick={() => setCenterCollapsed(false)}
-              title="Show editor"
-              className="absolute top-2 left-2 z-20 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          )}
           {enrichmentState === 'comparing' && enrichedResume && originalResume ? (
             <ComparisonView
               originalResume={originalResume}
