@@ -35,12 +35,15 @@ import {
   ListOrdered,
   ArrowLeft,
   Upload,
+  LayoutDashboard,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/Modal'
 import ExportMenu from '@/components/ExportMenu'
-import { cn } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
 import { enrichResume, exportResume, fromBackend, scoreATS, tailorResume } from '@/services/api'
 import { saveResume, updateResume } from '@/services/resumes'
@@ -111,7 +114,7 @@ const SECTION_DEFS: Array<{ id: Tab; label: string; description: string; Icon: L
 ]
 
 export default function ResumeEditor({ initialResume, initialResumeId, onBack, onSignUp }: Props) {
-  const { user, isGuest } = useAuth()
+  const { user, isGuest, signOut } = useAuth()
   const navigate = useNavigate()
   const [resume, setResume] = useState<ResumeSchema>(initialResume)
   const [tab, setTab] = useState<Tab>('contact')
@@ -155,6 +158,14 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [zoomLevel, setZoomLevel] = useState(100)
   const [centerCollapsed, setCenterCollapsed] = useState(false)
   const [centerWidth, setCenterWidth] = useState(380)
+  const [autosaveOn, setAutosaveOn] = useState(false)
+  const [saveChecked, setSaveChecked] = useState(false)
+  const [updateChecked, setUpdateChecked] = useState(false)
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [enrichProgress, setEnrichProgress] = useState(0)
+  const accountMenuRef = useRef<HTMLDivElement>(null)
+  const autosaveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const streamReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null)
   const accumRef = useRef('')
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null)
   const exportMenuRef = useRef<HTMLDivElement>(null)
@@ -173,6 +184,33 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [exportMenuOpen])
+
+  useEffect(() => {
+    if (!accountMenuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setAccountMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [accountMenuOpen])
+
+  // Autosave interval: when autosaveOn and currentResumeId exists, auto-update every 30s
+  useEffect(() => {
+    if (autosaveIntervalRef.current) {
+      clearInterval(autosaveIntervalRef.current)
+      autosaveIntervalRef.current = null
+    }
+    if (autosaveOn && currentResumeId) {
+      autosaveIntervalRef.current = setInterval(() => {
+        updateResume(currentResumeId, { ...resume, detectedIndustry: selectedIndustry }).catch(console.error)
+      }, 30000)
+    }
+    return () => {
+      if (autosaveIntervalRef.current) clearInterval(autosaveIntervalRef.current)
+    }
+  }, [autosaveOn, currentResumeId])
 
   useEffect(() => {
     if (!stream || stream.done) {
@@ -203,6 +241,17 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       () => setEnrichMsgIndex((i) => (i + 1) % ENRICHMENT_LOADING_MESSAGES.length),
       1500,
     )
+    return () => clearInterval(id)
+  }, [enrichmentState])
+
+  // Simulate enrichment progress bar
+  useEffect(() => {
+    if (enrichmentState !== 'loading') {
+      setEnrichProgress(enrichmentState === 'comparing' ? 100 : 0)
+      return
+    }
+    setEnrichProgress(0)
+    const id = setInterval(() => setEnrichProgress((p) => p + (82 - p) * 0.12), 300)
     return () => clearInterval(id)
   }, [enrichmentState])
 
@@ -272,15 +321,25 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     try {
       const readable = await getStream()
       const reader = readable.getReader()
+      streamReaderRef.current = reader
       const decoder = new TextDecoder()
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        accumRef.current += chunk
-        setStream((s: StreamState | null) => (s ? { ...s, text: s.text + chunk } : null))
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value, { stream: true })
+          accumRef.current += chunk
+          setStream((s: StreamState | null) => (s ? { ...s, text: s.text + chunk } : null))
+        }
+        setStream((s: StreamState | null) => (s ? { ...s, done: true } : null))
+      } catch (readErr) {
+        // cancelled via reader.cancel() — swallow silently so cancelEnrich handles state
+        if (readErr instanceof Error && readErr.name === 'AbortError') return
+        const msg = readErr instanceof Error ? readErr.message : String(readErr)
+        setStream((s: StreamState | null) => (s ? { ...s, error: msg, done: true } : null))
+      } finally {
+        streamReaderRef.current = null
       }
-      setStream((s: StreamState | null) => (s ? { ...s, done: true } : null))
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setStream((s: StreamState | null) => (s ? { ...s, error: msg, done: true } : null))
@@ -332,6 +391,16 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     // switch mobile view there so the user sees it (overrides runStream's
     // setMobileViewTab('edit') for the Tailor flow).
     setMobileViewTab('preview')
+  }
+
+  const cancelEnrich = () => {
+    streamReaderRef.current?.cancel()
+    streamReaderRef.current = null
+    setEnrichmentState('idle')
+    setEnrichedResume(null)
+    setOriginalResume(null)
+    setStream(null)
+    setEnrichProgress(0)
   }
 
   const handleEnrich = () => {
@@ -648,10 +717,9 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const wordCount = resume.summary?.split(/\s+/).filter(Boolean).length ?? 0
   const aiSuggestionCount =
     resume.experience.reduce((a, e) => a + e.bullets.length, 0) + (resume.summary ? 3 : 0)
-  const avatarInitial = (
-    (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? 'U'
-  ).charAt(0).toUpperCase()
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined
+  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? ''
+  const displayName = fullName.trim() || user?.email || ''
 
   return (
     <div className="flex flex-col h-screen bg-muted">
@@ -787,11 +855,67 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               </ExportMenu>
             )}
           </div>
-          <div className="size-7 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="size-full object-cover" />
-            ) : (
-              <span className="text-[11px] font-bold text-primary">{avatarInitial}</span>
+          <div ref={accountMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setAccountMenuOpen((o) => !o)}
+              className="flex items-center gap-2 px-3 py-1.5 border border-border hover:border-primary/50 rounded transition-colors"
+            >
+              <Avatar size="sm" className="border border-primary/40">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
+                <AvatarFallback className="bg-primary/20 text-[10px] font-bold text-primary uppercase">
+                  {getInitials(fullName, user?.email)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden sm:block text-xs text-muted-foreground truncate max-w-[160px]">
+                {displayName}
+              </span>
+              <ChevronDown className={cn('size-3 text-muted-foreground transition-transform', accountMenuOpen && 'rotate-180')} />
+            </button>
+            {accountMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-primary/30 rounded-lg py-1 min-w-[180px] shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => { setAccountMenuOpen(false); navigate('/profile') }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                >
+                  <User className="size-3.5" />
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAccountMenuOpen(false); onBack() }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                >
+                  <LayoutDashboard className="size-3.5" />
+                  Dashboard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAccountMenuOpen(false); navigate('/ai') }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                >
+                  <Sparkles className="size-3.5" />
+                  AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAccountMenuOpen(false); navigate('/settings') }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                >
+                  <Settings className="size-3.5" />
+                  Settings
+                </button>
+                <div className="h-px bg-border mx-2 my-1" />
+                <button
+                  type="button"
+                  onClick={() => { setAccountMenuOpen(false); signOut() }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors text-left"
+                >
+                  <LogOut className="size-3.5" />
+                  Sign Out
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -891,15 +1015,27 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             <p className="text-xs text-muted-foreground mb-2.5 leading-relaxed">
               Improve your content, impact and ATS score with AI suggestions.
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleEnrich}
-              disabled={streamLoading}
-              className="w-full text-xs rounded-lg border-primary/30 text-primary hover:bg-primary/10 h-8"
-            >
-              View Suggestions
-            </Button>
+            {enrichmentState === 'loading' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={cancelEnrich}
+                className="w-full text-xs rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 h-8"
+              >
+                <X className="size-3 mr-1" />
+                Cancel
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEnrich}
+                disabled={streamLoading}
+                className="w-full text-xs rounded-lg border-primary/30 text-primary hover:bg-primary/10 h-8"
+              >
+                View Suggestions
+              </Button>
+            )}
           </div>
         </aside>
 
@@ -1324,23 +1460,32 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   </button>
                 </div>
               </div>
-              {/* Preview content + streaming panel overlay */}
-              <div className="flex-1 overflow-auto bg-muted/60 p-4 relative">
-                <div className="relative">
+              {/* Preview content area — relative wrapper so enrichment overlay stays within viewport */}
+              <div className="flex-1 overflow-hidden relative flex flex-col">
+                {/* Enrichment loading overlay — fixed to right panel viewport, not the scroll container */}
+                {enrichmentState === 'loading' && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                    <div className="bg-card border border-border shadow-lg rounded-xl px-6 py-5 flex flex-col items-center gap-3 text-center w-64 pointer-events-auto">
+                      <Loader2 className="size-6 animate-spin text-primary" />
+                      <p className="text-xs font-bold uppercase tracking-wider text-foreground min-h-[16px]">{ENRICHMENT_LOADING_MESSAGES[enrichMsgIndex]}</p>
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300"
+                          style={{ width: `${enrichProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{Math.round(enrichProgress)}% complete</p>
+                    </div>
+                  </div>
+                )}
+                {/* Scrollable preview content */}
+                <div className="flex-1 overflow-auto bg-muted/60 p-4 relative">
                   <div
                     className={cn('transition-all duration-300', enrichmentState === 'loading' && 'opacity-30 blur-sm pointer-events-none')}
                     style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
                   >
                     <ResumePreview resume={resume} flashSections={flashSections} industry={selectedIndustry} detectedIndustry={resume.detectedIndustry} />
                   </div>
-                  {enrichmentState === 'loading' && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="bg-card border border-border shadow-lg rounded-xl px-6 py-5 flex flex-col items-center gap-3 text-center max-w-xs">
-                        <Loader2 className="size-6 animate-spin text-primary" />
-                        <p className="text-xs font-bold uppercase tracking-wider text-foreground">{ENRICHMENT_LOADING_MESSAGES[enrichMsgIndex]}</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 {/* Streaming panel — shows in right panel so it's always visible */}
                 {stream && enrichmentState === 'idle' && (
@@ -1435,29 +1580,52 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           </button>
         </div>
         <div className="flex items-center gap-2">
+          {/* Save button: toggles autosave on/off */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !autosaveOn
+              setAutosaveOn(next)
+              setSaveChecked(true)
+              setTimeout(() => setSaveChecked(false), 2000)
+              if (next && !currentResumeId) {
+                // If turning on autosave without a saved resume, prompt save dialog
+                handleSaveClick()
+              }
+            }}
+            className={cn(
+              'hidden sm:flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors min-h-[32px]',
+              autosaveOn
+                ? 'border-green-400 text-green-700 bg-green-50 hover:bg-green-100'
+                : 'border-border text-foreground hover:bg-secondary/60',
+            )}
+          >
+            {saveChecked ? (
+              <CheckCircle2 className="size-3 text-green-500" />
+            ) : (
+              <Save className="size-3" />
+            )}
+            {autosaveOn ? 'Autosave On' : 'Save'}
+          </button>
+          {/* Update button: manual immediate save */}
           {currentResumeId && (
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-green-600">
-              <CheckCircle2 className="size-3.5" />
-              Autosaved
-            </div>
-          )}
-          {currentResumeId ? (
             <button
-              onClick={handleUpdate}
+              onClick={async () => {
+                await handleUpdate()
+                setUpdateChecked(true)
+                setTimeout(() => setUpdateChecked(false), 2000)
+              }}
               disabled={isSaving}
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors disabled:opacity-50 min-h-[32px]"
             >
-              {isSaving ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
+              {updateChecked ? (
+                <CheckCircle2 className="size-3 text-green-500" />
+              ) : isSaving ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <Save className="size-3" />
+              )}
               Update
-            </button>
-          ) : (
-            <button
-              onClick={handleSaveClick}
-              disabled={isSaving}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors disabled:opacity-50 min-h-[32px]"
-            >
-              {isSaving ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
-              Save
             </button>
           )}
           <button
