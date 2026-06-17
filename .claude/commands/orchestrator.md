@@ -1,139 +1,160 @@
 ---
-description: Main entry point — routes a task to the right specialist subagent(s), runs them (in parallel when independent), then chains the standard closing pipeline (test-enricher -> readme -> qa -> local verification -> pr-agent).
+description: Main entry point — selects a mode, routes to specialist subagents, runs the closing pipeline, and creates a PR.
 argument-hint: <description of the feature, fix, or change to make>
 ---
 
-You are the Orchestrator for resume-ai. Given a task, you coordinate the
-specialist subagents defined in `.claude/commands/` to implement it
-end-to-end, then run the standard closing pipeline. You do not implement
-feature work yourself except for the fallback case in step 1.
+You are the Orchestrator for resume-ai. Given a task, you:
+1. Select the right mode and the smallest set of specialist agents.
+2. Run agents (parallel when independent, sequential when dependent).
+3. Run the appropriate closing pipeline.
+4. Create a PR unless it is unsafe or explicitly disabled.
+
+You do not implement feature work yourself except as a fallback for files not owned by any specialist.
 
 ## Task
 $ARGUMENTS
 
-## Roster
+## Agent Roster
+
 | Agent | File | Owns |
 |---|---|---|
-| dashboard-agent | dashboard-agent.md | Dashboard.tsx |
-| editor-agent | editor-agent.md | Editor.tsx, ResumeEditor.tsx, ResumePreview.tsx, StreamingOutput.tsx |
-| home-agent | home-agent.md | Home.tsx, ResumeUploader.tsx |
-| cover-letter-agent | cover-letter-agent.md | CoverLetterEditor.tsx |
-| settings-agent | settings-agent.md | Settings.tsx, components/settings/* |
-| nav-agent | nav-agent.md | Navbar.tsx |
-| modal-agent | modal-agent.md | AuthModal.tsx, Modal.tsx |
-| shared-agent | shared-agent.md | App.tsx, index.css, AuthContext, lib/supabase.ts, services/*.ts, ExportMenu, EmptyState, ErrorBoundary, NotFound, ServerError |
-| backend-agent | backend-agent.md | backend/app/** (routes, services, prompts, models) |
-| test-agent | test-agent.md | Run + fix failing tests (only if user says "run tests") |
-| test-enricher-agent | test-enricher-agent.md | Add tests for what changed (always) |
-| readme-agent | readme-agent.md | Update README (always) |
-| qa-agent | qa-agent.md | Final tsc/build/import validation (always) |
-| pr-agent | pr-agent.md | Branch, commit, push, and open PR for the session's changes (always, runs last) |
+| ui-agent | ui-agent.md | `Home.tsx`, `Navbar.tsx`, `AuthModal.tsx`, `Modal.tsx`, `ResumeUploader.tsx` |
+| editor-agent | editor-agent.md | `Editor.tsx`, `ResumeEditor.tsx`, `ResumePreview.tsx`, `StreamingOutput.tsx`, `CoverLetterEditor.tsx` |
+| dashboard-agent | dashboard-agent.md | `Dashboard.tsx` |
+| settings-agent | settings-agent.md | `Settings.tsx`, `components/settings/*` |
+| shared-agent | shared-agent.md | `App.tsx`, `index.css`, `AuthContext`, `lib/supabase.ts`, `services/*.ts`, `ExportMenu`, `EmptyState`, `ErrorBoundary`, `NotFound`, `ServerError` |
+| backend-agent | backend-agent.md | `backend/app/**` |
+| test-enricher-agent | test-enricher-agent.md | Adds tests when behavior changed (conditional) |
+| qa-agent | qa-agent.md | Scoped TypeScript/build/import validation |
+| readme-agent | readme-agent.md | README.md updates (conditional) |
+| pr-agent | pr-agent.md | Branch, commit, push, PR (runs last) |
+
+## Routing Table
+
+| Files | Agent |
+|---|---|
+| `frontend/src/pages/Home.tsx`, `components/Navbar.tsx`, `AuthModal.tsx`, `Modal.tsx`, `ResumeUploader.tsx` | ui-agent |
+| `frontend/src/pages/Editor.tsx`, `components/ResumeEditor.tsx`, `ResumePreview.tsx`, `StreamingOutput.tsx`, `pages/CoverLetterEditor.tsx` | editor-agent |
+| `frontend/src/pages/Dashboard.tsx` | dashboard-agent |
+| `frontend/src/pages/Settings.tsx`, `components/settings/**` | settings-agent |
+| `frontend/src/App.tsx`, `index.css`, `contexts/*`, `lib/supabase.ts`, `services/*.ts`, `components/ExportMenu.tsx`, `EmptyState.tsx`, `ErrorBoundary.tsx`, `pages/NotFound.tsx`, `ServerError.tsx` | shared-agent |
+| `backend/app/**` | backend-agent |
+
+**Fallback:** If the task touches files owned by no specialist (e.g. a new page/route), implement it yourself following CLAUDE.md's UI/Styling Rules and Backend Rules.
+
+## Mode Selection
+
+Pick one mode before dispatching anyone.
+
+### pr-lite
+**Use for:** copy changes, spacing/color/visual polish, docs-only, agent-instruction-only changes.
+
+Closing pipeline:
+- Skip test-enricher-agent (no logic changed).
+- Skip readme-agent (no public behavior changed).
+- Run lightweight QA: TypeScript check only; skip full build unless tsc indicates a build issue.
+- Create PR unless unsafe.
+
+### pr-standard _(default)_
+**Use for:** normal feature work, bug fixes, refactors, small-to-medium changes.
+
+Closing pipeline:
+- Run test-enricher-agent **only if**: behavior, logic, API contract, data transformation,
+  auth/session, save/load/delete, export, streaming, or important UI state changed.
+- Run readme-agent **only if**: user-facing feature list, setup, env vars, deployment,
+  architecture, API contract, or public commands changed.
+- Run scoped QA: TypeScript check if frontend changed; backend import check if backend changed.
+- Create PR unless unsafe.
+
+### pr-release
+**Use for:** production polish, larger features, release prep, changes needing extra verification.
+
+Closing pipeline:
+- Run test-enricher-agent wherever behavior changed or coverage matters.
+- Run readme-agent if public behavior, setup, architecture, deployment, API, or feature list changed.
+- Run broader QA: TypeScript check + full `npm run build`.
+- Create PR after checks pass.
 
 ## Process
 
-1. **Classify** — read the task and match it against the Routing Table
-   below. List every specialist whose scope is touched. Prefer the smallest
-   set that covers the change. If the task is a pure question/explanation
-   with no code change, just answer it — do not dispatch anyone.
-   - Fallback: if the task touches a file owned by none of the specialists
-     (e.g. a brand new page/route not yet in the roster), implement that
-     part yourself following the same rules (CSS variable classes, Tailwind
-     responsive prefixes, min-h-[44px] touch targets) instead of guessing
-     an agent.
+### Step 1 — Select mode + classify
 
-2. **Order into waves**:
-   - Wave 1 (dependencies): backend-agent if an API contract is changing,
-     and/or shared-agent if a shared component/context/service signature is
-     changing. These must land first so downstream agents see the new shape.
-   - Wave 2 (independent specialists): all remaining matched page/component
-     agents. These touch disjoint files — dispatch together.
-   - Never put two specialists that touch the same file in the same wave.
+State the mode and reasoning. List every specialist whose files are touched. Prefer the smallest set.
 
-3. **Dispatch** — for each specialist in a wave:
-   - Read `.claude/commands/<agent>.md` in full
-   - Call the Agent tool with subagent_type: "general-purpose", description
-     set to the agent's name, and a prompt built from:
-     that file's full content, followed by a `## Current Task` section
-     containing only the slice of the user's request relevant to this agent
-     (plus any contract details handed down from a Wave 1 agent's report)
-   - Issue all Agent calls for a wave in a single message so they run in
-     parallel. Wait for the wave to finish before starting the next.
+If the task is a pure question with no code change, answer it directly — dispatch no one.
 
-4. **Standard Closing Tasks** (always, per CLAUDE.md — never skip, even if
-   the user didn't ask for them):
-   - If the user explicitly said "run tests": dispatch test-agent first
-   - Dispatch test-enricher-agent (it reads git diff / modified files from
-     every wave above and adds coverage)
-   - Dispatch readme-agent (updates README based on the same diff)
-   - Run these sequentially, after all feature waves are done — both read
-     the overall diff, so they shouldn't run before the code exists
+### Step 2 — Order into waves
 
-5. **Final validation** — dispatch qa-agent (tsc --noEmit + build, plus
-   a backend import check if any backend/ files changed in Wave 1)
+- **Wave 1 (dependencies):** backend-agent if an API contract is changing; shared-agent if a
+  shared service/context signature is changing. Must land first so downstream agents see the new shape.
+- **Wave 2 (independents):** all remaining matched page/component agents. Touch disjoint files —
+  dispatch together in parallel.
+- Never put two specialists touching the same file in the same wave.
 
-6. **Local verification gate** — required before pr-agent runs. This step
-   happens in the top-level conversation, not a dispatched subagent (it may
-   need to pause for the user, and subagents can't do that).
-   - If nothing runnable changed this session (pure docs/process/type edits),
-     skip with a one-line note ("N/A — no runnable flow changed") and go to
-     step 7.
-   - Otherwise, identify the flow(s) affected (new/changed page, component,
-     API endpoint, auth/integration, export, etc.).
-   - Automatable (no real external accounts/secrets required): run it
-     yourself — start the relevant dev server(s) (`run` skill) and exercise
-     the golden path + key edge cases for the affected flow in a browser or
-     via curl (`verify` skill). Record what you tested and the result.
-   - Manual-only (the flow needs a real third-party login — e.g. Google/GitHub
-     OAuth — a real inbox for an email-verification link, real payment
-     credentials, or anything else Claude doesn't have access to): STOP.
-     Post a concrete checklist for the user — exact commands to start the
-     server(s), the URL, and the steps to exercise the new/changed behavior
-     plus what "pass" looks like. Then wait for the user's reply (pass / fail
-     + details) before continuing. Do NOT dispatch pr-agent until the user
-     confirms.
-   - If the user reports a failure, send the fix back to the owning
-     specialist (new wave), then re-run qa-agent and this gate before
-     retrying pr-agent.
+### Step 3 — Dispatch
 
-7. **Branch + PR** — dispatch pr-agent last, after qa-agent and the local
-   verification gate complete. Tell it which files were touched across all
-   waves (including this file/CLAUDE.md if the orchestrator made fallback
-   edits), pass along qa-agent's result, and the verification gate's result
-   (automated check performed, or "user-confirmed manual test: <summary>")
-   for the PR's Test plan section. If nothing runnable changed (docs/process
-   only), say so so pr-agent can write "N/A — docs/process only".
+For each specialist in a wave:
+- Read `.claude/commands/<agent>.md` in full.
+- Call the Agent tool with `subagent_type: "general-purpose"`, description = agent name, and a
+  prompt built from: that file's full content + a `## Current Task` section containing only the
+  slice of the task relevant to that agent (plus any contract changes from Wave 1).
+- Issue all calls for a wave in a single message (parallel). Wait for the wave to finish before starting the next.
 
-8. **Report** — one consolidated summary covering:
-   - Which specialists were dispatched, in which waves, and what each changed
-   - test-enricher-agent: tests added, pass/fail counts
-   - readme-agent: sections updated
-   - qa-agent: build/tsc status
-   - Local verification gate: what was tested, automated vs. user-confirmed,
-     and the result
-   - pr-agent: branch name and PR URL
-   - Any unresolved follow-ups a specialist flagged
+### Step 4 — Closing pipeline (conditional)
 
-## Routing Table
-- frontend/src/pages/Dashboard.tsx -> dashboard-agent
-- frontend/src/pages/Editor.tsx, components/ResumeEditor.tsx, ResumePreview.tsx, StreamingOutput.tsx -> editor-agent
-- frontend/src/pages/Home.tsx, components/ResumeUploader.tsx -> home-agent
-- frontend/src/pages/CoverLetterEditor.tsx -> cover-letter-agent
-- frontend/src/pages/Settings.tsx, components/settings/** -> settings-agent
-- frontend/src/components/Navbar.tsx -> nav-agent
-- frontend/src/components/AuthModal.tsx, Modal.tsx -> modal-agent
-- frontend/src/App.tsx, index.css, contexts/AuthContext.tsx, lib/supabase.ts,
-  services/*.ts, components/ExportMenu.tsx, EmptyState.tsx, ErrorBoundary.tsx,
-  pages/NotFound.tsx, ServerError.tsx -> shared-agent
-- backend/** (routes, services, prompts, models, main.py) -> backend-agent
+After all feature waves are done, run the following based on mode (see Mode Selection above):
+
+1. **test-enricher-agent** — if warranted. Dispatch sequentially (needs to see the final diff).
+2. **readme-agent** — if warranted. Dispatch sequentially.
+3. **qa-agent** — always, scoped to touched files. Dispatch after test-enricher/readme.
+
+If the user explicitly said "run tests," dispatch test-agent first (before step 1 above).
+
+### Step 5 — Local verification gate
+
+This step runs in the top-level conversation — not a subagent (may need to pause for the user).
+
+- **Nothing runnable changed** (docs/agent instructions/config only): skip with note "N/A — no runnable flow changed."
+- **Automatable** (no real third-party login, inbox, or payment credentials needed): run it yourself —
+  start dev server(s) with `/run`, exercise the golden path + key edge cases with `/verify`, record the result.
+- **Manual-only** (needs Google/GitHub OAuth, real inbox, payment credentials, etc.): STOP. Post an exact
+  checklist (start commands, URL, steps, what "pass" looks like) and wait for user confirmation before
+  continuing. Do NOT dispatch pr-agent until the user confirms.
+- If the user reports a failure: send the fix back to the owning specialist (new wave), re-run qa-agent
+  and this gate before retrying pr-agent.
+
+### Step 6 — PR
+
+Dispatch pr-agent last. Pass it:
+- Which files were touched across all waves.
+- qa-agent's result.
+- Verification gate result: "automated: \<what was exercised\>", "user-confirmed manual test: \<summary\>",
+  or "N/A — docs/process only".
+
+**Skip PR when:**
+- User explicitly says not to.
+- Task is question/analysis only.
+- Verification failed and user hasn't confirmed a fix.
+- Secrets or sensitive data may have been modified.
+- Unrelated user changes are in the working tree that must not be included.
+
+If skipped, clearly state why and what must happen next.
+
+### Step 7 — Report
+
+One consolidated summary:
+- Mode chosen and why.
+- Specialists dispatched, which wave, what each changed.
+- test-enricher-agent: tests added, or skipped (reason).
+- readme-agent: sections updated, or skipped (reason).
+- qa-agent: TypeScript/build/import status.
+- Local verification: what was tested, automated vs. user-confirmed, result.
+- pr-agent: branch name and PR URL (or why skipped).
+- Any unresolved follow-ups.
 
 ## Rules
-- Keep each dispatched prompt scoped to ONLY that agent's files + the
-  relevant slice of the task — do not paste the entire user request verbatim
-  if only part of it applies to that agent
-- Don't dispatch agents whose scope isn't touched by the task
-- If a specialist's report says a follow-up is needed from another agent,
-  add that agent to the next wave with the specific follow-up as its task
-- All global CLAUDE.md rules (no npm test/pytest unless asked, mobile
-  responsive conventions, CSS variable classes, etc.) apply to every
-  dispatched specialist — they're already baked into each agent's file,
-  but don't override them in the per-agent task you write
+
+- Scope each dispatched prompt to ONLY that agent's files + the relevant slice of the task.
+- Don't dispatch agents whose scope isn't touched by the task.
+- If a specialist's report flags a follow-up for another agent, add it to the next wave with the specific follow-up as its task.
+- All CLAUDE.md rules (CSS variable classes, Tailwind responsive prefixes, min-h-[44px] touch targets, no npm test/pytest unless asked) apply to every dispatched agent — they're baked into each agent file; do not override them in the per-agent prompt.

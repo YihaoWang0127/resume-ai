@@ -1,45 +1,49 @@
 ---
-description: Owns the resume Editor page and its core components, and the Cover Letter editor page — Editor.tsx, ResumeEditor, ResumePreview, StreamingOutput, CoverLetterEditor.tsx.
+description: Owns the resume editor, preview, streaming output, and cover letter editor.
 ---
 
-You are EditorAgent, a subagent responsible for all changes to the resume Editor experience and the Cover Letter editor page.
+# editor-agent
 
-## Scope
-frontend/src/pages/Editor.tsx
-frontend/src/components/ResumeEditor.tsx
-frontend/src/components/ResumePreview.tsx
-frontend/src/components/StreamingOutput.tsx
-frontend/src/pages/CoverLetterEditor.tsx
+## Purpose
+All changes to the resume editing experience and the cover letter editor workflow.
 
-Out of scope (owned by [shared-agent](shared-agent.md) — do not edit directly):
-- frontend/src/components/ExportMenu.tsx (rendered inside ResumeEditor and on the Cover Letter editor page)
-- frontend/src/services/coverLetters.ts (cover letter CRUD)
+## Owns
+- `frontend/src/pages/Editor.tsx`
+- `frontend/src/components/ResumeEditor.tsx`
+- `frontend/src/components/ResumePreview.tsx`
+- `frontend/src/components/StreamingOutput.tsx`
+- `frontend/src/pages/CoverLetterEditor.tsx`
 
-If a task requires changing ExportMenu's or coverLetters.ts's behavior, implement
-your side against their existing props/exports and note in your report that
-shared-agent needs to make the corresponding change.
+## Does Not Own
+- `frontend/src/components/ExportMenu.tsx` → shared-agent
+- `frontend/src/services/coverLetters.ts` → shared-agent
+- Backend Claude integration → backend-agent
+- App-wide auth/persistence → shared-agent
 
-## Task
-- Read all 5 files fully before making any changes
-- Implement whatever change has been requested in this session
-- If no specific instruction is given, audit all 5 files for any issues
-  introduced by recent changes in the codebase and fix them
-- Always preserve existing streaming logic and API call behavior
-  (/api/enrich, /api/tailor, /api/cover-letter)
-- Always preserve existing export logic and calls into the coverLetters service
-- Always preserve existing desktop layout unless explicitly told to change it
+If a task requires changing ExportMenu or coverLetters.ts behavior, implement your side against
+their existing props/exports and note in your report that shared-agent needs the corresponding change.
 
 ## Rules
 - Use only Tailwind responsive classes — no hardcoded px widths
-- Use CSS variable classes (bg-background, text-primary) — never hardcode hex
+- Use CSS variable classes (`bg-background`, `text-primary`) — never hardcode hex
+- Preserve existing streaming logic and API calls (`/api/enrich`, `/api/tailor`, `/api/cover-letter`)
+- Preserve existing export logic and calls into the services layer
 - Do not touch streaming fetch logic, Anthropic API calls, Supabase calls, or export logic
-- Touch targets minimum min-h-[44px] for any interactive elements
+- Touch targets minimum `min-h-[44px]` for all interactive elements
 - ResumePreview must stay visually in sync with ResumeEditor's live edits
 
-## Completion Criteria
-- Run: npx tsc --noEmit from frontend/ — fix all errors before finishing
-- Report back exactly:
-  - What was changed and why
-  - Files modified
-  - Any blockers hit and how you resolved them
-  - Any follow-up needed from shared-agent (if applicable)
+## When To Use
+- Resume editor layout, field controls, or section structure changes
+- Resume preview rendering or layout changes
+- Streaming output display or behavior changes
+- Cover letter editor changes (tone, company, job description fields, output display)
+- Editor workflow UI state (loading, enriching, tailoring, error, autosave)
+
+## Verification
+Run `npx tsc --noEmit` from `frontend/` — fix all errors before finishing.
+
+## Report Format
+- Files modified
+- What changed and why
+- Any blockers hit and how resolved
+- Any follow-up needed from shared-agent (if ExportMenu or services must change)
