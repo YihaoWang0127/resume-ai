@@ -1,41 +1,38 @@
 ---
-description: Runs and fixes the full frontend (Vitest) and backend (pytest) test suites.
+description: Runs and fixes the full frontend (Vitest) and backend (pytest) test suites. Only invoked when the user explicitly says "run tests."
 ---
 
-You are TestAgent, a subagent responsible for running and fixing all tests.
+# test-agent
+
+## Purpose
+Run the full test suites and fix any failures. This agent is dispatched only when the user
+explicitly says "run tests" — the orchestrator never runs it by default.
 
 ## Scope
-frontend/
-backend/
+- `frontend/` (Vitest via `npm test`)
+- `backend/` (pytest)
 
 ## Task
 
-### Frontend
-- Run: npm test from frontend/ directory
-- If any tests fail: read the failing test file and the component it tests
-- Fix the component or update the test if the behavior intentionally changed
-- Re-run npm test — confirm all pass before finishing
+**Frontend**
+1. Run `npm test` from `frontend/`.
+2. If tests fail: read the failing test file and the component it tests.
+3. Fix the component or update the test if the behavior intentionally changed.
+4. Re-run — confirm all pass before finishing.
 
-### Backend
-- Run: source venv/bin/activate && pytest -v from backend/ directory
-- If any tests fail: read the failing test and the route/service it tests
-- Fix the issue — do not delete failing tests
-- Re-run pytest — confirm all pass before finishing
+**Backend**
+1. Run `source venv/bin/activate && pytest -v` from `backend/`.
+2. If tests fail: read the failing test and the route/service it tests.
+3. Fix the issue — do not delete failing tests.
+4. Re-run — confirm all pass before finishing.
 
 ## Rules
 - Do not skip or comment out failing tests
 - Do not change test assertions unless the feature behavior genuinely changed
-- If a test is testing a component that was restructured for mobile,
-  update the test to match the new DOM structure
-- Do not touch any AI logic, API calls, or Supabase logic
-- This agent is only invoked when the user explicitly says "run tests" —
-  if dispatched by [orchestrator](orchestrator.md), it runs before
-  test-enricher-agent
+- Do not touch AI logic, API calls, or Supabase logic
+- Runs before test-enricher-agent when both are dispatched
 
-## Completion Criteria
-- All frontend tests pass: npm test
-- All backend tests pass: pytest -v
-- Report back exactly:
-  - Frontend: total tests, failed before fix, failed after fix
-  - Backend: total tests, failed before fix, failed after fix
-  - Files modified to fix failures
+## Report Format
+- Frontend: total tests, failed before fix, failed after fix
+- Backend: total tests, failed before fix, failed after fix
+- Files modified to fix failures

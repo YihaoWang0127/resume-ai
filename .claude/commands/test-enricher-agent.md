@@ -1,48 +1,58 @@
 ---
-description: Reusable closing-task agent — adds test cases covering any feature or change just made by another agent.
+description: Adds or updates targeted tests when the session's changes include behavior or logic changes. Skipped for copy/polish/docs-only changes.
 ---
 
-You are TestEnricherAgent, a reusable subagent responsible for adding
-test cases for any new feature or change made to resume-ai.
+# test-enricher-agent
 
-## Scope
-frontend/src/__tests__/
-backend/tests/
+## Purpose
+Add targeted test coverage for whatever behavior or logic changed in this session. Not every task
+warrants new tests — read the policy below before writing anything.
 
-## Task
-- Read the existing test files first to understand current patterns and style
-- Identify what was recently changed or added in the codebase by checking
-  git diff or reading the files that were modified in this session
-  (this may span multiple specialist agents — dashboard-agent, editor-agent,
-  home-agent, cover-letter-agent, settings-agent, nav-agent, modal-agent,
-  shared-agent, backend-agent)
-- Write new test cases that cover the new behavior — do not assume what
-  changed, always read the actual modified files first
+## Owns
+- `frontend/src/__tests__/`
+- `backend/tests/`
 
-### For every changed frontend component or page:
-- Add unit tests for new UI behavior (renders, toggles, conditionals)
-- Add interaction tests for new user actions (clicks, inputs, tab switches)
-- Add responsive tests if layout changed across breakpoints
-- Add edge case tests (empty state, loading state, error state) if applicable
+## When To Add Tests
 
-### For every changed backend route or service:
-- Add unit tests for new logic in services/
-- Add integration tests for new or modified API endpoints
-- Add edge case tests (invalid input, missing fields, auth failure) if applicable
+**Add tests when the session changed:**
+- Behavior, parsing, or data transformation logic
+- API routes (new or modified endpoints)
+- Auth or session behavior
+- Save/load/delete/export/streaming behavior
+- Important UI state transitions (loading, error, empty, success)
+- Bug fixes that had no prior test coverage
+
+**Skip entirely when the session only changed:**
+- Copy or label text
+- Visual-only CSS, spacing, or color tweaks
+- Docs or README
+- Agent instruction files
+- Refactors with identical external behavior and existing test coverage
+
+If skipping, state the reason in your report.
 
 ## Rules
-- Read existing tests before writing new ones — match the style and patterns
-- Use existing libraries only: Vitest + React Testing Library + MSW (frontend), pytest (backend)
-- Do not modify existing passing tests
-- Do not delete any tests
-- Add to existing test files where relevant, create new files only if needed
-- Follow existing naming conventions
+- Check `git diff` to understand what actually changed — do not assume
+- Read existing test files first — match the current style and patterns
+- Add to existing test files where relevant; create new files only if needed
+- Do not modify or delete existing passing tests
+- Use existing libraries only: Vitest + React Testing Library (frontend), pytest (backend)
+- Do NOT run the full test suite — write the tests and report what was added
 
-## Completion Criteria
-- Run: npm test from frontend/ — all tests must pass
-- Run: pytest -v from backend/ — all tests must pass
-- Report back exactly:
-  - Files read to understand what changed
-  - New test cases added per file
-  - Final test count before and after
-  - Any test failures and how you fixed them
+## What To Add
+
+**Frontend:** unit tests for new UI behavior, interaction tests for new user actions,
+edge case tests (empty, loading, error) if the component now handles them.
+Responsive tests only if layout changed.
+
+**Backend:** unit tests for new service logic, targeted tests for new/modified API endpoints,
+edge case tests (invalid input, missing fields, auth failure).
+
+## Verification
+Do not run `npm test` or `pytest`. Write the tests; qa-agent or test-agent handles running them.
+
+## Report Format
+- Files read to understand what changed
+- Tests added or skipped (with reason if skipped)
+- New test cases added per file
+- Any known gaps or follow-up needed
