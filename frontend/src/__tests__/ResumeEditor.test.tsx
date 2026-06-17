@@ -763,11 +763,12 @@ describe('ResumeEditor — guest banner', () => {
 })
 
 // ── center panel collapse toggle ──────────────────────────────────────────────
-// The collapse button is positioned at the top-left corner of the center panel
-// (absolute top-2 left-2) and uses ChevronLeft / p-1.5. When collapsed, the
-// re-open button is placed in-flow inside the preview panel header as the first
-// child of the inner label div — classes include shrink-0 hidden lg:flex p-1.5 mr-1
-// (no absolute, no z-20).
+// A single toggle button lives in the Live Preview header (first child of the
+// flex items-center gap-2 div) and is ALWAYS rendered.
+// Classes: shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground …
+// Title is "Minimize editor" when expanded, "Show editor" when collapsed.
+// NO absolute, NO top-2/left-2, NO z-20, NO border, NO bg-secondary/30.
+// The center panel gets lg:hidden when collapsed + transition-all duration-200.
 
 describe('ResumeEditor — center panel collapse toggle', () => {
   it('renders the collapse toggle button with "Minimize editor" title by default', () => {
@@ -814,32 +815,33 @@ describe('ResumeEditor — center panel collapse toggle', () => {
     expect(expandBtn.className).toContain('p-1.5')
   })
 
-  it('collapse button is positioned at top-left of the center panel', () => {
+  it('toggle button is in-flow inside the preview header — no absolute positioning', () => {
     renderEditor()
     const collapseBtn = screen.getByTitle('Minimize editor')
-    // The button carries both top-2 and left-2 positioning classes
-    expect(collapseBtn.className).toContain('top-2')
-    expect(collapseBtn.className).toContain('left-2')
+    // The button lives in the preview panel header, never absolutely positioned
+    expect(collapseBtn.className).not.toContain('absolute')
+    expect(collapseBtn.className).not.toContain('top-2')
+    expect(collapseBtn.className).not.toContain('left-2')
+    expect(collapseBtn.className).toContain('shrink-0')
+    expect(collapseBtn.className).toContain('p-1.5')
   })
 
-  it('toggle button stays absolute top-left of the center panel in both states', async () => {
+  it('single toggle button: same element, title changes between expand and collapse', async () => {
     const user = userEvent.setup()
     renderEditor()
 
-    // Expanded: button title is "Minimize editor", still absolute top-2 left-2
+    // Expanded: title is "Minimize editor", button is in preview header (shrink-0, no absolute)
     const collapseBtn = screen.getByTitle('Minimize editor')
-    expect(collapseBtn.className).toContain('absolute')
-    expect(collapseBtn.className).toContain('top-2')
-    expect(collapseBtn.className).toContain('left-2')
+    expect(collapseBtn.className).not.toContain('absolute')
+    expect(collapseBtn.className).toContain('shrink-0')
     expect(collapseBtn.className).toContain('p-1.5')
 
     await user.click(collapseBtn)
 
-    // Collapsed: same button, now titled "Show editor", still absolute top-2 left-2
+    // Collapsed: same structural position, title changes to "Show editor"
     const expandBtn = screen.getByTitle('Show editor')
-    expect(expandBtn.className).toContain('absolute')
-    expect(expandBtn.className).toContain('top-2')
-    expect(expandBtn.className).toContain('left-2')
+    expect(expandBtn.className).not.toContain('absolute')
+    expect(expandBtn.className).toContain('shrink-0')
     expect(expandBtn.className).toContain('p-1.5')
   })
 
@@ -863,22 +865,19 @@ describe('ResumeEditor — center panel collapse toggle', () => {
 })
 
 // ── center panel content area padding ─────────────────────────────────────────
-// The scrollable form area inside the center panel has extra top padding so
-// the collapse button (absolute top-right) does not overlap the first field.
-// On small screens: pt-8; on large screens (lg:): pt-10.
+// The scrollable form area inside the center panel uses p-4 lg:p-6 padding.
 
 describe('ResumeEditor — center panel content area padding', () => {
-  it('scrollable form area has the pt-8 top-padding class', () => {
+  it('scrollable form area has the p-4 padding class', () => {
     const { container } = renderEditor()
-    // Find the scrollable div that wraps all sections (it has both overflow-y-auto
-    // and the extra pt-8 class applied in this change).
-    const scrollArea = container.querySelector('.overflow-y-auto.pt-8')
+    // Find the scrollable div that wraps all sections (overflow-y-auto p-4 lg:p-6).
+    const scrollArea = container.querySelector('.overflow-y-auto.p-4')
     expect(scrollArea).not.toBeNull()
   })
 
-  it('scrollable form area has the lg:pt-10 responsive top-padding class', () => {
+  it('scrollable form area has the lg:p-6 responsive padding class', () => {
     const { container } = renderEditor()
-    const scrollArea = container.querySelector('.lg\\:pt-10')
+    const scrollArea = container.querySelector('.lg\\:p-6')
     expect(scrollArea).not.toBeNull()
   })
 })

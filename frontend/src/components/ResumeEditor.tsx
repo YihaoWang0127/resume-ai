@@ -906,23 +906,15 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         {/* CENTER EDITOR ────────────────────────────────────────────────────── */}
         <div
           className={cn(
-            'relative flex-col overflow-hidden bg-background border-r border-border',
+            'relative flex-col overflow-hidden bg-background border-r border-border transition-all duration-200',
             mobileViewTab === 'edit' ? 'flex' : 'hidden',
-            centerCollapsed ? 'lg:flex lg:w-10 lg:shrink-0' : 'lg:flex lg:shrink-0',
+            centerCollapsed ? 'lg:hidden' : 'lg:flex lg:shrink-0',
           )}
           style={centerCollapsed ? {} : { width: centerWidth }}
         >
-          {/* Toggle button — always rendered, toggles between minimize and re-open */}
-          <button
-            onClick={() => setCenterCollapsed((prev) => !prev)}
-            title={centerCollapsed ? 'Show editor' : 'Minimize editor'}
-            className="absolute top-2 left-2 z-20 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-          >
-            {centerCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
-          </button>
-
           {!centerCollapsed && (
           <>
+
           {/* Mobile: horizontal section tab strip */}
           <div className="lg:hidden shrink-0 flex overflow-x-auto scrollbar-none bg-background border-b border-border">
             {SECTION_DEFS.map((s) => (
@@ -943,7 +935,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           </div>
 
           {/* Scrollable form area — ALL sections visible, scroll-to on tab click */}
-          <div className="flex-1 overflow-y-auto p-4 pt-8 lg:p-6 lg:pt-10 space-y-10">
+          <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-10">
 
             {/* ── CONTACT ── */}
             <div ref={(el) => { sectionRefs.current.contact = el }} className="space-y-4">
@@ -1268,7 +1260,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
         {/* RIGHT PREVIEW ────────────────────────────────────────────────────── */}
         <div className={cn(
-          'relative flex flex-col overflow-hidden flex-1',
+          'flex flex-col overflow-hidden flex-1',
           mobileViewTab === 'preview' ? 'flex' : 'hidden',
           'lg:flex',
         )}>
@@ -1284,6 +1276,18 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               {/* Preview panel header */}
               <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 bg-background border-b border-border">
                 <div className="flex items-center gap-2">
+                  {/* Single toggle — always rendered, same position, icon changes */}
+                  <button
+                    onClick={() => setCenterCollapsed(prev => !prev)}
+                    title={centerCollapsed ? "Show editor" : "Minimize editor"}
+                    className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                  >
+                    {centerCollapsed ? (
+                      <ChevronRight className="size-4" />
+                    ) : (
+                      <ChevronLeft className="size-4" />
+                    )}
+                  </button>
                   <span className="text-xs font-semibold text-foreground hidden sm:block">Live Preview</span>
                   <div className="w-px h-3 bg-border hidden sm:block" />
                   <span className="text-xs font-medium text-muted-foreground">Template</span>
