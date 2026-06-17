@@ -18,6 +18,16 @@ const mockUser = { id: 'user-123', email: 'jane@example.com' }
 
 beforeEach(() => vi.clearAllMocks())
 
+// Helper: set up the standard supabase query chain for ai_usage_log
+function setupQueryChain(resolvedValue: { data: unknown; error: unknown }) {
+  const mockLimit = vi.fn().mockResolvedValue(resolvedValue)
+  const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
+  const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
+  const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
+  mockFrom.mockReturnValue({ select: mockSelect } as any)
+  return { mockLimit, mockOrder, mockEq, mockSelect }
+}
+
 // ── logAiUsage ───────────────────────────────────────────────────────────────
 
 describe('logAiUsage', () => {
@@ -65,55 +75,29 @@ describe('getAiUsageStats', () => {
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
-  it('returns empty stats when the table does not exist yet (PGRST205)', async () => {
+  it.each([
+    ['PGRST205', 'no table'],
+    ['42P01', 'relation does not exist'],
+  ])('returns empty stats when the table does not exist yet (%s)', async (code, message) => {
     mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
-    const mockLimit = vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST205', message: 'no table' } })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ select: mockSelect } as any)
-
-    const result = await getAiUsageStats()
-
-    expect(result).toEqual({
-      totalCalls: 0,
-      callsThisMonth: 0,
-      callsByAction: { parse: 0, enrich: 0, tailor: 0, cover_letter: 0, ats_score: 0 },
-      recent: [],
-    })
-  })
-
-  it('returns empty stats when the table does not exist yet (42P01)', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
-    const mockLimit = vi.fn().mockResolvedValue({ data: null, error: { code: '42P01', message: 'relation does not exist' } })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ select: mockSelect } as any)
+    setupQueryChain({ data: null, error: { code, message } })
 
     const result = await getAiUsageStats()
     expect(result.totalCalls).toBe(0)
+    expect(result.recent).toEqual([])
   })
 
   it('throws for any other error code', async () => {
     mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
     const error = { code: '42501', message: 'permission denied' }
-    const mockLimit = vi.fn().mockResolvedValue({ data: null, error })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ select: mockSelect } as any)
+    setupQueryChain({ data: null, error })
 
     await expect(getAiUsageStats()).rejects.toEqual(error)
   })
 
   it('calls .select("*").eq("user_id", id).order("created_at", desc).limit(500)', async () => {
     mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
-    const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ select: mockSelect } as any)
+    const { mockLimit, mockOrder, mockEq, mockSelect } = setupQueryChain({ data: [], error: null })
 
     await getAiUsageStats()
 
@@ -138,11 +122,7 @@ describe('getAiUsageStats', () => {
       { id: '4', action: 'ats_score', model: 'claude-sonnet-4-6', created_at: lastYear },
     ]
 
-    const mockLimit = vi.fn().mockResolvedValue({ data: rows, error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ select: mockSelect } as any)
+    setupQueryChain({ data: rows, error: null })
 
     const result = await getAiUsageStats()
 
@@ -162,11 +142,7 @@ describe('getAiUsageStats', () => {
       created_at: new Date().toISOString(),
     }))
 
-    const mockLimit = vi.fn().mockResolvedValue({ data: rows, error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ select: mockSelect } as any)
+    setupQueryChain({ data: rows, error: null })
 
     const result = await getAiUsageStats()
 
@@ -176,11 +152,7 @@ describe('getAiUsageStats', () => {
 
   it('returns empty stats when data is null', async () => {
     mockGetUser.mockResolvedValue({ data: { user: mockUser } } as any)
-    const mockLimit = vi.fn().mockResolvedValue({ data: null, error: null })
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit })
-    const mockEq = vi.fn().mockReturnValue({ order: mockOrder })
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq })
-    mockFrom.mockReturnValue({ select: mockSelect } as any)
+    setupQueryChain({ data: null, error: null })
 
     const result = await getAiUsageStats()
     expect(result.totalCalls).toBe(0)

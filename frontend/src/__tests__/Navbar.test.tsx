@@ -300,15 +300,15 @@ describe('Navbar — nav dropdown panels', () => {
 })
 
 describe('Navbar — signed in', () => {
-  it('shows initials in the avatar fallback when there is no avatar image', () => {
-    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
-    renderNavbar()
-    expect(screen.getByText('JS')).toBeInTheDocument()
+  const signedInUser = { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } }
+
+  beforeEach(() => {
+    setupAuth({ user: signedInUser as any })
   })
 
-  it('shows the display name from user_metadata.full_name', () => {
-    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
+  it('shows initials and display name in the avatar', () => {
     renderNavbar()
+    expect(screen.getByText('JS')).toBeInTheDocument()
     expect(screen.getByText('Jane Smith')).toBeInTheDocument()
   })
 
@@ -320,7 +320,6 @@ describe('Navbar — signed in', () => {
   })
 
   it('opens the user menu showing Profile, Dashboard, AI, Settings and Sign Out', async () => {
-    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
     const user = userEvent.setup()
     renderNavbar()
 
@@ -333,52 +332,22 @@ describe('Navbar — signed in', () => {
     expect(screen.getByText('Sign Out')).toBeInTheDocument()
   })
 
-  it('navigates to /profile when Profile is clicked', async () => {
-    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
+  it.each([
+    ['Profile', '/profile'],
+    ['Dashboard', '/dashboard'],
+    ['AI', '/ai'],
+    ['Settings', '/settings'],
+  ])('navigates to %s when %s is clicked', async (label, path) => {
     const user = userEvent.setup()
     renderNavbar()
 
     await user.click(screen.getByText('Jane Smith'))
-    await user.click(screen.getByText('Profile'))
+    await user.click(screen.getByText(label))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/profile')
-  })
-
-  it('navigates to /dashboard when Dashboard is clicked', async () => {
-    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Jane Smith'))
-    await user.click(screen.getByText('Dashboard'))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
-  })
-
-  it('navigates to /ai when AI is clicked', async () => {
-    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Jane Smith'))
-    await user.click(screen.getByText('AI'))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/ai')
-  })
-
-  it('navigates to /settings when Settings is clicked', async () => {
-    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
-    const user = userEvent.setup()
-    renderNavbar()
-
-    await user.click(screen.getByText('Jane Smith'))
-    await user.click(screen.getByText('Settings'))
-
-    expect(mockNavigate).toHaveBeenCalledWith('/settings')
+    expect(mockNavigate).toHaveBeenCalledWith(path)
   })
 
   it('calls signOut when Sign Out is clicked', async () => {
-    setupAuth({ user: { id: 'u1', email: 'jane@example.com', user_metadata: { full_name: 'Jane Smith' } } as any })
     const user = userEvent.setup()
     renderNavbar()
 

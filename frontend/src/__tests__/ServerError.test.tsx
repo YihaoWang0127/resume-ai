@@ -34,23 +34,11 @@ describe('ServerError', () => {
     vi.clearAllMocks()
   })
 
-  it('test_renders_500_text', () => {
+  it('renders 500 page with heading, subtitle, and both action buttons', () => {
     renderServerError()
     expect(screen.getByText('500')).toBeInTheDocument()
-  })
-
-  it('test_renders_something_went_wrong_subtitle', () => {
-    renderServerError()
     expect(screen.getByText('Something Went Wrong')).toBeInTheDocument()
-  })
-
-  it('test_renders_back_to_home_button', () => {
-    renderServerError()
     expect(screen.getByRole('button', { name: /back to home/i })).toBeInTheDocument()
-  })
-
-  it('test_renders_try_again_button', () => {
-    renderServerError()
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument()
   })
 

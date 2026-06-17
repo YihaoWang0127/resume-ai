@@ -98,17 +98,12 @@ beforeEach(() => {
 // ── save / update buttons ─────────────────────────────────────────────────────
 
 describe('ResumeEditor — save button', () => {
-  it('shows Save button for a logged-in user', () => {
-    renderEditor()
-    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument()
-  })
-
-  it('opens save dialog when logged-in user clicks Save', async () => {
+  it('shows Save button and opens save dialog when logged-in user clicks it', async () => {
     const user = userEvent.setup()
     renderEditor()
 
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^save$/i }))
-
     expect(screen.getByRole('heading', { name: /save resume/i })).toBeInTheDocument()
   })
 
@@ -241,10 +236,10 @@ describe('ResumeEditor — update existing resume', () => {
 // There is no user-email button or dropdown in this design.
 
 describe('ResumeEditor — header', () => {
-  it('renders the "Back to Dashboard" back button', () => {
+  it('renders the Back to Dashboard and Download buttons', () => {
     renderEditor()
-    // The back arrow + label are rendered in a <button> inside the header.
     expect(screen.getByRole('button', { name: /back to dashboard/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /download/i })).toBeInTheDocument()
   })
 
   it('calls onBack when the back button is clicked', async () => {
@@ -255,11 +250,6 @@ describe('ResumeEditor — header', () => {
     await user.click(screen.getByRole('button', { name: /back to dashboard/i }))
 
     expect(onBack).toHaveBeenCalled()
-  })
-
-  it('renders the Download button', () => {
-    renderEditor()
-    expect(screen.getByRole('button', { name: /download/i })).toBeInTheDocument()
   })
 })
 
@@ -385,31 +375,14 @@ describe('ResumeEditor — ATS Score tab', () => {
 // horizontal tab bar are gone; navigation now lives in an <aside> sidebar.
 
 describe('ResumeEditor — desktop layout', () => {
-  it('renders a sidebar with all 6 SECTION_DEFS navigation buttons', () => {
+  it('renders sidebar nav buttons, zoom controls, Next Step button, and Template dropdown', () => {
     renderEditor()
 
-    // All section labels appear as sidebar navigation buttons (Contact,
-    // Summary, Experience, Education, Skills, ATS Score).
     for (const label of ['Contact', 'Summary', 'Experience', 'Education', 'Skills', 'ATS Score']) {
       expect(screen.getAllByRole('button', { name: new RegExp(`^${label}$`, 'i') }).length).toBeGreaterThan(0)
     }
-  })
-
-  it('renders the bottom status bar with zoom controls', () => {
-    renderEditor()
-
-    // The bottom bar shows current zoom level as "100%"
     expect(screen.getByText('100%')).toBeInTheDocument()
-  })
-
-  it('renders a Next Step button in the bottom bar', () => {
-    renderEditor()
     expect(screen.getByRole('button', { name: /next step/i })).toBeInTheDocument()
-  })
-
-  it('renders a Template dropdown in the preview panel header', () => {
-    renderEditor()
-    // The preview panel has a "Template" label next to a <select>
     expect(screen.getByText('Template')).toBeInTheDocument()
   })
 })
@@ -420,7 +393,7 @@ describe('ResumeEditor — desktop layout', () => {
 // headings and key form elements should be in the DOM without any navigation.
 
 describe('ResumeEditor — all sections always visible', () => {
-  it('renders all 6 section headings without any tab navigation', () => {
+  it('renders all 6 section headings, key textareas, and add buttons on initial render', () => {
     renderEditor()
 
     expect(screen.getByRole('heading', { name: /contact information/i })).toBeInTheDocument()
@@ -429,20 +402,8 @@ describe('ResumeEditor — all sections always visible', () => {
     expect(screen.getByRole('heading', { name: /^education$/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /^skills$/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /^ats score$/i })).toBeInTheDocument()
-  })
-
-  it('renders the summary textarea before any tab is clicked', () => {
-    renderEditor()
     expect(screen.getByPlaceholderText(/brief professional summary/i)).toBeInTheDocument()
-  })
-
-  it('renders the ATS job description textarea before ATS nav is clicked', () => {
-    renderEditor()
     expect(screen.getByPlaceholderText('Paste the job description here…')).toBeInTheDocument()
-  })
-
-  it('renders Add Experience, Add Education, Add Category buttons on initial render', () => {
-    renderEditor()
     expect(screen.getByRole('button', { name: /add experience/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add education/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add category/i })).toBeInTheDocument()
@@ -771,96 +732,34 @@ describe('ResumeEditor — guest banner', () => {
 // The center panel gets lg:hidden when collapsed + transition-all duration-200.
 
 describe('ResumeEditor — center panel collapse toggle', () => {
-  it('renders the collapse toggle button with "Minimize editor" title by default', () => {
-    renderEditor()
-    expect(screen.getByTitle('Minimize editor')).toBeInTheDocument()
-  })
-
-  it('changes the toggle title to "Show editor" after clicking once', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    const toggleBtn = screen.getByTitle('Minimize editor')
-    await user.click(toggleBtn)
-
-    expect(screen.getByTitle('Show editor')).toBeInTheDocument()
-    expect(screen.queryByTitle('Minimize editor')).not.toBeInTheDocument()
-  })
-
-  it('restores the "Minimize editor" title after clicking the toggle a second time', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    const toggleBtn = screen.getByTitle('Minimize editor')
-    await user.click(toggleBtn)
-    await user.click(screen.getByTitle('Show editor'))
-
-    expect(screen.getByTitle('Minimize editor')).toBeInTheDocument()
-    expect(screen.queryByTitle('Show editor')).not.toBeInTheDocument()
-  })
-
-  it('collapse button has p-1.5 padding class', () => {
+  it('renders in-flow toggle button with "Minimize editor" title, shrink-0 and p-1.5 classes, no absolute positioning', () => {
     renderEditor()
     const collapseBtn = screen.getByTitle('Minimize editor')
+    expect(collapseBtn).toBeInTheDocument()
+    expect(collapseBtn.className).toContain('shrink-0')
     expect(collapseBtn.className).toContain('p-1.5')
-  })
-
-  it('re-open button has p-1.5 padding class', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    await user.click(screen.getByTitle('Minimize editor'))
-
-    const expandBtn = screen.getByTitle('Show editor')
-    expect(expandBtn.className).toContain('p-1.5')
-  })
-
-  it('toggle button is in-flow inside the preview header — no absolute positioning', () => {
-    renderEditor()
-    const collapseBtn = screen.getByTitle('Minimize editor')
-    // The button lives in the preview panel header, never absolutely positioned
     expect(collapseBtn.className).not.toContain('absolute')
     expect(collapseBtn.className).not.toContain('top-2')
     expect(collapseBtn.className).not.toContain('left-2')
-    expect(collapseBtn.className).toContain('shrink-0')
-    expect(collapseBtn.className).toContain('p-1.5')
-  })
-
-  it('single toggle button: same element, title changes between expand and collapse', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    // Expanded: title is "Minimize editor", button is in preview header (shrink-0, no absolute)
-    const collapseBtn = screen.getByTitle('Minimize editor')
-    expect(collapseBtn.className).not.toContain('absolute')
-    expect(collapseBtn.className).toContain('shrink-0')
-    expect(collapseBtn.className).toContain('p-1.5')
-
-    await user.click(collapseBtn)
-
-    // Collapsed: same structural position, title changes to "Show editor"
-    const expandBtn = screen.getByTitle('Show editor')
-    expect(expandBtn.className).not.toContain('absolute')
-    expect(expandBtn.className).toContain('shrink-0')
-    expect(expandBtn.className).toContain('p-1.5')
-  })
-
-  it('toggle button always remains in the DOM — title is "Minimize editor" when expanded', () => {
-    renderEditor()
-    // On initial render the panel is expanded — single toggle button with "Minimize editor" title
-    expect(screen.getByTitle('Minimize editor')).toBeInTheDocument()
     expect(screen.queryByTitle('Show editor')).not.toBeInTheDocument()
   })
 
-  it('toggle button always remains in the DOM — title is "Show editor" when collapsed', async () => {
+  it('changes title to "Show editor" after clicking, then back to "Minimize editor" on second click', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByTitle('Minimize editor'))
 
-    // After collapsing, the single toggle button title changes to "Show editor"
-    expect(screen.getByTitle('Show editor')).toBeInTheDocument()
+    const expandBtn = screen.getByTitle('Show editor')
+    expect(expandBtn).toBeInTheDocument()
+    expect(expandBtn.className).toContain('shrink-0')
+    expect(expandBtn.className).toContain('p-1.5')
     expect(screen.queryByTitle('Minimize editor')).not.toBeInTheDocument()
+
+    await user.click(expandBtn)
+
+    expect(screen.getByTitle('Minimize editor')).toBeInTheDocument()
+    expect(screen.queryByTitle('Show editor')).not.toBeInTheDocument()
   })
 })
 
@@ -868,17 +767,11 @@ describe('ResumeEditor — center panel collapse toggle', () => {
 // The scrollable form area inside the center panel uses p-4 lg:p-6 padding.
 
 describe('ResumeEditor — center panel content area padding', () => {
-  it('scrollable form area has the p-4 padding class', () => {
+  it('scrollable form area has the p-4 and lg:p-6 responsive padding classes', () => {
     const { container } = renderEditor()
     // Find the scrollable div that wraps all sections (overflow-y-auto p-4 lg:p-6).
-    const scrollArea = container.querySelector('.overflow-y-auto.p-4')
-    expect(scrollArea).not.toBeNull()
-  })
-
-  it('scrollable form area has the lg:p-6 responsive padding class', () => {
-    const { container } = renderEditor()
-    const scrollArea = container.querySelector('.lg\\:p-6')
-    expect(scrollArea).not.toBeNull()
+    expect(container.querySelector('.overflow-y-auto.p-4')).not.toBeNull()
+    expect(container.querySelector('.lg\\:p-6')).not.toBeNull()
   })
 })
 

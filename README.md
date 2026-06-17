@@ -17,19 +17,19 @@
 - **Cover Letter Generator** — generates personalized cover letters with tone options
 - **Industry Detection** — auto-detects Tech/Finance/Creative/Healthcare/General
 - **Live Preview** — 5 style presets with real-time switching
-- **ATS Keyword Scoring** — paste a job description in the editor's "ATS Score" tab to get a 0-100 keyword-match score, matched/missing keyword chips, and AI suggestions for closing gaps; scores can also be run and tracked per-resume from the Dashboard's "ATS Score" tab
-- **AI Usage Tracking** — every parse/enrich/tailor/cover-letter/ATS-score call is logged (`ai_usage_log`), surfaced on the new `/ai` page as total calls, calls this month, and a breakdown by action type
+- **ATS Keyword Scoring** — 0-100 keyword-match score with matched/missing chips and AI suggestions; tracked per-resume on the Dashboard
+- **AI Usage Tracking** — every AI call logged to `ai_usage_log`; surfaced on `/ai` as total calls, monthly count, and action breakdown
 
 ### Auth & Storage
-- **Sign in with Google** — OAuth sign-in via Supabase (`signInWithOAuth`), available as a "Continue with Google" option in the auth modal alongside email/password and guest sign-in; failed redirects show a toast error and reopen the auth modal to retry
-- **Email/Password Auth** — Supabase Auth with email verification; signup clearly errors if the email is already registered (instead of a false "check your email" message), and verification/resend emails link back to the correct app origin via `emailRedirectTo`
-- **Unverified Session Guard** — non-anonymous sessions without a confirmed email are automatically signed out (on load and on auth state change) with a toast prompting the user to verify their email; guest/anonymous sessions are never affected
-- **Email Verification Banner** — dismissible global banner prompts unverified users to confirm their email, with a "Resend email" action (60s cooldown)
+- **Sign in with Google** — OAuth via Supabase; failed redirects show a toast and reopen the auth modal
+- **Email/Password Auth** — Supabase Auth with email verification; duplicate-email signup surfaces a clear error
+- **Unverified Session Guard** — sessions without a confirmed email are auto-signed out with a verification prompt
+- **Email Verification Banner** — dismissible global banner with a "Resend email" action (60s cooldown)
 - **Guest Mode** — anonymous sessions, try before signing up
 - **Auth Modal** — blurred-background overlay, auto-shows after 10s
 - **Save Resumes** — unlimited versions per user
 - **Save Cover Letters** — linked to source resume
-- **Dashboard** — stats bar (Resumes, Cover Letters, Avg ATS Score, AI Calls This Month) above a tabbed Resumes / Cover Letters / ATS Score view, each with grid view and edit/export/delete
+- **Dashboard** — stats bar + tabbed Resumes / Cover Letters / ATS Score view with grid, edit, export, and delete
 
 ### Export
 - **PDF Export** — ReportLab with industry-matched styling
@@ -46,30 +46,30 @@
 - **Progress Hints** — rotating messages during AI processing
 - **Resizable Panels** — drag AI output panel to any size
 - **Error Pages** — custom 404/500 with ErrorBoundary
-- **Enrich with AI — Review & Compare** — clicking "Enrich with AI" shows a loading overlay (blurred preview + simulated progress bar from 0→82% with a "XX% complete" label + cycling status messages) fixed to the right-panel viewport so it stays visible while scrolling, then opens a side-by-side **Split View** or **Unified View** comparison of the original vs. AI-enriched resume with diff highlights, so you can **Accept** to apply the changes or **Discard** to keep the original; the "View Suggestions" button turns into a red **Cancel** button during loading so the stream can be aborted mid-flight
-- **Persistent Account Sidebar** — Profile, Dashboard, AI, and Settings share a route-aware `AccountSidebar` (Notion/Linear/Vercel-dashboard style) for switching between account pages without reopening the navbar menu; vertical sticky sidebar on desktop, horizontal scrollable tab bar on mobile, with the active page highlighted; the "Dashboard" tab is hidden for guest/signed-out users since the Dashboard page redirects them to `/`
-- **Navbar Desktop Links** — center nav bar on desktop (h-16) with dropdown panel links for Features, How It Works, Examples, Pricing, and Blog; clicking each link opens an interactive dropdown panel (Features shows a 2×2 grid, How It Works shows a 3-step flow, Pricing shows Free vs Pro plan cards, Examples and Blog show coming-soon cards); logo displays an "R" text mark instead of a document icon
-- **Three-State Navbar Auth Area** — the navbar auth zone has three distinct states: (1) truly unauthenticated users see a single "Get Started Free" button; (2) guest (anonymous session) users see a "Guest" avatar dropdown with links to Profile, AI, Settings, and Sign In; (3) signed-in authenticated users see the full avatar dropdown with their display name and avatar
-- **Landing Page Hero Redesign** — two-column hero layout: left column has a badge, headline, feature checklist, primary/secondary CTAs ("Enhance My Resume" and "See Example"), and social proof; the "Enhance My Resume" CTA routes by auth state — signed-in (non-guest) users go to `/dashboard`, guest (anonymous session) users see an upload modal pop-up (same `ResumeUploader` modal as Dashboard) so they can upload a resume and land in the Editor, and unauthenticated users see the auth modal; the "See Example" button is currently disabled (placeholder for future functionality); right column shows a full resume mock card with Summary, Experience (with bullet points), and Education sections; a trust bar with company logos is rendered as a distinct white rounded card below the hero; background is a light periwinkle (#EEF2FF); expandable feature chips removed
-- **Resume Editor Redesign** — modern 3-column layout with a custom header bar showing a 4-step progress stepper (Edit → AI Enhance → Preview & Customize → Download) and one-click action buttons for Tailor, Cover Letter, Preview, and Download; left sidebar provides icon-based section navigation (Contact, Summary, Experience, Education, Skills, ATS Score) with per-section completion checkmarks and an AI Suggestions panel; center column offers section-based scrollable forms with a rich text toolbar for the Summary field and card-style entries for Experience, Education, and Skills; right panel exposes a template dropdown, color style pickers, and a live preview with zoom transform; a bottom status bar provides Undo/Redo/Upload/zoom controls alongside Save and Next Step buttons; a collapse/minimize toggle between the center and right panels lets users hide the editor form and give full width to the live resume preview
+- **Enrich with AI — Review & Compare** — loading overlay with progress bar, then split/unified diff view; accept or discard changes; cancel stream mid-flight
+- **Persistent Account Sidebar** — route-aware sidebar for Dashboard, Profile, AI, and Settings; collapses to a horizontal tab bar on mobile
+- **Navbar Desktop Links** — center nav with interactive dropdown panels for Features, How It Works, Pricing, Examples, and Blog
+- **Three-State Navbar Auth Area** — unauthenticated shows "Get Started Free"; guest shows avatar dropdown with Sign In; signed-in shows full avatar with display name
+- **Landing Page Hero Redesign** — two-column hero with badge, headline, feature checklist, and auth-aware CTAs; resume mock card on the right; trust bar below
+- **Resume Editor Redesign** — 3-column layout with 4-step stepper, icon-based section nav, rich-text form, live preview panel, and collapse toggle
 
 ### Profile (`/profile`)
-- **Account** — edit display name and upload an avatar (Supabase Storage `avatars` bucket); email is read-only, with a Verified / Not Verified status pill and resend-verification action
-- **Personal Info** — phone, address, and current/target job title, persisted to a new `profiles` table
-- **Work Experience** — repeatable company/title/dates/bullets entries, persisted to `profiles.experience` (JSONB); this data is intended to seed/generate a resume from scratch
-- **Live Navbar Sync** — avatar and display name in the navbar update immediately after a profile edit
+- **Account** — edit display name and upload an avatar; email is read-only with a Verified/Not Verified pill and resend action
+- **Personal Info** — phone, address, and current/target job title, persisted to `profiles`
+- **Work Experience** — repeatable entries (company/title/dates/bullets) saved to `profiles.experience` (JSONB) to seed future resume generation
+- **Live Navbar Sync** — avatar and display name update immediately after a profile edit
 
 ### AI (`/ai`)
-- **AI Preferences** — tone, writing style, target industry, job level, and ATS mode, persisted to `user_preferences` and used to steer enrichment/tailoring/cover-letter prompts
+- **AI Preferences** — tone, writing style, industry, job level, and ATS mode persisted to `user_preferences` and applied to all AI prompts
 - **Models** — read-only info card showing which Claude model powers parsing (Haiku 4.5) vs. enrichment/tailoring/cover letters/ATS scoring (Sonnet 4.6)
 - **AI Usage** — total AI calls, calls this month, breakdown by action type, and recent activity, backed by `ai_usage_log`
 
 ### Settings & Personalization
-- **Settings Page** (`/settings`) — Change Password, Appearance, Notifications, and Danger Zone sections shown stacked on a single page; unsaved Notifications changes prompt before leaving
+- **Settings Page** (`/settings`) — Change Password, Appearance, Notifications, and Danger Zone on a single page; unsaved changes prompt before leaving
 - **Change Password** — re-authenticates first, then updates the account password
-- **Appearance** — Light / Dark / System theme via `next-themes`
-- **Notifications** — toggles for "Export Complete" emails and "Product Updates" emails, persisted to `user_preferences`
-- **Danger Zone** — permanently delete account + all data via a `DELETE`-to-confirm modal; on success the modal closes, a confirmation toast appears, and the user is redirected to the home page
+- **Appearance** — Light / Dark / System theme toggle
+- **Notifications** — email toggles for "Export Complete" and "Product Updates", persisted to `user_preferences`
+- **Danger Zone** — permanently delete account and all data via a type-to-confirm modal
 
 ---
 

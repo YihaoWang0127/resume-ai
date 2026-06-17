@@ -46,57 +46,21 @@ const mockResume: ResumeSchema = {
 }
 
 describe('ResumePreview — content rendering', () => {
-  it('renders the candidate name', () => {
+  it('renders all resume content correctly', () => {
     render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText('Jane Smith')).toBeInTheDocument()
-  })
-
-  it('renders the summary', () => {
-    render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText(/Experienced software engineer/)).toBeInTheDocument()
-  })
-
-  it('renders experience company names', () => {
-    render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText('Google')).toBeInTheDocument()
     expect(screen.getByText('Stripe')).toBeInTheDocument()
-  })
-
-  it('renders job titles', () => {
-    render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText('Senior Software Engineer')).toBeInTheDocument()
     expect(screen.getByText('Software Engineer')).toBeInTheDocument()
-  })
-
-  it('renders bullet points', () => {
-    render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText('Led team of 5 engineers')).toBeInTheDocument()
     expect(screen.getByText('Reduced latency by 40%')).toBeInTheDocument()
-  })
-
-  it('renders education institution', () => {
-    render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText('MIT')).toBeInTheDocument()
-  })
-
-  it('renders skill categories', () => {
-    render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText(/Languages:/)).toBeInTheDocument()
     expect(screen.getByText(/Frameworks:/)).toBeInTheDocument()
-  })
-
-  it('renders skill items', () => {
-    render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText(/Python, Go, TypeScript/)).toBeInTheDocument()
-  })
-
-  it('renders contact info', () => {
-    render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText(/jane@example\.com/)).toBeInTheDocument()
-  })
-
-  it('shows "Present" for current positions', () => {
-    render(<ResumePreview resume={mockResume} />)
     expect(screen.getByText(/Present/)).toBeInTheDocument()
   })
 })
@@ -145,7 +109,10 @@ describe('ResumePreview — style switcher', () => {
     expect(screen.queryByText(/AI detected/i)).not.toBeInTheDocument()
   })
 
-  it('calls onIndustryChange with the clicked industry id', async () => {
+  it.each([
+    ['Finance', 'finance'],
+    ['Tech', 'tech'],
+  ])('calls onIndustryChange with "%s" when %s pill is clicked', async (label, expectedValue) => {
     const onChange = vi.fn()
     render(
       <ResumePreview
@@ -154,23 +121,8 @@ describe('ResumePreview — style switcher', () => {
         onIndustryChange={onChange}
       />,
     )
-
-    await userEvent.click(screen.getByText('Finance'))
-    expect(onChange).toHaveBeenCalledWith('finance')
-  })
-
-  it('calls onIndustryChange with "tech" when Tech pill is clicked', async () => {
-    const onChange = vi.fn()
-    render(
-      <ResumePreview
-        resume={mockResume}
-        industry="general"
-        onIndustryChange={onChange}
-      />,
-    )
-
-    await userEvent.click(screen.getByText('Tech'))
-    expect(onChange).toHaveBeenCalledWith('tech')
+    await userEvent.click(screen.getByText(label))
+    expect(onChange).toHaveBeenCalledWith(expectedValue)
   })
 
   it('renders "Style:" label', () => {

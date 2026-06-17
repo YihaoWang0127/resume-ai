@@ -20,18 +20,10 @@ function renderNotFound() {
 }
 
 describe('NotFound', () => {
-  it('test_renders_404_text', () => {
+  it('renders 404 page with heading, subtitle, and back button', () => {
     renderNotFound()
     expect(screen.getByText('404')).toBeInTheDocument()
-  })
-
-  it('test_renders_page_not_found_subtitle', () => {
-    renderNotFound()
     expect(screen.getByText('Page Not Found')).toBeInTheDocument()
-  })
-
-  it('test_renders_back_to_home_button', () => {
-    renderNotFound()
     expect(screen.getByRole('button', { name: /back to home/i })).toBeInTheDocument()
   })
 

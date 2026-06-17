@@ -61,73 +61,32 @@ function renderHome() {
 // ── Hero section ──────────────────────────────────────────────────────────────
 
 describe('Home — hero section', () => {
-  it('renders the AI-Powered badge', () => {
+  it('renders badge, headline, subtitle, checklist items, and CTA buttons', () => {
     renderHome()
     expect(screen.getByText('AI-Powered Resume Enhancement')).toBeInTheDocument()
-  })
-
-  it('renders the two-part headline', () => {
-    renderHome()
     expect(screen.getByText('Your Resume.')).toBeInTheDocument()
     expect(screen.getByText('Enhanced by AI.')).toBeInTheDocument()
-  })
-
-  it('renders the subtitle text', () => {
-    renderHome()
-    expect(
-      screen.getByText(/Improve your resume, stand out to recruiters/i)
-    ).toBeInTheDocument()
-  })
-
-  it('renders all four checklist items', () => {
-    renderHome()
+    expect(screen.getByText(/Improve your resume, stand out to recruiters/i)).toBeInTheDocument()
     expect(screen.getByText('AI Content Enhancement')).toBeInTheDocument()
     expect(screen.getByText('ATS Optimization')).toBeInTheDocument()
     expect(screen.getByText('Smart Suggestions')).toBeInTheDocument()
     expect(screen.getByText('HR-Approved Templates')).toBeInTheDocument()
-  })
-
-  it('renders the "Enhance My Resume" CTA button', () => {
-    renderHome()
     expect(screen.getByRole('button', { name: /Enhance My Resume/i })).toBeInTheDocument()
-  })
-
-  it('renders the "See Example" CTA button', () => {
-    renderHome()
     expect(screen.getByRole('button', { name: /See Example/i })).toBeInTheDocument()
   })
 })
 
-// ── Social proof ──────────────────────────────────────────────────────────────
+// ── Social proof & trust bar ──────────────────────────────────────────────────
 
-describe('Home — social proof', () => {
-  it('renders the "Loved by 20,000+ job seekers" line', () => {
+describe('Home — social proof and trust bar', () => {
+  it('renders social proof text, avatar initials, and all company names', () => {
     renderHome()
     expect(screen.getByText(/Loved by 20,000\+ job seekers/i)).toBeInTheDocument()
-  })
-
-  it('renders avatar initials JK, SM, AR', () => {
-    renderHome()
     expect(screen.getByText('JK')).toBeInTheDocument()
     expect(screen.getByText('SM')).toBeInTheDocument()
     expect(screen.getByText('AR')).toBeInTheDocument()
-  })
-})
-
-// ── Trust bar ─────────────────────────────────────────────────────────────────
-
-describe('Home — trust bar', () => {
-  it('renders the trusted companies tagline', () => {
-    renderHome()
-    expect(
-      screen.getByText(/Trusted by professionals from top companies/i)
-    ).toBeInTheDocument()
-  })
-
-  it('renders all company names', () => {
-    renderHome()
-    const companies = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb', 'Stripe']
-    for (const name of companies) {
+    expect(screen.getByText(/Trusted by professionals from top companies/i)).toBeInTheDocument()
+    for (const name of ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb', 'Stripe']) {
       expect(screen.getByText(name)).toBeInTheDocument()
     }
   })
@@ -136,38 +95,14 @@ describe('Home — trust bar', () => {
 // ── Resume preview card ───────────────────────────────────────────────────────
 
 describe('Home — resume preview card', () => {
-  it('renders the Preview tab in the top bar', () => {
+  it('renders the top bar tabs and resume content sections', () => {
     renderHome()
     expect(screen.getByText('Preview')).toBeInTheDocument()
-  })
-
-  it('renders the Suggestions tab in the top bar', () => {
-    renderHome()
     expect(screen.getByText('Suggestions')).toBeInTheDocument()
-  })
-
-  it('renders the Download tab in the top bar', () => {
-    renderHome()
     expect(screen.getByText('Download')).toBeInTheDocument()
-  })
-
-  it('renders the ATS Score label in the AI Suggestions panel', () => {
-    renderHome()
     expect(screen.getByText(/ATS Score/i)).toBeInTheDocument()
-  })
-
-  it('renders the Professional Summary section in the resume content', () => {
-    renderHome()
     expect(screen.getByText('Professional Summary')).toBeInTheDocument()
-  })
-
-  it('renders the Experience section in the resume content', () => {
-    renderHome()
     expect(screen.getByText('Experience')).toBeInTheDocument()
-  })
-
-  it('renders the Education section in the resume content', () => {
-    renderHome()
     expect(screen.getByText('Education')).toBeInTheDocument()
   })
 })
@@ -245,18 +180,6 @@ describe('Home — "Enhance My Resume" button (authenticated)', () => {
 // ── Guest upload modal ────────────────────────────────────────────────────────
 
 describe('Home — guest upload modal', () => {
-  it('upload modal is NOT visible by default when isGuest is true', () => {
-    setupAuth({
-      user: { id: 'anon1', is_anonymous: true } as any,
-      isGuest: true,
-      loading: false,
-    })
-    renderHome()
-
-    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
-    expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
-  })
-
   it('upload modal appears after clicking Enhance when isGuest is true', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
@@ -295,22 +218,12 @@ describe('Home — guest upload modal', () => {
     expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
   })
 
-  it('upload modal is NOT visible for a real authenticated user (no Enhance click)', () => {
-    setupAuth({
-      user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
-      isGuest: false,
-      loading: false,
-    })
+  it.each([
+    ['authenticated user', { user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any, isGuest: false, loading: false }],
+    ['no session', { user: null, isGuest: false, loading: false }],
+  ])('upload modal is NOT visible for %s without clicking Enhance', (_label, auth) => {
+    setupAuth(auth)
     renderHome()
-
-    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
-    expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
-  })
-
-  it('upload modal is NOT visible when user is null (no session)', () => {
-    setupAuth({ user: null, isGuest: false, loading: false })
-    renderHome()
-
     expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
     expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
   })
@@ -319,21 +232,11 @@ describe('Home — guest upload modal', () => {
 // ── "See Example" button ──────────────────────────────────────────────────────
 
 describe('Home — "See Example" button (disabled)', () => {
-  it('is rendered as a disabled button', () => {
+  it('is rendered as a disabled button with cursor-not-allowed and opacity-50 classes', () => {
     renderHome()
     const btn = screen.getByRole('button', { name: /See Example/i })
     expect(btn).toBeDisabled()
-  })
-
-  it('has the cursor-not-allowed style class', () => {
-    renderHome()
-    const btn = screen.getByRole('button', { name: /See Example/i })
     expect(btn.className).toContain('cursor-not-allowed')
-  })
-
-  it('has the opacity-50 style class', () => {
-    renderHome()
-    const btn = screen.getByRole('button', { name: /See Example/i })
     expect(btn.className).toContain('opacity-50')
   })
 
