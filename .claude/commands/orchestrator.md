@@ -140,6 +140,54 @@ Dispatch pr-agent last. Pass it:
 
 If skipped, clearly state why and what must happen next.
 
+### Step 6.5 — CI Fix Loop
+
+After pr-agent reports a PR URL, monitor CI and auto-fix any failures. Cap at **3 fix attempts total**.
+
+**Poll:** Run `gh pr checks <PR_URL>` every 60 s until all checks finish or 10 minutes have elapsed.
+- All passing → proceed to Step 7.
+- Timed out (still pending after 10 min) → report timeout in Step 7 and stop.
+- Any failing → run the fix flow below.
+
+**Fix flow (repeat up to 3 times total):**
+
+1. Fetch the failure log:
+   ```
+   RUN_ID=$(gh run list --branch <branch> --limit 1 --json databaseId -q '.[0].databaseId')
+   gh run view "$RUN_ID" --log-failed
+   ```
+
+2. Classify and route — pass the full error log in `## Current Task` so the agent has exact context:
+
+   | CI failure | Route to |
+   |---|---|
+   | TypeScript error (`tsc --noEmit`) | qa-agent |
+   | Frontend build error (`npm run build`) | qa-agent |
+   | Frontend test failure (`npm test`) | test-enricher-agent |
+   | Backend pytest failure | backend-agent |
+   | Backend import / syntax error | qa-agent |
+
+3. After the fix agent reports done, **locally verify** the specific check before pushing:
+   - TypeScript / build: `cd frontend && npx tsc --noEmit && npm run build`
+   - Frontend tests: `cd frontend && npm test -- --run`
+   - Backend tests: `cd backend && source venv/bin/activate && pytest -v`
+   - If local verification fails, go back to the fix agent with the new error output (counts as one attempt).
+
+4. Stage only the fix files, commit on the **current PR branch** (do NOT create a new branch), push:
+   ```
+   git add <changed files only>
+   git commit -m "fix: resolve CI <job-name> failure"
+   git push
+   ```
+
+5. Return to the polling step. After 3 push→re-check cycles without all checks passing, stop and
+   report remaining failures to the user — do not loop further.
+
+**Important:** when routing a test failure (frontend or backend), explicitly tell the fix agent:
+"The CI check `<job-name>` failed with this output: `<log>`. Fix the failing tests so they pass.
+Do NOT delete or skip tests — fix the underlying issue. After fixing, run `<test command>` locally
+to confirm they pass before reporting done."
+
 ### Step 7 — Report
 
 One consolidated summary:
@@ -150,6 +198,7 @@ One consolidated summary:
 - qa-agent: TypeScript/build/import status.
 - Local verification: what was tested, automated vs. user-confirmed, result.
 - pr-agent: branch name and PR URL (or why skipped).
+- CI fix loop: all checks passed / N failures auto-fixed (list what) / still failing after 3 attempts (list remaining).
 - Any unresolved follow-ups.
 
 ## Rules
