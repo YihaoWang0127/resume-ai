@@ -124,9 +124,9 @@ describe('ResumeEditor — save button', () => {
     expect(screen.queryByRole('heading', { name: /save resume/i })).not.toBeInTheDocument()
   })
 
-  it('shows Update button instead of Save when initialResumeId is provided', () => {
+  it('shows both Save (autosave toggle) and Update buttons when initialResumeId is provided', () => {
     renderEditor({ initialResumeId: 'existing-id' })
-    expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^update$/i })).toBeInTheDocument()
   })
 })

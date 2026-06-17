@@ -352,10 +352,10 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+                    <div className="flex gap-2 mt-4 pt-3 border-t border-border w-full">
                       <button
                         onClick={() => handleEdit(r)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 min-h-[44px] min-w-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
                       >
                         <Edit className="size-3.5" />
                         Edit
@@ -364,7 +364,7 @@ export default function Dashboard() {
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setExportOpenId(exportOpenId === r.id ? null : r.id)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 min-h-[44px] min-w-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                          className="w-full flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
                         >
                           <Download className="size-3.5" />
                           Export
@@ -395,7 +395,7 @@ export default function Dashboard() {
 
                       <button
                         onClick={() => setDeleteTarget(r)}
-                        className="flex items-center justify-center px-3 py-2 min-h-[44px] min-w-[44px] text-red-500 border border-red-500/40 hover:bg-red-500/10 rounded transition-colors"
+                        className="w-11 min-h-[44px] flex items-center justify-center text-red-500 border border-red-500/40 hover:bg-red-500/10 rounded transition-colors shrink-0"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -464,10 +464,10 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+                    <div className="flex gap-2 mt-4 pt-3 border-t border-border w-full">
                       <button
                         onClick={() => handleClEdit(cl)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 min-h-[44px] min-w-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
                       >
                         <Edit className="size-3.5" />
                         Edit
@@ -476,7 +476,7 @@ export default function Dashboard() {
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setClExportOpenId(clExportOpenId === cl.id ? null : cl.id)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 min-h-[44px] min-w-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                          className="w-full flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
                         >
                           <Download className="size-3.5" />
                           Export
@@ -502,7 +502,7 @@ export default function Dashboard() {
 
                       <button
                         onClick={() => setClDeleteTarget(cl)}
-                        className="flex items-center justify-center px-3 py-2 min-h-[44px] min-w-[44px] text-red-500 border border-red-500/40 hover:bg-red-500/10 rounded transition-colors"
+                        className="w-11 min-h-[44px] flex items-center justify-center text-red-500 border border-red-500/40 hover:bg-red-500/10 rounded transition-colors shrink-0"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
