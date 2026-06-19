@@ -9,7 +9,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 import { supabase } from '@/lib/supabase'
-import { saveResume, updateResume, listResumes, getResume, deleteResume, updateAtsScore } from '@/services/resumes'
+import { saveResume, updateResume, listResumes, getResume, deleteResume, updateAtsScore, clearResumesCache } from '@/services/resumes'
 
 const mockFrom = vi.mocked(supabase.from)
 const mockGetUser = vi.mocked(supabase.auth.getUser)
@@ -35,7 +35,10 @@ const savedRecord = {
   updated_at: '2024-01-02T00:00:00Z',
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  clearResumesCache()
+})
 
 // Helper: build the standard update chain returning savedRecord
 function setupUpdateChain(resolvedData: unknown = savedRecord) {

@@ -8,7 +8,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 import { supabase } from '@/lib/supabase'
-import { getPreferences, upsertPreferences } from '@/services/preferences'
+import { getPreferences, upsertPreferences, clearPreferencesCache } from '@/services/preferences'
 import { DEFAULT_PREFERENCES } from '@/types/preferences'
 import type { UserPreferences } from '@/types/preferences'
 
@@ -29,7 +29,10 @@ const savedPrefs: UserPreferences = {
   updated_at: '2026-01-01T00:00:00Z',
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  clearPreferencesCache()
+})
 
 // ── getPreferences ───────────────────────────────────────────────────────────
 
