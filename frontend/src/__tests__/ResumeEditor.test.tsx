@@ -427,7 +427,7 @@ describe('ResumeEditor — all sections always visible', () => {
     expect(screen.getByPlaceholderText('Paste the job description here…')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add experience/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add education/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /add category/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add skills/i })).toBeInTheDocument()
   })
 })
 
@@ -824,7 +824,7 @@ describe('ResumeEditor — sidebar section completion (getSectionComplete)', () 
     const skillsBtns = screen.getAllByRole('button', { name: /^skills$/i })
     await user.click(skillsBtns[0])
 
-    expect(screen.getByRole('button', { name: /add category/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add skills/i })).toBeInTheDocument()
   })
 
   it('wordCount shows 0 when summary is empty', () => {
