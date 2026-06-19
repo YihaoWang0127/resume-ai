@@ -153,7 +153,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [saveToast, setSaveToast] = useState<{ text: string; ok: boolean } | null>(null)
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(initialResumeId ?? null)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
-  const [coverLetterOpen, setCoverLetterOpen] = useState(false)
   const [clCompany, setClCompany] = useState('')
   const [clJobDesc, setClJobDesc] = useState('')
   const [clTone, setClTone] = useState<CoverLetterTone>('professional')
@@ -979,15 +978,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCoverLetterOpen(true)}
-                className="flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
-              >
-                <Mail className="size-3.5" />
-                Generate Cover Letter
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={() => handleExport('pdf')}
                 disabled={isExporting}
                 className="flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
@@ -1085,31 +1075,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </button>
               </nav>
 
-              <div className="mx-4 mt-1 mb-0 h-px bg-border" />
-
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-3 pb-2">
-                Review Tools
-              </p>
-              <nav>
-                {REVIEW_TOOL_DEFS.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => scrollToSection(s.id)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors border-l-2',
-                      tab === s.id
-                        ? 'bg-primary/[0.08] text-primary border-primary'
-                        : 'text-foreground hover:bg-secondary/40 border-transparent',
-                    )}
-                  >
-                    <s.Icon className="size-4 shrink-0" />
-                    <span className="flex-1 font-medium">{s.label}</span>
-                    {s.id === 'ats' && atsResult ? (
-                      <span className="ml-auto text-[10px] font-bold text-primary tabular-nums">{atsResult.overallScore}</span>
-                    ) : null}
-                  </button>
-                ))}
-              </nav>
             </>
           )}
         </aside>
@@ -1658,88 +1623,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </div>
               ))}
               <button onClick={addSkillGroup} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-                <Plus className="size-4" /> Add Category
+                <Plus className="size-4" /> Add Skills
               </button>
             </div>
 
-            {/* ── ATS SCORE ── */}
-            <div ref={(el) => { sectionRefs.current.ats = el }} className="space-y-4">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">ATS Score</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">Analyze your resume against a job description.</p>
-              </div>
-              <div className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
-                <label className="block text-xs font-medium text-muted-foreground">Job Description</label>
-                <textarea className={cn(field, 'min-h-32 resize-none')} placeholder="Paste the job description here…" value={atsJobDesc} onChange={(e) => setAtsJobDesc(e.target.value)} />
-                <Button size="sm" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsLoading} className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90">
-                  {atsLoading ? <Loader2 className="size-3.5 animate-spin mr-2" /> : <Sparkles className="size-3.5 mr-2" />}
-                  Analyze ATS Score
-                </Button>
-              </div>
-              {atsError && <p className="text-xs text-destructive px-1">{atsError}</p>}
-              {atsResult && (
-                <div className="bg-background rounded-xl border border-border p-4 space-y-4 shadow-sm">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className={cn('text-4xl font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>{atsResult.overallScore}</span>
-                    <span className="text-sm text-muted-foreground">/ 100</span>
-                  </div>
-                  {atsResult.summary && <p className="text-sm text-muted-foreground">{atsResult.summary}</p>}
-                  {atsResult.matchedKeywords.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Matched Keywords</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {atsResult.matchedKeywords.map((kw, i) => <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-primary/40 text-primary bg-primary/10">{kw}</span>)}
-                      </div>
-                    </div>
-                  )}
-                  {atsResult.missingKeywords.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Missing Keywords</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {atsResult.missingKeywords.map((kw, i) => <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-destructive/40 text-destructive bg-destructive/10">{kw}</span>)}
-                      </div>
-                    </div>
-                  )}
-                  {atsResult.suggestions.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suggestions</p>
-                      <ul className="space-y-1.5">
-                        {atsResult.suggestions.map((s, i) => (
-                          <li key={i} className="flex gap-2 items-start">
-                            <span className="text-primary text-xs mt-0.5 shrink-0">•</span>
-                            <span className="text-sm text-foreground">{s}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-              {/* ATS result status */}
-              {atsResult && (
-                <div className="space-y-2">
-                  {isAtsStale && (
-                    <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                      <span className="text-xs text-amber-700 dark:text-amber-400">Outdated — resume changed since last check.</span>
-                      <button
-                        type="button"
-                        onClick={handleAnalyzeATS}
-                        disabled={!atsJobDesc.trim() || atsLoading}
-                        className="shrink-0 text-xs font-bold text-primary hover:underline disabled:opacity-50"
-                      >
-                        Run again
-                      </button>
-                    </div>
-                  )}
-                  {!isAtsStale && atsResultSaved === false && (
-                    <p className="text-xs text-muted-foreground px-1">ATS result not saved yet. Save your resume to persist it.</p>
-                  )}
-                  {!isAtsStale && atsResultSaved === true && (
-                    <p className="text-xs text-green-600 px-1">&#10003; ATS result saved with this resume.</p>
-                  )}
-                </div>
-              )}
-            </div>
 
           </div>
           </>
@@ -1951,109 +1838,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
         </div>
       </div>
-
-      {/* ── Cover Letter modal ──────────────────────────────────────────────── */}
-      <Modal open={coverLetterOpen}>
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h2
-                  className="text-xl font-bold text-foreground uppercase tracking-wide"
-                >
-                  Generate Cover Letter
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Claude will write a personalized cover letter based on your resume and the job
-                </p>
-              </div>
-              <button
-                onClick={() => setCoverLetterOpen(false)}
-                className="text-muted-foreground hover:text-foreground ml-4 shrink-0 p-1 hover:bg-secondary transition-colors"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            {/* Company Name */}
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
-                Company Name <span className="text-destructive">*</span>
-              </label>
-              <input
-                autoFocus
-                className="w-full border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow"
-                placeholder="e.g. Google, Stripe, Acme Corp"
-                value={clCompany}
-                onChange={(e) => setClCompany(e.target.value)}
-              />
-            </div>
-
-            {/* Job Description */}
-            <div className="mb-5">
-              <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
-                Job Description <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                className="w-full min-h-32 border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
-                placeholder="Paste the job description here..."
-                value={clJobDesc}
-                onChange={(e) => setClJobDesc(e.target.value)}
-              />
-            </div>
-
-            {/* Tone selector */}
-            <div className="mb-6">
-              <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
-                Tone
-              </p>
-              <div className="flex gap-3">
-                {(['professional', 'enthusiastic', 'concise'] as CoverLetterTone[]).map((t) => (
-                  <label
-                    key={t}
-                    className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none uppercase tracking-wide"
-                  >
-                    <input
-                      type="radio"
-                      name="cl-tone"
-                      value={t}
-                      checked={clTone === t}
-                      onChange={() => setClTone(t)}
-                      className="accent-primary"
-                    />
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setCoverLetterOpen(false)}
-                className="px-5 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setCoverLetterOpen(false)
-                  navigate('/cover-letter/new', {
-                    state: {
-                      companyName: clCompany,
-                      jobDescription: clJobDesc,
-                      tone: clTone,
-                      resume,
-                      from: '/editor',
-                    },
-                  })
-                }}
-                disabled={!clCompany.trim() || !clJobDesc.trim()}
-                className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-xs font-bold uppercase tracking-wide transition-colors"
-              >
-                <Mail className="size-4" />
-                Generate
-              </button>
-            </div>
-      </Modal>
 
       {/* ── Tailor modal ─────────────────────────────────────────────────────── */}
       <Modal open={tailorOpen}>
