@@ -197,6 +197,17 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [autosaveOn] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [enrichProgress, setEnrichProgress] = useState(0)
+  // Review & Export step state
+  const [reviewDocTab, setReviewDocTab] = useState<'resume' | 'coverletter' | 'ats'>('resume')
+  const [reviewResumeMode, setReviewResumeMode] = useState<'final' | 'split' | 'unified'>('final')
+  const [reviewClMode, setReviewClMode] = useState<'final' | 'compare'>('final')
+  const [reviewAtsView, setReviewAtsView] = useState<'overview' | 'keywords' | 'suggestions'>('overview')
+  const [reviewFont, setReviewFont] = useState('Inter')
+  const [reviewFontSize, setReviewFontSize] = useState('11pt')
+  const [reviewSpacing, setReviewSpacing] = useState('Normal')
+  const [reviewMargins, setReviewMargins] = useState('Normal')
+  const [primaryExportOpen, setPrimaryExportOpen] = useState(false)
+  const primaryExportRef = useRef<HTMLDivElement>(null)
   const accountMenuRef = useRef<HTMLDivElement>(null)
   const autosaveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const streamReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null)
@@ -219,6 +230,17 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [exportMenuOpen])
+
+  useEffect(() => {
+    if (!primaryExportOpen) return
+    const handler = (e: MouseEvent) => {
+      if (primaryExportRef.current && !primaryExportRef.current.contains(e.target as Node)) {
+        setPrimaryExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [primaryExportOpen])
 
   useEffect(() => {
     if (!accountMenuOpen) return
@@ -891,8 +913,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           {[
             { num: 1, label: 'Edit' },
             { num: 2, label: 'AI Enhance' },
-            { num: 3, label: 'Preview & Customize' },
-            { num: 4, label: 'Download' },
+            { num: 3, label: 'Review & Export' },
           ].map((step, i) => (
             <div key={step.num} className="flex items-center gap-1.5">
               <div className="flex items-center gap-1.5">
@@ -917,7 +938,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   {step.label}
                 </span>
               </div>
-              {i < 3 && <span className="text-muted-foreground/60 text-xs">→</span>}
+              {i < 2 && <span className="text-muted-foreground/60 text-xs">→</span>}
             </div>
           ))}
         </div>
@@ -1056,47 +1077,76 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         )}
         {currentStep === 3 && (
           <>
-            <span className="text-sm font-semibold text-foreground">Preview &amp; Customize</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Template</span>
-              <select
-                data-testid="template-select"
-                className="text-xs border border-border rounded-lg px-2 py-1 bg-background text-foreground outline-none focus:ring-1 focus:ring-primary/50"
-                value={selectedIndustry}
-                onChange={(e) => setSelectedIndustry(e.target.value)}
+            <span className="text-sm font-semibold text-foreground">Review &amp; Export</span>
+            {/* Primary export dropdown */}
+            <div ref={primaryExportRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setPrimaryExportOpen((o) => !o)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors min-h-[36px]"
               >
-                <option value="general">Modern</option>
-                <option value="tech">Tech</option>
-                <option value="finance">Finance</option>
-                <option value="creative">Creative</option>
-                <option value="healthcare">Healthcare</option>
-              </select>
-            </div>
-          </>
-        )}
-        {currentStep === 4 && (
-          <>
-            <span className="text-sm font-semibold text-foreground">Download Resume</span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport('pdf')}
-                disabled={isExporting}
-                className="flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
-              >
-                {isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
-                Download PDF
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleExport('docx')}
-                disabled={isExporting}
-                className="flex items-center gap-1.5 text-xs h-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <FileText className="size-3.5" />
-                Download DOCX
-              </Button>
+                <Download className="size-3.5" />
+                Export
+                <ChevronDown className={cn('size-3.5 transition-transform', primaryExportOpen && 'rotate-180')} />
+              </button>
+              {primaryExportOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-border rounded-lg py-1 min-w-[200px] shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => { setPrimaryExportOpen(false); handleExport('pdf') }}
+                    disabled={isExporting}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left disabled:opacity-50"
+                  >
+                    <FileText className="size-3.5 shrink-0" />
+                    Resume PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPrimaryExportOpen(false); handleExport('docx') }}
+                    disabled={isExporting}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left disabled:opacity-50"
+                  >
+                    <FileText className="size-3.5 shrink-0" />
+                    Resume DOCX
+                  </button>
+                  <div className="h-px bg-border mx-2 my-1" />
+                  <button
+                    type="button"
+                    onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Cover Letter PDF export coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                  >
+                    <Mail className="size-3.5 shrink-0" />
+                    Cover Letter PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Cover Letter DOCX export coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                  >
+                    <Mail className="size-3.5 shrink-0" />
+                    Cover Letter DOCX
+                  </button>
+                  <div className="h-px bg-border mx-2 my-1" />
+                  <button
+                    type="button"
+                    onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'ATS Report PDF coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary/40 transition-colors text-left"
+                  >
+                    <Target className="size-3.5 shrink-0" />
+                    ATS Report PDF
+                    <span className="ml-auto text-[10px] text-muted-foreground/60">Soon</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Application Package ZIP coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary/40 transition-colors text-left"
+                  >
+                    <Download className="size-3.5 shrink-0" />
+                    Application Package ZIP
+                    <span className="ml-auto text-[10px] text-muted-foreground/60">Soon</span>
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -1106,7 +1156,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       <div className="flex flex-1 overflow-hidden">
 
         {/* LEFT SIDEBAR ─────────────────────────────────────────────────────── */}
-        <aside className="hidden lg:flex flex-col shrink-0 border-r border-border bg-background overflow-y-auto" style={{ width: sidebarWidth }}>
+        <aside className="hidden lg:flex flex-col shrink-0 border-r border-border bg-background overflow-y-auto" style={{ width: currentStep === 3 ? 224 : sidebarWidth }}>
           {currentStep === 2 ? (
             /* ── AI TOOL SELECTOR (Step 2 only) ─────────────────────────────── */
             <>
@@ -1139,8 +1189,49 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 ))}
               </nav>
             </>
+          ) : currentStep === 3 ? (
+            /* ── DOCUMENT SELECTOR (Step 3 only) ────────────────────────────── */
+            <>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-4 pb-2">
+                Documents
+              </p>
+              <nav className="flex flex-col">
+                {(
+                  [
+                    { id: 'resume', label: 'Resume', Icon: FileText },
+                    { id: 'coverletter', label: 'Cover Letter', Icon: Mail },
+                    { id: 'ats', label: 'ATS Report', Icon: Target },
+                  ] as const
+                ).map((doc) => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    onClick={() => setReviewDocTab(doc.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-l-2',
+                      reviewDocTab === doc.id
+                        ? 'bg-primary/[0.08] border-primary'
+                        : 'border-transparent hover:bg-secondary/40',
+                    )}
+                  >
+                    <doc.Icon className={cn('size-4 shrink-0', reviewDocTab === doc.id ? 'text-primary' : 'text-muted-foreground')} />
+                    <span className={cn('text-sm font-medium', reviewDocTab === doc.id ? 'text-primary' : 'text-foreground')}>
+                      {doc.label}
+                    </span>
+                    {doc.id === 'coverletter' && clStreamContent && (
+                      <CheckCircle2 className="size-3.5 text-green-500 shrink-0 ml-auto" />
+                    )}
+                    {doc.id === 'ats' && atsResult && (
+                      <span className={cn('ml-auto text-xs font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>
+                        {atsResult.overallScore}%
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </nav>
+            </>
           ) : (
-            /* ── NORMAL SIDEBAR (Steps 1, 3, 4) ─────────────────────────────── */
+            /* ── NORMAL SIDEBAR (Step 1) ─────────────────────────────────────── */
             <>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-4 pb-2">
                 Resume Sections
@@ -1182,23 +1273,25 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           )}
         </aside>
 
-        {/* SIDEBAR / CENTER RESIZE HANDLE ───────────────────────────────────── */}
-        <div
-          className="hidden lg:flex shrink-0 w-1.5 cursor-col-resize bg-border hover:bg-primary/50 transition-colors z-10"
-          onMouseDown={(e) => {
-            sidebarDragRef.current = { startX: e.clientX, startW: sidebarWidth }
-            e.preventDefault()
-          }}
-        />
+        {/* SIDEBAR / CENTER RESIZE HANDLE — hidden in step 3 */}
+        {currentStep !== 3 && (
+          <div
+            className="hidden lg:flex shrink-0 w-1.5 cursor-col-resize bg-border hover:bg-primary/50 transition-colors z-10"
+            onMouseDown={(e) => {
+              sidebarDragRef.current = { startX: e.clientX, startW: sidebarWidth }
+              e.preventDefault()
+            }}
+          />
+        )}
 
-        {/* CENTER EDITOR ────────────────────────────────────────────────────── */}
+        {/* CENTER EDITOR — hidden in step 3 */}
         <div
           className={cn(
             'relative flex-col overflow-hidden bg-background border-r border-border transition-all duration-200',
-            mobileViewTab === 'edit' ? 'flex' : 'hidden',
-            centerCollapsed ? 'lg:hidden' : 'lg:flex lg:shrink-0',
+            currentStep === 3 ? 'hidden' : (mobileViewTab === 'edit' ? 'flex' : 'hidden'),
+            currentStep !== 3 && (centerCollapsed ? 'lg:hidden' : 'lg:flex lg:shrink-0'),
           )}
-          style={centerCollapsed ? {} : { width: centerWidth }}
+          style={centerCollapsed || currentStep === 3 ? {} : { width: centerWidth }}
         >
           {!centerCollapsed && (
           <>
@@ -1835,8 +1928,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           )}
         </div>
 
-        {/* CENTER / RIGHT RESIZE HANDLE ──────────────────────────────────────── */}
-        {!centerCollapsed && (
+        {/* CENTER / RIGHT RESIZE HANDLE — hidden in step 3 */}
+        {!centerCollapsed && currentStep !== 3 && (
           <div
             onMouseDown={(e) => {
               centerDragRef.current = { startX: e.clientX, startW: centerWidth }
@@ -1846,11 +1939,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           />
         )}
 
-        {/* RIGHT PREVIEW ────────────────────────────────────────────────────── */}
+        {/* RIGHT PREVIEW — hidden in step 3 (step 3 has its own layout) */}
         <div className={cn(
           'flex flex-col overflow-hidden flex-1',
-          mobileViewTab === 'preview' ? 'flex' : 'hidden',
-          'lg:flex',
+          currentStep === 3 ? 'hidden' : (mobileViewTab === 'preview' ? 'flex' : 'hidden'),
+          currentStep !== 3 && 'lg:flex',
         )}>
           {enrichmentState === 'comparing' && enrichedResume && originalResume ? (
             <div className="flex-1 overflow-hidden p-4">
@@ -1996,6 +2089,312 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             </>
           )}
         </div>
+
+        {/* ── REVIEW & EXPORT STEP 3 ──────────────────────────────────────────── */}
+        {currentStep === 3 && (
+          <div className="flex flex-col flex-1 overflow-hidden">
+
+            {/* Step 3 Toolbar */}
+            <div className="shrink-0 h-12 border-b border-border bg-background flex items-center px-4 gap-3 overflow-x-auto">
+              {/* Formatting controls — shown for resume and cover letter tabs */}
+              {reviewDocTab === 'resume' && (
+                <>
+                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap shrink-0">Template</span>
+                  <select
+                    data-testid="template-select"
+                    value={selectedIndustry}
+                    onChange={(e) => setSelectedIndustry(e.target.value)}
+                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                  >
+                    <option value="general">Modern</option>
+                    <option value="tech">Tech</option>
+                    <option value="finance">Finance</option>
+                    <option value="creative">Creative</option>
+                    <option value="healthcare">Healthcare</option>
+                  </select>
+                </>
+              )}
+              {(reviewDocTab === 'resume' || reviewDocTab === 'coverletter') && (
+                <>
+                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap shrink-0">Font</span>
+                  <select
+                    value={reviewFont}
+                    onChange={(e) => setReviewFont(e.target.value)}
+                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                  >
+                    <option>Inter</option>
+                    <option>Georgia</option>
+                    <option>Times New Roman</option>
+                    <option>Roboto</option>
+                  </select>
+                  <select
+                    value={reviewFontSize}
+                    onChange={(e) => setReviewFontSize(e.target.value)}
+                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                  >
+                    <option>10pt</option>
+                    <option>11pt</option>
+                    <option>12pt</option>
+                  </select>
+                  <select
+                    value={reviewSpacing}
+                    onChange={(e) => setReviewSpacing(e.target.value)}
+                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                  >
+                    <option>Compact</option>
+                    <option>Normal</option>
+                    <option>Relaxed</option>
+                  </select>
+                  {reviewDocTab === 'resume' && (
+                    <select
+                      value={reviewMargins}
+                      onChange={(e) => setReviewMargins(e.target.value)}
+                      className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                    >
+                      <option>Narrow</option>
+                      <option>Normal</option>
+                      <option>Wide</option>
+                    </select>
+                  )}
+                </>
+              )}
+
+              {/* Separator */}
+              <div className="h-5 w-px bg-border shrink-0 mx-1" />
+
+              {/* Review mode toggles */}
+              {reviewDocTab === 'resume' && (
+                <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
+                  {(['final', 'split', 'unified'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setReviewResumeMode(mode)}
+                      className={cn(
+                        'px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap min-h-[28px]',
+                        reviewResumeMode === mode
+                          ? 'bg-background shadow text-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {mode === 'final' ? 'Final' : mode === 'split' ? 'Split Compare' : 'Unified Review'}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {reviewDocTab === 'coverletter' && (
+                <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
+                  {(['final', 'compare'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setReviewClMode(mode)}
+                      disabled={mode === 'compare'}
+                      className={cn(
+                        'px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap min-h-[28px]',
+                        reviewClMode === mode
+                          ? 'bg-background shadow text-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                        mode === 'compare' && 'opacity-40 cursor-not-allowed',
+                      )}
+                    >
+                      {mode === 'final' ? 'Final' : 'Compare Drafts'}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {reviewDocTab === 'ats' && (
+                <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
+                  {(['overview', 'keywords', 'suggestions'] as const).map((view) => (
+                    <button
+                      key={view}
+                      type="button"
+                      onClick={() => setReviewAtsView(view)}
+                      className={cn(
+                        'px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap min-h-[28px]',
+                        reviewAtsView === view
+                          ? 'bg-background shadow text-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {view.charAt(0).toUpperCase() + view.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Save button — right side, all tabs */}
+              <Button
+                size="sm"
+                onClick={currentResumeId ? handleUpdate : handleSaveClick}
+                disabled={isSaving}
+                className="flex items-center gap-1.5 text-xs rounded-lg bg-primary text-white hover:bg-primary/90 min-h-[44px] shrink-0"
+              >
+                {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+                Save
+              </Button>
+            </div>
+
+            {/* Step 3 Preview Area */}
+            <div className="flex-1 overflow-auto bg-muted/30 p-6">
+
+              {/* Resume Tab */}
+              {reviewDocTab === 'resume' && (
+                <>
+                  {reviewResumeMode === 'final' && (
+                    <div className="flex justify-center">
+                      <div className="bg-white text-black shadow-md rounded-sm" style={{ width: '816px', maxWidth: '100%' }}>
+                        <ResumePreview
+                          resume={resume}
+                          flashSections={flashSections}
+                          industry={selectedIndustry}
+                          detectedIndustry={resume.detectedIndustry}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {reviewResumeMode === 'split' && (
+                    <div className="flex gap-4 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 text-center">Original</p>
+                        <div className="bg-white text-black shadow-md rounded-sm overflow-hidden">
+                          <ResumePreview
+                            resume={originalResume ?? resume}
+                            industry={selectedIndustry}
+                            detectedIndustry={resume.detectedIndustry}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2 text-center">AI Enhanced</p>
+                        <div className="bg-white text-black shadow-md rounded-sm overflow-hidden">
+                          <ResumePreview
+                            resume={enrichedResume ?? resume}
+                            flashSections={flashSections}
+                            industry={selectedIndustry}
+                            detectedIndustry={resume.detectedIndustry}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {reviewResumeMode === 'unified' && (
+                    <div className="flex justify-center">
+                      <div className="bg-white text-black shadow-md rounded-sm" style={{ width: '816px', maxWidth: '100%' }}>
+                        <ResumePreview
+                          resume={resume}
+                          flashSections={flashSections}
+                          industry={selectedIndustry}
+                          detectedIndustry={resume.detectedIndustry}
+                          diffHighlight={
+                            originalResume && enrichedResume
+                              ? {
+                                  summary: originalResume.summary !== enrichedResume.summary,
+                                  experience: enrichedResume.experience.map((exp, i) =>
+                                    exp.bullets.map((b, bi) => b !== (originalResume.experience[i]?.bullets[bi] ?? ''))
+                                  ),
+                                }
+                              : undefined
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Cover Letter Tab */}
+              {reviewDocTab === 'coverletter' && (
+                <div className="flex justify-center">
+                  {clStreamContent ? (
+                    <div className="bg-white text-black shadow-md rounded-sm p-10 leading-relaxed" style={{ width: '816px', maxWidth: '100%', fontFamily: reviewFont, fontSize: reviewFontSize }}>
+                      <pre className="whitespace-pre-wrap font-inherit text-sm text-black leading-relaxed" style={{ fontFamily: 'inherit' }}>
+                        {clStreamContent}
+                      </pre>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+                      <Mail className="size-10 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">No cover letter yet — generate one in the AI Enhance step.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ATS Report Tab */}
+              {reviewDocTab === 'ats' && (
+                <div className="flex justify-center">
+                  {atsResult ? (
+                    <div className="bg-white text-black shadow-md rounded-sm p-8 space-y-6" style={{ width: '816px', maxWidth: '100%' }}>
+                      {/* Overview */}
+                      {(reviewAtsView === 'overview') && (
+                        <>
+                          <div className="flex items-baseline gap-2 border-b border-gray-200 pb-4">
+                            <span className={cn('text-5xl font-bold', atsResult.overallScore >= 75 ? 'text-blue-600' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-red-500')}>
+                              {atsResult.overallScore}
+                            </span>
+                            <span className="text-lg text-gray-500">/ 100</span>
+                            <span className="ml-2 text-sm font-semibold text-gray-700">ATS Match Score</span>
+                          </div>
+                          {atsResult.summary && (
+                            <p className="text-sm text-gray-700 leading-relaxed">{atsResult.summary}</p>
+                          )}
+                        </>
+                      )}
+                      {/* Keywords */}
+                      {(reviewAtsView === 'keywords') && (
+                        <div className="space-y-4">
+                          {atsResult.matchedKeywords.length > 0 && (
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Matched Keywords</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {atsResult.matchedKeywords.map((kw, i) => (
+                                  <span key={i} className="px-2 py-0.5 text-xs rounded border border-blue-300 text-blue-700 bg-blue-50">{kw}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {atsResult.missingKeywords.length > 0 && (
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Missing Keywords</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {atsResult.missingKeywords.map((kw, i) => (
+                                  <span key={i} className="px-2 py-0.5 text-xs rounded border border-red-300 text-red-700 bg-red-50">{kw}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {/* Suggestions */}
+                      {(reviewAtsView === 'suggestions') && atsResult.suggestions.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Suggestions</p>
+                          <ul className="space-y-2">
+                            {atsResult.suggestions.map((s, i) => (
+                              <li key={i} className="flex gap-2 items-start text-sm text-gray-700">
+                                <span className="text-blue-500 mt-0.5 shrink-0 font-bold">{i + 1}.</span>
+                                {s}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+                      <Target className="size-10 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">No ATS report yet — run ATS Score in the AI Enhance step.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── BOTTOM STATUS BAR ─────────────────────────────────────────────────── */}
@@ -2042,22 +2441,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           </button>
         </div>
         <div className="flex items-center gap-2">
-          {/* Save Changes — shown in all stages */}
-          <button
-            type="button"
-            onClick={currentResumeId ? handleUpdate : handleSaveClick}
-            disabled={isSaving}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors disabled:opacity-50 min-h-[32px]"
-          >
-            {isSaving ? (
-              <Loader2 className="size-3 animate-spin" />
-            ) : (
-              <Save className="size-3" />
-            )}
-            Save Changes
-          </button>
-
-          {/* Back button — shown in stages 2, 3, 4 */}
+          {/* Back button — shown in stages 2 and 3 */}
           {currentStep > 1 && (
             <button
               type="button"
@@ -2065,18 +2449,18 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               className="flex items-center gap-1.5 px-4 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors min-h-[32px]"
             >
               <ArrowLeft className="size-3.5" />
-              {currentStep === 2 ? 'Back to Edit' : currentStep === 3 ? 'Back to AI Enhance' : 'Back to Preview'}
+              {currentStep === 2 ? 'Back to Edit' : 'Back to AI Enhance'}
             </button>
           )}
 
-          {/* Next stage button — shown in stages 1, 2, 3 */}
-          {currentStep < 4 && (
+          {/* Next stage button — shown in stages 1 and 2 */}
+          {currentStep < 3 && (
             <button
               type="button"
-              onClick={() => setCurrentStep((s) => Math.min(s + 1, 4))}
+              onClick={() => setCurrentStep((s) => Math.min(s + 1, 3))}
               className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors min-h-[32px]"
             >
-              {currentStep === 1 ? 'Continue to AI Enhance' : currentStep === 2 ? 'Continue to Preview' : 'Continue to Download'}
+              {currentStep === 1 ? 'Continue to AI Enhance' : 'Continue to Review & Export'}
               <ArrowRight className="size-3.5" />
             </button>
           )}
