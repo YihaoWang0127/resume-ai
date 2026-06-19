@@ -16,7 +16,7 @@ import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
 
 function SkeletonCards() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {[0, 1, 2].map((i) => (
         <div key={i} className="rounded-xl border border-border bg-card p-6 min-h-[240px] flex flex-col animate-pulse">
           <div className="flex-1 min-w-0 space-y-3">
@@ -337,7 +337,7 @@ export default function Dashboard() {
                   onAction={() => setUploadModalOpen(true)}
                 />
               ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {resumes.map((r) => (
                   <div
                     key={r.id}
@@ -454,7 +454,7 @@ export default function Dashboard() {
                   onAction={() => setNewClStep('options')}
                 />
               ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {coverLetters.map((cl) => (
                   <div
                     key={cl.id}
@@ -558,7 +558,7 @@ export default function Dashboard() {
                   onAction={() => setUploadModalOpen(true)}
                 />
               ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {resumes.map((r) => (
                   <div
                     key={r.id}
