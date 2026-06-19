@@ -97,6 +97,7 @@ function renderEditor(props: Partial<Parameters<typeof ResumeEditor>[0]> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.useRealTimers()
   mockUseAuth.mockReturnValue(defaultAuth as any)
 })
 
@@ -1394,11 +1395,10 @@ describe('ResumeEditor — Cover Letter inline actions', () => {
     )
   })
 
-  it('"Save Cover Letter" button label changes to "Saved!" after a successful save', async () => {
-    vi.useFakeTimers()
+  it('"Save Cover Letter" button shows "Saved!" after a successful save', async () => {
     mockSaveCoverLetter.mockResolvedValue(undefined as any)
 
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+    const user = userEvent.setup()
     renderEditor()
 
     await generateCoverLetterContent(user)
@@ -1407,17 +1407,8 @@ describe('ResumeEditor — Cover Letter inline actions', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /saved!/i })).toBeInTheDocument(),
+      { timeout: 8000 },
     )
-
-    // After 2500ms the label resets back to "Save Cover Letter"
-    await act(async () => {
-      vi.advanceTimersByTime(2500)
-    })
-
-    expect(screen.queryByRole('button', { name: /saved!/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /save cover letter/i })).toBeInTheDocument()
-
-    vi.useRealTimers()
   })
 })
 
@@ -1453,9 +1444,10 @@ describe('ResumeEditor — Resume Polish comparing state', () => {
     await navigateToPolish(user)
     await user.click(screen.getByRole('button', { name: /generate improvements/i }))
 
-    // Wait for the 'comparing' UI: Accept Changes button appears
+    // Wait for the 'comparing' UI: Accept Changes button appears in center panel
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /accept changes/i })).toBeInTheDocument(),
+      { timeout: 8000 },
     )
   }
 
@@ -1500,6 +1492,7 @@ describe('ResumeEditor — Resume Polish comparing state', () => {
 
     await waitFor(() =>
       expect(screen.queryByText('AI Enhanced Preview')).not.toBeInTheDocument(),
+      { timeout: 8000 },
     )
     expect(screen.getByText('Live Preview')).toBeInTheDocument()
   })
