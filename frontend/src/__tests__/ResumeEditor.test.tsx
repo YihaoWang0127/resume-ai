@@ -105,16 +105,21 @@ beforeEach(() => {
 })
 
 // ── save / update buttons ─────────────────────────────────────────────────────
-// The bottom bar now has a single "Save Changes" button (visible in steps 1-3)
-// that either opens the save dialog (no existing ID) or calls updateResume (existing ID).
+// The "Save" button lives in the step 3 toolbar (right side, visible on all 3
+// document tabs). It calls handleUpdate (existing ID) or handleSaveClick (new).
+// There is no "Save Changes" button in the bottom nav any more.
 
 describe('ResumeEditor — save button', () => {
   it('shows "Save Changes" button and opens save dialog when logged-in user clicks it', async () => {
     const user = userEvent.setup()
     renderEditor()
 
-    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    // Navigate to step 3 where the Save button lives in the toolbar
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
     expect(screen.getByRole('heading', { name: /save resume/i })).toBeInTheDocument()
   })
 
@@ -124,24 +129,36 @@ describe('ResumeEditor — save button', () => {
     const user = userEvent.setup()
     renderEditor({ onSignUp })
 
-    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    // Navigate to step 3 where the Save button lives in the toolbar
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
 
     expect(onSignUp).toHaveBeenCalled()
     expect(screen.queryByRole('heading', { name: /save resume/i })).not.toBeInTheDocument()
   })
 
-  it('shows "Save Changes" button when initialResumeId is provided (calls update inline, no dialog)', () => {
+  it('shows "Save Changes" button when initialResumeId is provided (calls update inline, no dialog)', async () => {
+    const user = userEvent.setup()
     renderEditor({ initialResumeId: 'existing-id' })
-    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
-    // No separate "Update" button — Save Changes handles both paths
+
+    // Navigate to step 3 where the Save button lives in the toolbar
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument()
+    // No separate "Update" button — Save handles both paths
     expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument()
   })
 })
 
-// Helper: get the save dialog container after opening it
-// "Save Changes" opens the save dialog when there is no existing resume ID.
+// Helper: navigate to step 3 and open the save dialog by clicking the Save toolbar button.
+// The Save button opens the save dialog when there is no existing resume ID.
 async function openSaveDialog(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: /save changes/i }))
+  await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+  await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+  await user.click(screen.getByRole('button', { name: /^save$/i }))
   return screen.getByRole('heading', { name: /save resume/i }).closest('div.bg-card') as HTMLElement
 }
 
@@ -209,8 +226,8 @@ describe('ResumeEditor — save dialog', () => {
     // Change the style via the template-select dropdown
     await user.selectOptions(screen.getByTestId('template-select'), 'finance')
 
-    // "Save Changes" opens the save dialog (no existing resume ID)
-    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    // "Save" (toolbar button) opens the save dialog (no existing resume ID)
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
 
     // Confirm in the save dialog
     const dialog = screen.getByRole('heading', { name: /save resume/i }).closest('div.bg-card') as HTMLElement
@@ -243,8 +260,8 @@ describe('ResumeEditor — update existing resume', () => {
     // Change the style via the template-select dropdown
     await user.selectOptions(screen.getByTestId('template-select'), 'finance')
 
-    // "Save Changes" calls handleUpdate when currentResumeId is set
-    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    // "Save" (toolbar button) calls handleUpdate when currentResumeId is set
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
 
     await waitFor(() =>
       expect(mockUpdateResume).toHaveBeenCalledWith(
@@ -537,28 +554,30 @@ describe('ResumeEditor — bottom bar contextual navigation', () => {
     expect(screen.queryByRole('button', { name: /back to edit|back to ai enhance|back to preview/i })).not.toBeInTheDocument()
   })
 
-  it('stage 2: shows "Save Changes", "Back to Edit", and "Continue to Review & Export"', async () => {
+  it('stage 2: shows "Back to Edit" and "Continue to Review & Export" (no Save Changes in bottom nav)', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
 
-    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /back to edit/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /continue to review & export/i })).toBeInTheDocument()
+    // "Save Changes" button no longer exists in the bottom nav
+    expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument()
   })
 
-  it('stage 3: shows "Save Changes", "Back to AI Enhance" — no Continue button', async () => {
+  it('stage 3: shows "Back to AI Enhance" — no Continue button (Save is in step 3 toolbar)', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
     await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
 
-    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /back to ai enhance/i })).toBeInTheDocument()
     // Step 3 is the last step — no Continue button
     expect(screen.queryByRole('button', { name: /continue to/i })).not.toBeInTheDocument()
+    // "Save Changes" button no longer exists in the bottom nav (Save is in step 3 toolbar)
+    expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument()
   })
 })
 
@@ -1561,7 +1580,20 @@ describe('ResumeEditor — Review & Export step 3 renders', () => {
 
     await navigateToStep3(user)
 
-    expect(screen.queryByRole('heading', { name: /contact information/i })).not.toBeInTheDocument()
+    // The center editor div gets the "hidden" CSS class at step 3.
+    // In jsdom, CSS isn't evaluated so the heading is still in the DOM — verify
+    // the center editor wrapper has the "hidden" class instead.
+    const heading = screen.queryByRole('heading', { name: /contact information/i, hidden: true })
+    if (heading) {
+      // The heading exists but must be inside a hidden container
+      const centerEditor = heading.closest('.hidden')
+      expect(centerEditor).not.toBeNull()
+    } else {
+      // Heading not in DOM at all — also acceptable
+      expect(heading).toBeNull()
+    }
+    // Verify step 3's own layout is rendered (Documents sidebar present)
+    expect(screen.getByText('Documents')).toBeInTheDocument()
   })
 })
 
@@ -1642,19 +1674,23 @@ describe('ResumeEditor — Review & Export resume review mode toggles', () => {
 
   it('"Final" mode is the default — shows a single resume preview (not split)', async () => {
     const user = userEvent.setup()
-    renderEditor()
+    const { container } = renderEditor()
 
     await navigateToStep3(user)
 
-    // "Final" is the default mode and its button should be the only resume-preview in DOM.
-    // The step-3 preview area renders a single ResumePreview when in Final mode.
-    const previews = screen.getAllByTestId('resume-preview')
-    expect(previews.length).toBe(1)
+    // "Final" is the default mode. At step 3 the right panel is hidden via the
+    // "hidden" CSS class but still in the DOM (jsdom doesn't compute CSS).
+    // Count only previews NOT inside a ".hidden" ancestor.
+    const allPreviews = container.querySelectorAll('[data-testid="resume-preview"]')
+    const visiblePreviews = Array.from(allPreviews).filter(
+      (el) => !el.closest('.hidden'),
+    )
+    expect(visiblePreviews.length).toBe(1)
   })
 
   it('clicking "Split Compare" shows Original and AI Enhanced labels', async () => {
     const user = userEvent.setup()
-    renderEditor()
+    const { container } = renderEditor()
 
     await navigateToStep3(user)
 
@@ -1662,13 +1698,18 @@ describe('ResumeEditor — Review & Export resume review mode toggles', () => {
 
     expect(screen.getByText('Original')).toBeInTheDocument()
     expect(screen.getByText('AI Enhanced')).toBeInTheDocument()
-    // Two resume previews are rendered side-by-side
-    expect(screen.getAllByTestId('resume-preview').length).toBe(2)
+    // Two resume previews rendered side-by-side in the step-3 preview area.
+    // Filter out the right-panel preview which is hidden via the "hidden" CSS class.
+    const allPreviews = container.querySelectorAll('[data-testid="resume-preview"]')
+    const visiblePreviews = Array.from(allPreviews).filter(
+      (el) => !el.closest('.hidden'),
+    )
+    expect(visiblePreviews.length).toBe(2)
   })
 
   it('clicking "Unified Review" returns to single-pane preview (no Original/AI Enhanced labels)', async () => {
     const user = userEvent.setup()
-    renderEditor()
+    const { container } = renderEditor()
 
     await navigateToStep3(user)
 
@@ -1678,7 +1719,12 @@ describe('ResumeEditor — Review & Export resume review mode toggles', () => {
 
     expect(screen.queryByText('Original')).not.toBeInTheDocument()
     expect(screen.queryByText('AI Enhanced')).not.toBeInTheDocument()
-    expect(screen.getAllByTestId('resume-preview').length).toBe(1)
+    // Filter out the right-panel preview which is hidden via the "hidden" CSS class.
+    const allPreviews = container.querySelectorAll('[data-testid="resume-preview"]')
+    const visiblePreviews = Array.from(allPreviews).filter(
+      (el) => !el.closest('.hidden'),
+    )
+    expect(visiblePreviews.length).toBe(1)
   })
 })
 
