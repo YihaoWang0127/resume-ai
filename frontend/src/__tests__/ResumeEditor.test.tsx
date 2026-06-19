@@ -160,7 +160,7 @@ describe('ResumeEditor — save dialog', () => {
     await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
 
     await waitFor(() =>
-      expect(mockSaveResume).toHaveBeenCalledWith(mockResume, 'My Custom Title')
+      expect(mockSaveResume).toHaveBeenCalledWith(mockResume, 'My Custom Title', undefined)
     )
   })
 
@@ -211,6 +211,7 @@ describe('ResumeEditor — save dialog', () => {
       expect(mockSaveResume).toHaveBeenCalledWith(
         expect.objectContaining({ detectedIndustry: 'finance' }),
         expect.any(String),
+        undefined,
       )
     )
     const [savedResume] = mockSaveResume.mock.calls[0]
@@ -240,6 +241,8 @@ describe('ResumeEditor — update existing resume', () => {
       expect(mockUpdateResume).toHaveBeenCalledWith(
         'existing-id',
         expect.objectContaining({ detectedIndustry: 'finance' }),
+        undefined,
+        undefined,
       )
     )
     const [, updatedResume] = mockUpdateResume.mock.calls[0]

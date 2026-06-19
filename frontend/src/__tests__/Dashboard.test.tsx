@@ -347,7 +347,11 @@ describe('Dashboard — ATS check modal', () => {
 
     expect(mockScoreATS).toHaveBeenCalledWith(savedResume1.resume_data, 'We need a React engineer')
     await waitFor(() =>
-      expect(mockUpdateAtsScore).toHaveBeenCalledWith(savedResume1.id, 78)
+      expect(mockUpdateAtsScore).toHaveBeenCalledWith(
+        savedResume1.id,
+        78,
+        expect.objectContaining({ jobDescription: expect.any(String), result: expect.any(Object) }),
+      )
     )
   })
 

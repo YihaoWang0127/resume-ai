@@ -182,7 +182,10 @@ export default function Dashboard() {
       const result = await scoreATS(atsTarget.resume_data, atsJobDesc)
       setAtsResult(result)
       try {
-        await updateAtsScore(atsTarget.id, result.overallScore)
+        await updateAtsScore(atsTarget.id, result.overallScore, {
+          jobDescription: atsJobDesc,
+          result,
+        })
         const updatedAt = new Date().toISOString()
         setResumes((prev) =>
           prev.map((r) =>
@@ -347,6 +350,14 @@ export default function Dashboard() {
                           {r.detected_industry}
                         </span>
                       </div>
+                      {r.ats_score != null && (
+                        <div className="mt-1.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-bold tracking-wider">
+                            <Target className="size-2.5 shrink-0" />
+                            ATS {r.ats_score}
+                          </span>
+                        </div>
+                      )}
                       <p className="mt-2 text-[11px] text-muted-foreground">
                         Updated {formatDate(r.updated_at)}
                       </p>
