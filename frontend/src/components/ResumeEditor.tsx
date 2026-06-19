@@ -36,6 +36,7 @@ import {
   Upload,
   LayoutDashboard,
   LogOut,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -805,7 +806,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     const onMouseMove = (e: MouseEvent) => {
       if (centerDragRef.current) {
         const delta = e.clientX - centerDragRef.current.startX
-        const newW = Math.max(260, Math.min(600, centerDragRef.current.startW + delta))
+        const newW = Math.max(380, Math.min(600, centerDragRef.current.startW + delta))
         setCenterWidth(newW)
       }
       if (sidebarDragRef.current) {
@@ -1418,20 +1419,15 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     disabled={clIsStreaming || !clCompany.trim() || (clJobDesc.trim() !== '' && (clJobDescValState === 'invalid' || clJobDescValState === 'validating'))}
                     className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
                   >
-                    {clIsStreaming ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
-                    {clIsStreaming ? 'Generating…' : 'Generate Cover Letter'}
+                    {clIsStreaming
+                      ? <Loader2 className="size-4 mr-2 animate-spin" />
+                      : clStreamContent
+                        ? <RefreshCw className="size-4 mr-2" />
+                        : <Mail className="size-4 mr-2" />}
+                    {clIsStreaming ? 'Generating…' : clStreamContent ? 'Regenerate Cover Letter' : 'Generate Cover Letter'}
                   </Button>
                   {(clStreamContent || clIsStreaming) && (
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => { setClStreamContent(''); setClStreamError(null); setClSaved(false) }}
-                        disabled={clIsStreaming}
-                        className="flex-1 min-h-[44px] rounded-lg text-sm border-border"
-                      >
-                        <X className="size-4 mr-2" />
-                        Dismiss
-                      </Button>
                       <Button
                         onClick={handleSaveCoverLetter}
                         disabled={clIsStreaming || clSaving || !clStreamContent.trim()}
@@ -1443,6 +1439,14 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           <Save className="size-4 mr-2" />
                         )}
                         {clSaved ? 'Saved!' : 'Save Cover Letter'}
+                      </Button>
+                      <Button
+                        onClick={() => { setClStreamContent(''); setClStreamError(null); setClSaved(false) }}
+                        disabled={clIsStreaming}
+                        className="flex-1 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        <X className="size-4 mr-2" />
+                        Dismiss
                       </Button>
                     </div>
                   )}
@@ -1858,9 +1862,46 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 hideActions
               />
             </div>
+          ) : aiTool === 'coverletter' && (clStreamContent || clIsStreaming) ? (
+            /* Cover Letter Editor — occupies the entire right panel, no Live Preview header */
+            <div className="flex flex-col h-full">
+              {/* Header: chevron toggle + Mail icon + label + streaming spinner */}
+              <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
+                <button
+                  onClick={() => setCenterCollapsed(prev => !prev)}
+                  title={centerCollapsed ? "Show editor" : "Minimize editor"}
+                  className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  {centerCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+                </button>
+                <Mail className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs font-semibold text-foreground">Cover Letter Editor</span>
+                {clIsStreaming && <Loader2 className="size-3.5 animate-spin text-primary ml-auto" />}
+              </div>
+              {/* Editable textarea */}
+              <div className="flex-1 overflow-hidden flex flex-col p-4 gap-2 bg-muted/30">
+                <textarea
+                  value={clStreamContent}
+                  onChange={(e) => setClStreamContent(e.target.value)}
+                  disabled={clIsStreaming}
+                  placeholder={clIsStreaming ? 'Generating your cover letter…' : 'Your cover letter will appear here. You can edit it directly.'}
+                  className="flex-1 w-full bg-card border border-border rounded-lg p-4 text-sm text-foreground leading-relaxed resize-none outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground disabled:opacity-60"
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground px-1">
+                  <span>
+                    {clStreamContent.trim() ? clStreamContent.trim().split(/\s+/).filter(Boolean).length : 0} words
+                  </span>
+                  {clIsStreaming ? (
+                    <span className="text-primary uppercase tracking-widest">Generating…</span>
+                  ) : (
+                    <span className="uppercase tracking-widest">Edit directly</span>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : (
             <>
-              {/* Preview panel header */}
+              {/* Preview panel header — only shown when NOT in cover letter editor mode */}
               <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
                 {/* Single toggle — always rendered, same position, icon changes */}
                 <button
@@ -1878,44 +1919,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               </div>
               {/* Preview content area — relative wrapper so enrichment overlay stays within viewport */}
               <div className="flex-1 overflow-hidden relative flex flex-col">
-                {aiTool === 'coverletter' && (clStreamContent || clIsStreaming) ? (
-                  <div className="flex flex-col h-full">
-                    {/* Editor header */}
-                    <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
-                      <button
-                        onClick={() => setCenterCollapsed(prev => !prev)}
-                        title={centerCollapsed ? "Show editor" : "Minimize editor"}
-                        className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-                      >
-                        {centerCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
-                      </button>
-                      <Mail className="size-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-xs font-semibold text-foreground">Cover Letter Editor</span>
-                      {clIsStreaming && <Loader2 className="size-3.5 animate-spin text-primary ml-auto" />}
-                    </div>
-                    {/* Editable textarea */}
-                    <div className="flex-1 overflow-hidden flex flex-col p-4 gap-2 bg-muted/30">
-                      <textarea
-                        value={clStreamContent}
-                        onChange={(e) => setClStreamContent(e.target.value)}
-                        disabled={clIsStreaming}
-                        placeholder={clIsStreaming ? 'Generating your cover letter…' : 'Your cover letter will appear here. You can edit it directly.'}
-                        className="flex-1 w-full bg-card border border-border rounded-lg p-4 text-sm text-foreground leading-relaxed resize-none outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground disabled:opacity-60"
-                      />
-                      <div className="flex justify-between text-[11px] text-muted-foreground px-1">
-                        <span>
-                          {clStreamContent.trim() ? clStreamContent.trim().split(/\s+/).filter(Boolean).length : 0} words
-                        </span>
-                        {clIsStreaming ? (
-                          <span className="text-primary uppercase tracking-widest">Generating…</span>
-                        ) : (
-                          <span className="uppercase tracking-widest">Edit directly</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                <>
                 {/* Enrichment loading overlay — fixed to right panel viewport, not the scroll container */}
                 {enrichmentState === 'loading' && (
                   <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
@@ -1988,8 +1991,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       </div>
                     )}
                   </div>
-                )}
-                </>
                 )}
               </div>
             </>
