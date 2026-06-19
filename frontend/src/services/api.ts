@@ -215,3 +215,13 @@ export async function exportResume(
   if (!res.ok) throw new Error(`Export failed: ${res.status}`)
   return res.blob()
 }
+
+export async function validateJobDescription(
+  text: string,
+): Promise<{ valid: boolean; reason: string }> {
+  const { data } = await http.post<{ valid: boolean; reason: string }>(
+    '/api/validate-jd',
+    { text },
+  )
+  return data
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Sparkles,
@@ -43,10 +43,11 @@ import Modal from '@/components/Modal'
 import { cn, getInitials } from '@/lib/utils'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
-import { enrichResume, exportResume, fromBackend, generateCoverLetter, scoreATS, tailorResume } from '@/services/api'
+import { enrichResume, exportResume, fromBackend, generateCoverLetter, scoreATS, tailorResume, validateJobDescription } from '@/services/api'
 import { saveResume, updateResume, type AtsMetadata } from '@/services/resumes'
 import { saveCoverLetter } from '@/services/coverLetters'
 import { useAuth } from '@/contexts/AuthContext'
+import ComparisonView from './ComparisonView'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
 
@@ -79,15 +80,7 @@ function newSkill(): SkillCategory {
   return { category: '', items: [''] }
 }
 
-function isValidJobDescription(text: string): string | null {
-  const trimmed = text.trim()
-  if (!trimmed) return null // empty — handled by disabled state, no error message needed
-  const words = trimmed.split(/\s+/).filter(Boolean)
-  if (words.length < 15) return 'Job description is too short — please paste the full job posting.'
-  if (!/[a-zA-Z]/.test(trimmed)) return 'Please paste a real job description (letters required).'
-  return null // valid
-}
-
+type JdValState = 'idle' | 'validating' | 'valid' | 'invalid'
 
 const STREAMING_MESSAGES = [
   'Analyzing your resume...',
@@ -111,7 +104,7 @@ type AiTool = 'polish' | 'tailor' | 'coverletter' | 'ats'
 
 const AI_TOOL_DEFS: Array<{ id: AiTool; label: string; description: string; Icon: LucideIcon }> = [
   { id: 'polish',      label: 'Resume Polish',  description: 'Improve wording, clarity, and bullet strength',  Icon: Sparkles },
-  { id: 'tailor',      label: 'Job Tailoring',  description: 'Tailor your resume to a specific role',          Icon: Wand2 },
+  { id: 'tailor',      label: 'Target Role Tailoring',  description: 'Optimize your resume for the job you want to apply for.',          Icon: Wand2 },
   { id: 'coverletter', label: 'Cover Letter',   description: 'Generate a personalized cover letter',           Icon: Mail },
   { id: 'ats',         label: 'ATS Score',      description: 'Check resume match against a job description',   Icon: Target },
 ]
@@ -169,12 +162,21 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [clIsStreaming, setClIsStreaming] = useState(false)
   const [clStreamError, setClStreamError] = useState<string | null>(null)
   const [clCompanyError, setClCompanyError] = useState<string | null>(null)
-  const [clJobDescError, setClJobDescError] = useState<string | null>(null)
   const [clSaving, setClSaving] = useState(false)
   const [clSaved, setClSaved] = useState(false)
-  const [jobDescError, setJobDescError] = useState<string | null>(null)
-  const [atsJobDescError, setAtsJobDescError] = useState<string | null>(null)
   const [enrichTone, setEnrichTone] = useState<'professional' | 'concise' | 'assertive'>('professional')
+  // Job tailoring validation
+  const [jobDescValState, setJobDescValState] = useState<JdValState>('idle')
+  const [jobDescValError, setJobDescValError] = useState<string | null>(null)
+  const jobDescValTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // ATS validation
+  const [atsJobDescValState, setAtsJobDescValState] = useState<JdValState>('idle')
+  const [atsJobDescValError, setAtsJobDescValError] = useState<string | null>(null)
+  const atsJobDescValTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Cover letter JD validation
+  const [clJobDescValState, setClJobDescValState] = useState<JdValState>('idle')
+  const [clJobDescValError, setClJobDescValError] = useState<string | null>(null)
+  const clJobDescValTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const clStreamReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null)
   const [saveTitle, setSaveTitle] = useState(
     () => `Resume - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
@@ -485,10 +487,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
   const handleGenerateCoverLetterInline = async () => {
     const companyErr = clCompany.trim() ? null : 'Company name is required.'
-    const jdErr = isValidJobDescription(clJobDesc)
     setClCompanyError(companyErr)
-    setClJobDescError(jdErr)
-    if (companyErr || (jdErr && clJobDesc.trim())) return
+    if (companyErr) return
 
     setClStreamContent('')
     setClStreamError(null)
@@ -541,6 +541,43 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     } finally {
       setAtsLoading(false)
     }
+  }
+
+  const triggerJdValidation = (
+    text: string,
+    setValState: (s: JdValState) => void,
+    setValError: (e: string | null) => void,
+    timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+  ) => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+
+    const trimmed = text.trim()
+    if (!trimmed) {
+      setValState('idle')
+      setValError(null)
+      return
+    }
+
+    // Quick pre-check before calling AI
+    const words = trimmed.split(/\s+/).filter(Boolean)
+    if (words.length < 10 || !/[a-zA-Z]/.test(trimmed)) {
+      setValState('invalid')
+      setValError('Please paste a complete job description.')
+      return
+    }
+
+    // Debounced AI validation
+    setValState('validating')
+    timerRef.current = setTimeout(async () => {
+      try {
+        const result = await validateJobDescription(trimmed)
+        setValState(result.valid ? 'valid' : 'invalid')
+        setValError(result.valid ? null : (result.reason || "This doesn't look like a job description. Please paste a real job posting."))
+      } catch {
+        setValState('idle') // fail open — don't block user if API fails
+        setValError(null)
+      }
+    }, 800)
   }
 
   const handleExport = async (format: 'pdf' | 'docx') => {
@@ -1250,29 +1287,34 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </div>
               )}
 
-              {/* Tool: Job Tailoring */}
+              {/* Tool: Target Role Tailoring */}
               {aiTool === 'tailor' && (
                 <div className="space-y-5">
                   <div>
-                    <h2 className="text-base font-semibold text-foreground">Job Tailoring</h2>
+                    <h2 className="text-base font-semibold text-foreground">Target Role Tailoring</h2>
                     <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                      Paste a job description and AI will rewrite your resume to match the role's requirements and keywords.
+                      Optimize your resume for the job you want to apply for.
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-foreground uppercase tracking-wider">Job Description</label>
+                    <label className="block text-xs font-bold text-foreground uppercase tracking-wider">Target Job Description</label>
                     <textarea
                       rows={10}
-                      className={cn(field, 'resize-none', jobDescError ? 'border-destructive focus:border-destructive' : '')}
-                      placeholder="Paste the full job description here…"
+                      className={cn(field, 'resize-none', jobDescValState === 'invalid' ? 'border-destructive focus:border-destructive' : '')}
+                      placeholder="Paste the job description for the role you want to apply to."
                       value={jobDesc}
                       onChange={(e) => {
                         setJobDesc(e.target.value)
-                        setJobDescError(isValidJobDescription(e.target.value))
+                        triggerJdValidation(e.target.value, setJobDescValState, setJobDescValError, jobDescValTimerRef)
                       }}
                     />
-                    {jobDescError && (
-                      <p className="text-xs text-destructive px-1">{jobDescError}</p>
+                    {jobDescValState === 'validating' && (
+                      <p className="text-xs text-muted-foreground px-1 flex items-center gap-1.5">
+                        <Loader2 className="size-3 animate-spin" /> Checking job description…
+                      </p>
+                    )}
+                    {jobDescValState === 'invalid' && jobDescValError && (
+                      <p className="text-xs text-destructive px-1">{jobDescValError}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -1292,12 +1334,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     </div>
                   </div>
                   <Button
-                    onClick={() => { if (jobDesc.trim() && !jobDescError) handleTailor() }}
-                    disabled={!jobDesc.trim() || jobDescError !== null || streamLoading}
+                    onClick={handleTailor}
+                    disabled={!jobDesc.trim() || jobDescValState === 'invalid' || jobDescValState === 'validating' || streamLoading}
                     className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
                   >
                     <Wand2 className="size-4 mr-2" />
-                    Tailor Resume to Job
+                    Tailor Resume to Target Role
                   </Button>
                 </div>
               )}
@@ -1331,13 +1373,26 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     </label>
                     <textarea
                       rows={7}
-                      className={cn(field, 'resize-none', clJobDescError ? 'border-destructive focus:border-destructive' : '')}
+                      className={cn(field, 'resize-none', clJobDescValState === 'invalid' ? 'border-destructive' : '')}
                       placeholder="Paste the job description for a more targeted cover letter…"
                       value={clJobDesc}
-                      onChange={(e) => { setClJobDesc(e.target.value); setClJobDescError(isValidJobDescription(e.target.value)) }}
+                      onChange={(e) => {
+                        setClJobDesc(e.target.value)
+                        if (e.target.value.trim()) {
+                          triggerJdValidation(e.target.value, setClJobDescValState, setClJobDescValError, clJobDescValTimerRef)
+                        } else {
+                          setClJobDescValState('idle')
+                          setClJobDescValError(null)
+                        }
+                      }}
                     />
-                    {clJobDescError && (
-                      <p className="text-xs text-destructive px-1">{clJobDescError}</p>
+                    {clJobDescValState === 'validating' && (
+                      <p className="text-xs text-muted-foreground px-1 flex items-center gap-1.5">
+                        <Loader2 className="size-3 animate-spin" /> Checking job description…
+                      </p>
+                    )}
+                    {clJobDescValState === 'invalid' && clJobDescValError && (
+                      <p className="text-xs text-destructive px-1">{clJobDescValError}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -1360,7 +1415,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   </div>
                   <Button
                     onClick={handleGenerateCoverLetterInline}
-                    disabled={clIsStreaming}
+                    disabled={clIsStreaming || !clCompany.trim() || (clJobDesc.trim() !== '' && (clJobDescValState === 'invalid' || clJobDescValState === 'validating'))}
                     className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
                   >
                     {clIsStreaming ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Mail className="size-4 mr-2" />}
@@ -1407,16 +1462,21 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   <div className="space-y-3 bg-background rounded-xl border border-border p-4 shadow-sm">
                     <label className="block text-xs font-medium text-muted-foreground">Job Description</label>
                     <textarea
-                      className={cn(field, 'min-h-32 resize-none', atsJobDescError ? 'border-destructive focus:border-destructive' : '')}
+                      className={cn(field, 'min-h-32 resize-none', atsJobDescValState === 'invalid' ? 'border-destructive focus:border-destructive' : '')}
                       placeholder="Paste the job description here…"
                       value={atsJobDesc}
                       onChange={(e) => {
                         setAtsJobDesc(e.target.value)
-                        setAtsJobDescError(isValidJobDescription(e.target.value))
+                        triggerJdValidation(e.target.value, setAtsJobDescValState, setAtsJobDescValError, atsJobDescValTimerRef)
                       }}
                     />
-                    {atsJobDescError && <p className="text-xs text-destructive px-1">{atsJobDescError}</p>}
-                    <Button size="sm" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || !!atsJobDescError || atsLoading} className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90">
+                    {atsJobDescValState === 'validating' && (
+                      <p className="text-xs text-muted-foreground px-1 flex items-center gap-1.5">
+                        <Loader2 className="size-3 animate-spin" /> Checking job description…
+                      </p>
+                    )}
+                    {atsJobDescValState === 'invalid' && atsJobDescValError && <p className="text-xs text-destructive px-1">{atsJobDescValError}</p>}
+                    <Button size="sm" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsJobDescValState === 'invalid' || atsJobDescValState === 'validating' || atsLoading} className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90">
                       {atsLoading ? <Loader2 className="size-3.5 animate-spin mr-2" /> : <Target className="size-3.5 mr-2" />}
                       Analyze ATS Score
                     </Button>
@@ -1431,7 +1491,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                         </div>
                         <button
                           type="button"
-                          onClick={() => { setAtsResult(null); setAtsJobDesc(''); setAtsError(null); setAtsJobDescError(null) }}
+                          onClick={() => { setAtsResult(null); setAtsJobDesc(''); setAtsError(null); setAtsJobDescValState('idle'); setAtsJobDescValError(null) }}
                           className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
                           title="Dismiss results"
                         >
@@ -1788,7 +1848,18 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           mobileViewTab === 'preview' ? 'flex' : 'hidden',
           'lg:flex',
         )}>
-          <>
+          {enrichmentState === 'comparing' && enrichedResume && originalResume ? (
+            <div className="flex-1 overflow-hidden p-4">
+              <ComparisonView
+                originalResume={originalResume}
+                enrichedResume={enrichedResume}
+                onAccept={handleAcceptEnrichment}
+                onDiscard={handleDiscardEnrichment}
+                hideActions
+              />
+            </div>
+          ) : (
+            <>
               {/* Preview panel header */}
               <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
                 {/* Single toggle — always rendered, same position, icon changes */}
@@ -1803,9 +1874,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     <ChevronLeft className="size-4" />
                   )}
                 </button>
-                <span className="text-xs font-semibold text-foreground hidden sm:block">
-                  {enrichmentState === 'comparing' ? 'AI Enhanced Preview' : 'Live Preview'}
-                </span>
+                <span className="text-xs font-semibold text-foreground hidden sm:block">Live Preview</span>
               </div>
               {/* Preview content area — relative wrapper so enrichment overlay stays within viewport */}
               <div className="flex-1 overflow-hidden relative flex flex-col">
@@ -1870,7 +1939,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
                   >
                     <ResumePreview
-                      resume={enrichmentState === 'comparing' && enrichedResume ? enrichedResume : resume}
+                      resume={resume}
                       flashSections={flashSections}
                       industry={selectedIndustry}
                       detectedIndustry={resume.detectedIndustry}
@@ -1923,7 +1992,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </>
                 )}
               </div>
-          </>
+            </>
+          )}
         </div>
       </div>
 
@@ -2021,10 +2091,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <h2
                   className="text-xl font-bold text-foreground uppercase tracking-wide"
                 >
-                  Tailor Resume for Job
+                  Target Role Tailoring
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Paste the job description and Claude will rewrite your resume to match
+                  Paste the job description for the role you want to apply to.
                 </p>
               </div>
               <button
@@ -2037,11 +2107,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             {/* Job description */}
             <div className="mb-5">
               <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
-                Job Description
+                Target Job Description
               </label>
               <textarea
                 className="w-full min-h-48 border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
-                placeholder="Paste the full job description here..."
+                placeholder="Paste the job description for the role you want to apply to."
                 value={jobDesc}
                 onChange={(e) => setJobDesc(e.target.value)}
               />
@@ -2084,7 +2154,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-xs font-bold uppercase tracking-wide transition-colors"
               >
                 <Wand2 className="size-4" />
-                Tailor Resume
+                Tailor Resume to Target Role
               </button>
             </div>
       </Modal>

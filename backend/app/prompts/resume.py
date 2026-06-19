@@ -179,6 +179,30 @@ Return ONLY the tailored resume as valid JSON matching the exact same schema. No
     return TAILOR_SYSTEM, user
 
 
+VALIDATE_JD_SYSTEM = """You are a text classifier. Determine if the provided text is a real job description or job posting.
+
+A job description typically contains: a job title, responsibilities, requirements, qualifications, salary/benefits, or other professional hiring content.
+
+It is NOT a job description if it:
+- Is random characters, numbers, or symbols only
+- Is a personal bio, essay, or story
+- Is a product/service description unrelated to hiring
+- Is a resume or CV
+- Is lorem ipsum or test/dummy text
+- Is fewer than 20 meaningful words
+
+Return ONLY valid JSON with no markdown fences:
+{"valid": true, "reason": "brief reason in one sentence"}"""
+
+
+def build_validate_jd_prompt(text: str) -> tuple[str, str]:
+    user = f"""Is this a job description?
+
+TEXT:
+{text[:3000]}"""
+    return VALIDATE_JD_SYSTEM, user
+
+
 def build_ats_score_prompt(resume: ResumeSchema, job_description: str) -> tuple[str, str]:
     """Returns (system_prompt, user_message) for ATS keyword scoring."""
     resume_json = resume.model_dump_json(indent=2)

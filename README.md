@@ -13,7 +13,7 @@
 - **Resume Validation** — Claude checks if uploaded file is a resume before processing
 - **Resume Parsing** — extracts and structures all sections from PDF/DOCX
 - **AI Enrichment** — rewrites bullets with action verbs and impact metrics (streaming); choose Professional, Concise, or Assertive tone before generating
-- **JD Tailoring** — rewrites resume to match job description keywords (streaming); validates job description input before processing
+- **Target Role Tailoring** — rewrites resume to match job description keywords (streaming); validates job description input before processing
 - **Cover Letter Generator** — generates cover letters inline in the Resume Editor's right panel; opens full editor via "Open in Full Editor"; includes AI Improve button for refinement
 - **Industry Detection** — auto-detects Tech/Finance/Creative/Healthcare/General
 - **Live Preview** — 5 style presets with real-time switching
@@ -109,6 +109,7 @@ Models:
 | POST | /api/cover-letter | Stream-generated cover letter |
 | POST | /api/cover-letter/export | Export cover letter as PDF/DOCX/TXT |
 | POST | /api/ats-score | Score resume against a job description (keyword match, gaps, suggestions) |
+| POST | /api/validate-jd | Validate that input text is a real job description; returns `{ valid, reason }` |
 | GET | /health | Health check |
 
 Frontend uses Supabase JS directly for all CRUD operations (save/load/list/delete).

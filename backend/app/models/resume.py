@@ -77,3 +77,12 @@ class ATSScoreResponse(BaseModel):
     missing_keywords: list[str] = Field(default_factory=list)
     suggestions: list[str] = Field(default_factory=list)
     summary: str = ""
+
+
+class ValidateJdRequest(BaseModel):
+    text: str
+
+
+class ValidateJdResponse(BaseModel):
+    valid: bool
+    reason: str = ""
