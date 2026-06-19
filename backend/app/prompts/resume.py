@@ -107,10 +107,19 @@ RESUME:
     return PARSE_SYSTEM, user
 
 
-def build_enrich_prompt(resume: ResumeSchema) -> tuple[str, str]:
+def build_enrich_prompt(resume: ResumeSchema, tone: str = 'professional') -> tuple[str, str]:
     """Returns (system_prompt, user_message) for enrich."""
+    tone_instructions = {
+        'professional': 'Use formal, polished language with strong action verbs. Balance detail with clarity.',
+        'concise': 'Use punchy, direct language. Trim all filler words. Every bullet should be tight and impactful.',
+        'assertive': 'Use bold, confident language. Lead with strong achievement verbs. Emphasize impact and leadership.',
+    }
+    tone_note = tone_instructions.get(tone, tone_instructions['professional'])
+
     resume_json = resume.model_dump_json(indent=2)
     user = f"""Improve and enrich the following resume. Make bullet points more impactful, achievement-oriented, and quantified where possible.
+
+Writing tone: {tone} — {tone_note}
 
 CURRENT RESUME:
 {resume_json}

@@ -12,6 +12,7 @@ vi.mock('@/services/api', () => ({
   exportResume: vi.fn(),
   tailorResume: vi.fn(),
   scoreATS: vi.fn(),
+  generateCoverLetter: vi.fn(),
   fromBackend: vi.fn((d: unknown) => d),
 }))
 vi.mock('@/services/resumes', () => ({
@@ -39,13 +40,14 @@ vi.mock('@/components/StreamingOutput', () => ({
 
 import { useAuth } from '@/contexts/AuthContext'
 import { saveResume, updateResume } from '@/services/resumes'
-import { enrichResume } from '@/services/api'
+import { enrichResume, generateCoverLetter } from '@/services/api'
 import ResumeEditor from '@/components/ResumeEditor'
 
 const mockUseAuth = vi.mocked(useAuth)
 const mockSaveResume = vi.mocked(saveResume)
 const mockUpdateResume = vi.mocked(updateResume)
 const mockEnrichResume = vi.mocked(enrichResume)
+const mockGenerateCoverLetter = vi.mocked(generateCoverLetter)
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -1004,5 +1006,290 @@ describe('ResumeEditor — template / style selector', () => {
   it('does not render the template-select at step 1', () => {
     renderEditor()
     expect(screen.queryByTestId('template-select')).not.toBeInTheDocument()
+  })
+})
+
+// ── isValidJobDescription — job tailor validation ─────────────────────────────
+// The tailor button is disabled and an error message is shown when the job
+// description is shorter than 15 words or contains no letters.
+
+describe('ResumeEditor — Job Tailoring input validation', () => {
+  async function navigateToJobTailoring(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /job tailoring/i }))
+  }
+
+  it('shows error message when job description is too short (< 15 words)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToJobTailoring(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the full job description here/i)
+    await user.type(textarea, '1111')
+
+    expect(
+      screen.getByText(/job description is too short/i),
+    ).toBeInTheDocument()
+  })
+
+  it('"Tailor Resume to Job" button is disabled when job description is too short', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToJobTailoring(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the full job description here/i)
+    await user.type(textarea, 'too short')
+
+    const tailorBtn = screen.getByRole('button', { name: /tailor resume to job/i })
+    expect(tailorBtn).toBeDisabled()
+  })
+
+  it('shows error when input has no letters (numbers only)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToJobTailoring(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the full job description here/i)
+    // 15+ tokens but no letters
+    await user.type(textarea, '1 2 3 4 5 6 7 8 9 10 11 12 13 14 15')
+
+    expect(
+      screen.getByText(/please paste a real job description/i),
+    ).toBeInTheDocument()
+  })
+
+  it('does not show an error and enables the tailor button for a valid job description', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToJobTailoring(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the full job description here/i)
+    await user.type(
+      textarea,
+      'We are looking for a Senior Software Engineer with strong TypeScript and React skills to join our growing team.',
+    )
+
+    expect(screen.queryByText(/job description is too short/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/please paste a real job description/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /tailor resume to job/i })).toBeEnabled()
+  })
+})
+
+// ── ATS Score input validation ────────────────────────────────────────────────
+// The ATS job description textarea uses the same isValidJobDescription validator.
+
+describe('ResumeEditor — ATS Score input validation', () => {
+  async function navigateToATS(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
+  }
+
+  it('shows error message when ATS job description is too short', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(textarea, 'short text')
+
+    expect(
+      screen.getByText(/job description is too short/i),
+    ).toBeInTheDocument()
+  })
+
+  it('"Analyze ATS Score" button is disabled when ATS job description is invalid', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(textarea, 'too short')
+
+    expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeDisabled()
+  })
+})
+
+// ── ATS dismiss button ────────────────────────────────────────────────────────
+// An X button on the ATS results card clears the result, job description,
+// and errors when clicked.
+
+describe('ResumeEditor — ATS dismiss button', () => {
+  it('dismiss button clears ATS results when clicked', async () => {
+    const { scoreATS: mockScoreATS } = await import('@/services/api')
+    vi.mocked(mockScoreATS).mockResolvedValue({
+      overallScore: 80,
+      summary: 'Good match',
+      matchedKeywords: ['TypeScript'],
+      missingKeywords: [],
+      suggestions: [],
+    })
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
+
+    // Type a valid job description and analyze
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(
+      textarea,
+      'We are hiring a Software Engineer with TypeScript React Node and strong communication skills for our platform team.',
+    )
+    await user.click(screen.getByRole('button', { name: /analyze ats score/i }))
+
+    // Wait for score to appear
+    await waitFor(() => expect(screen.getByText('80')).toBeInTheDocument())
+
+    // Click the dismiss X button (title="Dismiss results")
+    const dismissBtn = screen.getByTitle('Dismiss results')
+    await user.click(dismissBtn)
+
+    // Score should no longer be visible
+    expect(screen.queryByText('80')).not.toBeInTheDocument()
+  })
+})
+
+// ── Cover Letter inline streaming ─────────────────────────────────────────────
+// The "Generate Cover Letter" button no longer navigates to /cover-letter/new.
+// Instead it calls generateCoverLetter and streams inline.
+
+describe('ResumeEditor — Cover Letter inline streaming', () => {
+  async function navigateToCoverLetter(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /cover letter/i }))
+  }
+
+  it('calls generateCoverLetter (not navigate) when Generate Cover Letter is clicked with valid inputs', async () => {
+    // Return a stream that immediately completes
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('Dear Hiring Manager,'))
+        controller.close()
+      },
+    })
+    mockGenerateCoverLetter.mockResolvedValue(stream)
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
+    await user.type(
+      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      'We are looking for a talented Software Engineer with JavaScript and Python skills to join our engineering team today.',
+    )
+
+    await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
+
+    await waitFor(() => expect(mockGenerateCoverLetter).toHaveBeenCalledTimes(1))
+    // The call includes the resume, job description, company name, and tone
+    expect(mockGenerateCoverLetter).toHaveBeenCalledWith(
+      mockResume,
+      expect.any(String),
+      'Acme Corp',
+      expect.any(String),
+    )
+  })
+
+  it('shows "Open in Full Editor" button after cover letter generates', async () => {
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('Dear Hiring Manager, thank you for this opportunity.'))
+        controller.close()
+      },
+    })
+    mockGenerateCoverLetter.mockResolvedValue(stream)
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Stripe')
+    await user.type(
+      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      'We are looking for a Senior Engineer with strong backend skills in Python and distributed systems at our payments company.',
+    )
+
+    await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /open in full editor/i })).toBeInTheDocument(),
+    )
+  })
+})
+
+// ── Resume Polish tone selector ───────────────────────────────────────────────
+// A radio group with professional / concise / assertive options is rendered
+// before the "Generate Improvements" button in the Resume Polish workspace.
+
+describe('ResumeEditor — Resume Polish tone selector', () => {
+  async function navigateToPolish(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    // Resume Polish is the default tool — no extra navigation needed
+  }
+
+  it('renders three tone radio buttons: Professional, Concise, Assertive', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToPolish(user)
+
+    expect(screen.getByRole('radio', { name: /professional/i })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /concise/i })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /assertive/i })).toBeInTheDocument()
+  })
+
+  it('"Professional" radio is checked by default', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToPolish(user)
+
+    const professionalRadio = screen.getByRole('radio', { name: /professional/i })
+    expect(professionalRadio).toBeChecked()
+  })
+
+  it('selecting "Concise" unchecks "Professional" and checks "Concise"', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToPolish(user)
+
+    await user.click(screen.getByRole('radio', { name: /concise/i }))
+
+    expect(screen.getByRole('radio', { name: /concise/i })).toBeChecked()
+    expect(screen.getByRole('radio', { name: /professional/i })).not.toBeChecked()
+  })
+
+  it('passes the selected tone to enrichResume when Generate Improvements is clicked', async () => {
+    mockEnrichResume.mockResolvedValue(createPendingStream())
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToPolish(user)
+
+    // Switch to 'assertive' tone before clicking Generate
+    await user.click(screen.getByRole('radio', { name: /assertive/i }))
+    await user.click(screen.getByRole('button', { name: /generate improvements/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockEnrichResume).toHaveBeenCalledWith(mockResume, 'assertive')
   })
 })

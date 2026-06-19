@@ -124,8 +124,9 @@ export async function parseResume(file: File, signal?: AbortSignal): Promise<Res
 
 export async function enrichResume(
   resume: ResumeSchema,
+  tone?: string,
 ): Promise<ReadableStream<Uint8Array>> {
-  const stream = await fetchStream('/api/enrich', { resume: toBackend(resume) })
+  const stream = await fetchStream('/api/enrich', { resume: toBackend(resume), tone: tone ?? 'professional' })
   logAiUsage('enrich', SMART_MODEL).catch(() => {})
   return stream
 }

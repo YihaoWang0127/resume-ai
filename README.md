@@ -12,12 +12,12 @@
 ### AI-Powered
 - **Resume Validation** — Claude checks if uploaded file is a resume before processing
 - **Resume Parsing** — extracts and structures all sections from PDF/DOCX
-- **AI Enrichment** — rewrites bullets with action verbs and impact metrics (streaming)
-- **JD Tailoring** — rewrites resume to match job description keywords (streaming)
-- **Cover Letter Generator** — generates personalized cover letters with tone options
+- **AI Enrichment** — rewrites bullets with action verbs and impact metrics (streaming); choose Professional, Concise, or Assertive tone before generating
+- **JD Tailoring** — rewrites resume to match job description keywords (streaming); validates job description input before processing
+- **Cover Letter Generator** — generates cover letters inline in the Resume Editor's right panel; opens full editor via "Open in Full Editor"; includes AI Improve button for refinement
 - **Industry Detection** — auto-detects Tech/Finance/Creative/Healthcare/General
 - **Live Preview** — 5 style presets with real-time switching
-- **ATS Keyword Scoring** — 0-100 keyword-match score with matched/missing chips and AI suggestions; tracked per-resume on the Dashboard
+- **ATS Keyword Scoring** — 0-100 keyword-match score with matched/missing chips and AI suggestions; validates job description input; dismissible results panel; tracked per-resume on the Dashboard
 - **AI Usage Tracking** — every AI call logged to `ai_usage_log`; surfaced on `/ai` as total calls, monthly count, and action breakdown
 
 ### Auth & Storage
@@ -103,7 +103,7 @@ Models:
 | Method | Path | Purpose |
 |---|---|---|
 | POST | /api/parse | Upload PDF/DOCX → validated + parsed resume JSON |
-| POST | /api/enrich | Stream-enriched resume |
+| POST | /api/enrich | Stream-enriched resume; optional `tone` field: `'professional'` (default) \| `'concise'` \| `'assertive'` |
 | POST | /api/tailor | Stream-tailored resume to job description |
 | POST | /api/export | Export resume as PDF or DOCX |
 | POST | /api/cover-letter | Stream-generated cover letter |

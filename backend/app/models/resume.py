@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -63,6 +63,7 @@ class TailorRequest(BaseModel):
 
 class EnrichRequest(BaseModel):
     resume: ResumeSchema
+    tone: Optional[Literal['professional', 'concise', 'assertive']] = 'professional'
 
 
 class ATSScoreRequest(BaseModel):

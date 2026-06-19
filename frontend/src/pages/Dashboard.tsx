@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, Navigate, useLocation } from 'react-router-dom'
 import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { listResumes, deleteResume, updateAtsScore, clearAtsScore, type SavedResume } from '@/services/resumes'
@@ -38,6 +38,7 @@ function SkeletonCards() {
 export default function Dashboard() {
   const { user, loading, isGuest } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   // ── resumes ──────────────────────────────────────────────────────────────────
   const [resumes, setResumes] = useState<SavedResume[]>([])
@@ -46,7 +47,9 @@ export default function Dashboard() {
   const [aiCallsThisMonth, setAiCallsThisMonth] = useState<number | null>(null)
 
   type DashboardTab = 'resumes' | 'cover-letters' | 'ats-score'
-  const [activeTab, setActiveTab] = useState<DashboardTab>('resumes')
+  const [activeTab, setActiveTab] = useState<DashboardTab>(
+    (location.state as { activeTab?: DashboardTab } | null)?.activeTab ?? 'resumes'
+  )
 
   // ── ATS score check ──────────────────────────────────────────────────────────
   const [atsTarget, setAtsTarget] = useState<SavedResume | null>(null)

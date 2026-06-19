@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.post("/enrich")
 async def enrich_resume(body: EnrichRequest) -> StreamingResponse:
-    system, user = build_enrich_prompt(body.resume)
+    system, user = build_enrich_prompt(body.resume, body.tone or 'professional')
 
     async def generate() -> AsyncIterator[str]:
         try:
