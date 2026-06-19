@@ -18,16 +18,16 @@ function SkeletonCards() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="rounded-xl border border-border bg-card p-5 min-h-[200px] flex flex-col animate-pulse">
+        <div key={i} className="rounded-xl border border-border bg-card p-6 min-h-[240px] flex flex-col animate-pulse">
           <div className="flex-1 min-w-0 space-y-3">
-            <div className="h-4 w-3/4 bg-muted rounded" />
+            <div className="h-5 w-3/4 bg-muted rounded" />
             <div className="h-4 w-16 bg-muted rounded-full" />
             <div className="h-3 w-1/2 bg-muted rounded" />
           </div>
-          <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-            <div className="h-8 flex-1 bg-muted rounded" />
-            <div className="h-8 flex-1 bg-muted rounded" />
-            <div className="h-8 w-10 bg-muted rounded" />
+          <div className="flex gap-2 mt-5 pt-3 border-t border-border">
+            <div className="h-11 flex-1 bg-muted rounded" />
+            <div className="h-11 flex-1 bg-muted rounded" />
+            <div className="h-11 w-11 bg-muted rounded" />
           </div>
         </div>
       ))}
@@ -341,29 +341,29 @@ export default function Dashboard() {
                 {resumes.map((r) => (
                   <div
                     key={r.id}
-                    className="bg-card border border-primary/40 rounded-xl p-5 flex flex-col min-h-[200px] hover:border-primary/70 transition-colors"
+                    className="bg-card border border-primary/40 rounded-xl p-6 flex flex-col min-h-[240px] hover:border-primary/70 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground text-sm truncate">{r.title}</p>
-                      <div className="mt-2">
+                      <p className="font-bold text-foreground text-base truncate">{r.title}</p>
+                      <div className="mt-2.5">
                         <span className="inline-block px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-bold uppercase tracking-wider truncate max-w-full">
                           {r.detected_industry}
                         </span>
                       </div>
                       {r.ats_score != null && (
-                        <div className="mt-1.5">
+                        <div className="mt-2">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-bold tracking-wider">
                             <Target className="size-2.5 shrink-0" />
                             ATS {r.ats_score}
                           </span>
                         </div>
                       )}
-                      <p className="mt-2 text-[11px] text-muted-foreground">
+                      <p className="mt-2.5 text-xs text-muted-foreground">
                         Updated {formatDate(r.updated_at)}
                       </p>
                     </div>
 
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-border w-full">
+                    <div className="flex gap-2 mt-5 pt-4 border-t border-border w-full">
                       <button
                         onClick={() => handleEdit(r)}
                         className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
@@ -417,7 +417,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setUploadModalOpen(true)}
-                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-3 min-h-[200px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
+                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-3 min-h-[240px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
                 >
                   <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center transition-colors">
                     <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
