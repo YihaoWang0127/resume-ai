@@ -204,7 +204,7 @@ describe('ResumeEditor — save dialog', () => {
 
     // Navigate to step 3 where the template-select is rendered in the stage toolbar
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
 
     // Change the style via the template-select dropdown
     await user.selectOptions(screen.getByTestId('template-select'), 'finance')
@@ -238,7 +238,7 @@ describe('ResumeEditor — update existing resume', () => {
 
     // Navigate to step 3 where the template-select is rendered in the stage toolbar
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
 
     // Change the style via the template-select dropdown
     await user.selectOptions(screen.getByTestId('template-select'), 'finance')
@@ -262,8 +262,7 @@ describe('ResumeEditor — update existing resume', () => {
 // ── header layout ─────────────────────────────────────────────────────────────
 // The new design replaced the Navbar with an inline header that shows a
 // logo, a "Back to Dashboard" link, a step indicator, and an avatar.
-// The Download button was removed from the header — it now lives in the
-// stage toolbar (step 4) and the bottom bar (step 4).
+// The Download/Export button now lives in the stage toolbar at step 3 (Review & Export).
 
 describe('ResumeEditor — header', () => {
   it('renders the Back to Dashboard button', () => {
@@ -455,21 +454,20 @@ describe('ResumeEditor — step indicator', () => {
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
 
     // Step 2 is now active — the stage toolbar shows the AI Enhance title
-    // and the bottom bar shows "Continue to Preview"
-    expect(screen.getByRole('button', { name: /continue to preview/i })).toBeInTheDocument()
+    // and the bottom bar shows "Continue to Review & Export"
+    expect(screen.getByRole('button', { name: /continue to review & export/i })).toBeInTheDocument()
   })
 
-  it('advances through all 4 steps via contextual Continue buttons', async () => {
+  it('advances through all 3 steps via contextual Continue buttons', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
-    await user.click(screen.getByRole('button', { name: /continue to download/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
 
-    // Step 4 — "Download" label in step indicator must be visible
-    expect(screen.getAllByText('Download')[0]).toBeInTheDocument()
-    // No more Continue buttons at step 4
+    // Step 3 — "Review & Export" label in step indicator must be visible
+    expect(screen.getAllByText('Review & Export')[0]).toBeInTheDocument()
+    // No more Continue buttons at step 3
     expect(screen.queryByRole('button', { name: /continue to/i })).not.toBeInTheDocument()
   })
 
@@ -492,7 +490,7 @@ describe('ResumeEditor — step indicator', () => {
 
 // ── stage toolbar ─────────────────────────────────────────────────────────────
 // A new toolbar appears below the header and renders stage-specific content
-// based on currentStep (1=Edit Resume, 2=AI Enhance, 3=Preview & Customize, 4=Download).
+// based on currentStep (1=Edit Resume, 2=AI Enhance, 3=Review & Export).
 
 describe('ResumeEditor — stage toolbar', () => {
   it('shows "Edit Resume" title and auto-save status at step 1', () => {
@@ -515,30 +513,16 @@ describe('ResumeEditor — stage toolbar', () => {
     // Those actions live inside the center panel tool workspaces instead
   })
 
-  it('shows "Preview & Customize" title and template select at step 3', async () => {
+  it('shows "Review & Export" title and Export dropdown button at step 3', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
 
-    expect(screen.getAllByText('Preview & Customize').length).toBeGreaterThan(0)
-    expect(screen.getByTestId('template-select')).toBeInTheDocument()
-  })
-
-  it('shows "Download Resume" title, "Download PDF", and "Download DOCX" buttons at step 4', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
-    await user.click(screen.getByRole('button', { name: /continue to download/i }))
-
-    expect(screen.getByText('Download Resume')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /generate cover letter/i })).not.toBeInTheDocument()
-    // "Download PDF" appears in both stage toolbar and bottom bar — at least one present
-    expect(screen.getAllByRole('button', { name: /download pdf/i }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: /download docx/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Review & Export').length).toBeGreaterThan(0)
+    // Primary Export dropdown button is in the stage toolbar at step 3
+    expect(screen.getByRole('button', { name: /^export$/i })).toBeInTheDocument()
   })
 })
 
@@ -553,7 +537,7 @@ describe('ResumeEditor — bottom bar contextual navigation', () => {
     expect(screen.queryByRole('button', { name: /back to edit|back to ai enhance|back to preview/i })).not.toBeInTheDocument()
   })
 
-  it('stage 2: shows "Save Changes", "Back to Edit", and "Continue to Preview"', async () => {
+  it('stage 2: shows "Save Changes", "Back to Edit", and "Continue to Review & Export"', async () => {
     const user = userEvent.setup()
     renderEditor()
 
@@ -561,34 +545,19 @@ describe('ResumeEditor — bottom bar contextual navigation', () => {
 
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /back to edit/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /continue to preview/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /continue to review & export/i })).toBeInTheDocument()
   })
 
-  it('stage 3: shows "Save Changes", "Back to AI Enhance", and "Continue to Download"', async () => {
+  it('stage 3: shows "Save Changes", "Back to AI Enhance" — no Continue button', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
 
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /back to ai enhance/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /continue to download/i })).toBeInTheDocument()
-  })
-
-  it('stage 4: shows "Back to Preview", "Download PDF", "Download DOCX" — no Save Changes, no Continue', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
-    await user.click(screen.getByRole('button', { name: /continue to download/i }))
-
-    expect(screen.getByRole('button', { name: /back to preview/i })).toBeInTheDocument()
-    // Download PDF and DOCX appear in bottom bar at step 4
-    expect(screen.getAllByRole('button', { name: /download pdf/i }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: /download docx/i }).length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
+    // Step 3 is the last step — no Continue button
     expect(screen.queryByRole('button', { name: /continue to/i })).not.toBeInTheDocument()
   })
 })
@@ -861,15 +830,17 @@ describe('ResumeEditor — left sidebar conditional rendering', () => {
     expect(screen.queryByText('Resume Sections')).not.toBeInTheDocument()
   })
 
-  it('shows Resume Sections nav again in the sidebar at Step 3 (Preview)', async () => {
+  it('shows Documents nav in the sidebar at Step 3 (Review & Export)', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
 
-    expect(screen.getByText('Resume Sections')).toBeInTheDocument()
+    // Step 3 sidebar shows the Documents section selector, not Resume Sections
+    expect(screen.getByText('Documents')).toBeInTheDocument()
     expect(screen.queryByText('AI Enhance Tools')).not.toBeInTheDocument()
+    expect(screen.queryByText('Resume Sections')).not.toBeInTheDocument()
   })
 })
 
@@ -986,7 +957,7 @@ describe('ResumeEditor — center panel Step 2 AI workspace', () => {
 describe('ResumeEditor — template / style selector', () => {
   async function navigateToStep3(user: ReturnType<typeof userEvent.setup>) {
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
   }
 
   it('renders the Template <select> with industry options at step 3', async () => {
@@ -1529,5 +1500,220 @@ describe('ResumeEditor — Resume Polish comparing state', () => {
     )
     // The regular preview header "Live Preview" is now in the right panel (not ComparisonView's)
     expect(screen.getByText('Live Preview')).toBeInTheDocument()
+  })
+})
+
+// ── Review & Export — step 3 renders ─────────────────────────────────────────
+// When currentStep === 3 the left sidebar shows a Documents nav, the stage
+// toolbar shows "Review & Export" + Export dropdown, and the main area shows
+// the step-3 preview panel instead of the center editor + right preview.
+
+describe('ResumeEditor — Review & Export step 3 renders', () => {
+  async function navigateToStep3(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+  }
+
+  it('renders "Review & Export" in stage toolbar at step 3', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    expect(screen.getAllByText('Review & Export').length).toBeGreaterThan(0)
+  })
+
+  it('renders Export dropdown button in stage toolbar at step 3', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    expect(screen.getByRole('button', { name: /^export$/i })).toBeInTheDocument()
+  })
+
+  it('renders the stepper with exactly 3 step labels: Edit, AI Enhance, Review & Export', () => {
+    renderEditor()
+
+    expect(screen.getAllByText('Edit').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('AI Enhance').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Review & Export').length).toBeGreaterThan(0)
+    // The old step 4 label "Download" should not appear in the stepper
+    expect(screen.queryByText('Download')).not.toBeInTheDocument()
+  })
+
+  it('sidebar shows Documents label with Resume, Cover Letter, ATS Report nav items at step 3', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    expect(screen.getByText('Documents')).toBeInTheDocument()
+    // All three document tabs are present in the sidebar nav
+    expect(screen.getByRole('button', { name: /^resume$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^cover letter$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^ats report$/i })).toBeInTheDocument()
+  })
+
+  it('hides the center editor at step 3 (no Contact Information form)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    expect(screen.queryByRole('heading', { name: /contact information/i })).not.toBeInTheDocument()
+  })
+})
+
+// ── Review & Export — document tab switching ──────────────────────────────────
+// Clicking sidebar nav items switches the preview content between Resume,
+// Cover Letter, and ATS Report tabs.
+
+describe('ResumeEditor — Review & Export document tab switching', () => {
+  async function navigateToStep3(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+  }
+
+  it('defaults to the Resume tab — shows resume-mode toggle buttons', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    // Resume tab shows Final / Split Compare / Unified Review mode toggles
+    expect(screen.getByRole('button', { name: /^final$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /split compare/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /unified review/i })).toBeInTheDocument()
+  })
+
+  it('switching to Cover Letter tab shows the cover-letter mode toggles', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    await user.click(screen.getByRole('button', { name: /^cover letter$/i }))
+
+    // Cover Letter tab shows Final / Compare Drafts toggles
+    expect(screen.getByRole('button', { name: /^final$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /compare drafts/i })).toBeInTheDocument()
+    // Resume-only toggle (Unified Review) should no longer be present
+    expect(screen.queryByRole('button', { name: /unified review/i })).not.toBeInTheDocument()
+  })
+
+  it('switching to ATS Report tab shows Overview / Keywords / Suggestions toggles', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    await user.click(screen.getByRole('button', { name: /^ats report$/i }))
+
+    expect(screen.getByRole('button', { name: /overview/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /keywords/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /suggestions/i })).toBeInTheDocument()
+    // Resume-only splits should not be present
+    expect(screen.queryByRole('button', { name: /split compare/i })).not.toBeInTheDocument()
+  })
+
+  it('switching back from Cover Letter to Resume tab restores resume mode toggles', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    await user.click(screen.getByRole('button', { name: /^cover letter$/i }))
+    await user.click(screen.getByRole('button', { name: /^resume$/i }))
+
+    expect(screen.getByRole('button', { name: /split compare/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /unified review/i })).toBeInTheDocument()
+  })
+})
+
+// ── Review & Export — resume review mode toggles ──────────────────────────────
+// The Resume tab has 3 review modes: Final Version / Split Compare / Unified Review.
+
+describe('ResumeEditor — Review & Export resume review mode toggles', () => {
+  async function navigateToStep3(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+  }
+
+  it('"Final" mode is the default — shows a single resume preview (not split)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    // "Final" is the default mode and its button should be the only resume-preview in DOM.
+    // The step-3 preview area renders a single ResumePreview when in Final mode.
+    const previews = screen.getAllByTestId('resume-preview')
+    expect(previews.length).toBe(1)
+  })
+
+  it('clicking "Split Compare" shows Original and AI Enhanced labels', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    await user.click(screen.getByRole('button', { name: /split compare/i }))
+
+    expect(screen.getByText('Original')).toBeInTheDocument()
+    expect(screen.getByText('AI Enhanced')).toBeInTheDocument()
+    // Two resume previews are rendered side-by-side
+    expect(screen.getAllByTestId('resume-preview').length).toBe(2)
+  })
+
+  it('clicking "Unified Review" returns to single-pane preview (no Original/AI Enhanced labels)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+
+    // Go to split first, then unified
+    await user.click(screen.getByRole('button', { name: /split compare/i }))
+    await user.click(screen.getByRole('button', { name: /unified review/i }))
+
+    expect(screen.queryByText('Original')).not.toBeInTheDocument()
+    expect(screen.queryByText('AI Enhanced')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('resume-preview').length).toBe(1)
+  })
+})
+
+// ── Review & Export — cover letter empty state ────────────────────────────────
+// When clStreamContent is falsy the Cover Letter tab shows an empty-state message.
+
+describe('ResumeEditor — Review & Export cover letter empty state', () => {
+  it('shows "No cover letter yet" empty state when cover letter has not been generated', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+    await user.click(screen.getByRole('button', { name: /^cover letter$/i }))
+
+    expect(
+      screen.getByText(/no cover letter yet.*generate one in the ai enhance step/i),
+    ).toBeInTheDocument()
+  })
+})
+
+// ── Review & Export — ATS Report empty state ─────────────────────────────────
+// When atsResult is null the ATS Report tab shows an empty-state message.
+
+describe('ResumeEditor — Review & Export ATS Report empty state', () => {
+  it('shows "No ATS report yet" empty state when ATS has not been run', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+    await user.click(screen.getByRole('button', { name: /^ats report$/i }))
+
+    expect(
+      screen.getByText(/no ats report yet.*run ats score in the ai enhance step/i),
+    ).toBeInTheDocument()
   })
 })
