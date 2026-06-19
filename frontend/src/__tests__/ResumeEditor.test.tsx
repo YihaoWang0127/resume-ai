@@ -12,11 +12,16 @@ vi.mock('@/services/api', () => ({
   exportResume: vi.fn(),
   tailorResume: vi.fn(),
   scoreATS: vi.fn(),
+  generateCoverLetter: vi.fn(),
+  validateJobDescription: vi.fn().mockResolvedValue({ valid: true, reason: '' }),
   fromBackend: vi.fn((d: unknown) => d),
 }))
 vi.mock('@/services/resumes', () => ({
   saveResume: vi.fn(),
   updateResume: vi.fn(),
+}))
+vi.mock('@/services/coverLetters', () => ({
+  saveCoverLetter: vi.fn(),
 }))
 vi.mock('@/components/ResumePreview', () => ({
   default: (props: { onIndustryChange?: (industry: string) => void }) => (
@@ -39,13 +44,17 @@ vi.mock('@/components/StreamingOutput', () => ({
 
 import { useAuth } from '@/contexts/AuthContext'
 import { saveResume, updateResume } from '@/services/resumes'
-import { enrichResume } from '@/services/api'
+import { enrichResume, generateCoverLetter, validateJobDescription } from '@/services/api'
+import { saveCoverLetter } from '@/services/coverLetters'
 import ResumeEditor from '@/components/ResumeEditor'
 
 const mockUseAuth = vi.mocked(useAuth)
 const mockSaveResume = vi.mocked(saveResume)
 const mockUpdateResume = vi.mocked(updateResume)
 const mockEnrichResume = vi.mocked(enrichResume)
+const mockGenerateCoverLetter = vi.mocked(generateCoverLetter)
+const mockValidateJobDescription = vi.mocked(validateJobDescription)
+const mockSaveCoverLetter = vi.mocked(saveCoverLetter)
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -90,7 +99,9 @@ function renderEditor(props: Partial<Parameters<typeof ResumeEditor>[0]> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.useRealTimers()
   mockUseAuth.mockReturnValue(defaultAuth as any)
+  mockValidateJobDescription.mockResolvedValue({ valid: true, reason: '' })
 })
 
 // ── save / update buttons ─────────────────────────────────────────────────────
@@ -802,7 +813,7 @@ describe('ResumeEditor — center panel content area padding', () => {
 
 // ── left sidebar conditional rendering ───────────────────────────────────────
 // Step 2 (AI Enhance): shows AI Enhance Tools panel with 4 tool selector nav buttons
-// (Resume Polish, Job Tailoring, Cover Letter, ATS Score). Resume Sections nav absent.
+// (Resume Polish, Target Role Tailoring, Cover Letter, ATS Score). Resume Sections nav absent.
 // Steps 1, 3, 4: shows Resume Sections nav and Review Tools nav. AI Enhance panel absent.
 
 describe('ResumeEditor — left sidebar conditional rendering', () => {
@@ -820,9 +831,9 @@ describe('ResumeEditor — left sidebar conditional rendering', () => {
 
     // "AI Enhance Tools" label is only rendered in step 2 sidebar
     expect(screen.queryByText('AI Enhance Tools')).not.toBeInTheDocument()
-    // The tool selector nav buttons (Resume Polish, Job Tailoring, etc.) are absent at step 1
+    // The tool selector nav buttons (Resume Polish, Target Role Tailoring, etc.) are absent at step 1
     expect(screen.queryByRole('button', { name: /resume polish/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /job tailoring/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /target role tailoring/i })).not.toBeInTheDocument()
   })
 
   it('shows AI Enhance Tools panel with tool selector nav buttons at Step 2', async () => {
@@ -835,7 +846,7 @@ describe('ResumeEditor — left sidebar conditional rendering', () => {
     expect(screen.getByText('AI Enhance Tools')).toBeInTheDocument()
     // The 4 tool selector nav buttons are rendered
     expect(screen.getAllByRole('button', { name: /resume polish/i }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: /job tailoring/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /target role tailoring/i }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('button', { name: /cover letter/i }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('button', { name: /ats score/i }).length).toBeGreaterThan(0)
   })
@@ -865,7 +876,7 @@ describe('ResumeEditor — left sidebar conditional rendering', () => {
 // ── center panel Step 2 AI workspace ─────────────────────────────────────────
 // When currentStep === 2, the center panel renders a per-tool workspace:
 //   - default ('polish'): "Resume Polish" heading + "Generate Improvements" button
-//   - 'tailor': "Job Tailoring" heading + job desc textarea + "Tailor Resume to Job" button
+//   - 'tailor': "Target Role Tailoring" heading + job desc textarea + "Tailor Resume to Target Role" button
 //   - 'coverletter': "Cover Letter" heading + company name input + "Generate Cover Letter" button
 //   - 'ats': "ATS Score" heading + job desc textarea + "Analyze ATS Score" button
 // The resume form (Contact Information etc.) is hidden in step 2.
@@ -899,33 +910,33 @@ describe('ResumeEditor — center panel Step 2 AI workspace', () => {
     expect(screen.queryByRole('heading', { name: /contact information/i })).not.toBeInTheDocument()
   })
 
-  it('clicking "Job Tailoring" tool shows the job description workspace', async () => {
+  it('clicking "Target Role Tailoring" tool shows the job description workspace', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /job tailoring/i }))
+    await user.click(screen.getByRole('button', { name: /target role tailoring/i }))
 
-    expect(screen.getByRole('heading', { name: /job tailoring/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /target role tailoring/i })).toBeInTheDocument()
     expect(
-      screen.getByPlaceholderText(/paste the full job description here/i),
+      screen.getByPlaceholderText(/paste the job description for the role you want to apply to/i),
     ).toBeInTheDocument()
   })
 
-  it('"Tailor Resume to Job" button is disabled when job description is empty, enabled after typing', async () => {
+  it('"Tailor Resume to Target Role" button is disabled when job description is empty, enabled after typing', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    await user.click(screen.getByRole('button', { name: /job tailoring/i }))
+    await user.click(screen.getByRole('button', { name: /target role tailoring/i }))
 
-    const tailorBtn = screen.getByRole('button', { name: /tailor resume to job/i })
+    const tailorBtn = screen.getByRole('button', { name: /tailor resume to target role/i })
     expect(tailorBtn).toBeDisabled()
 
-    const textarea = screen.getByPlaceholderText(/paste the full job description here/i)
-    await user.type(textarea, 'Senior Software Engineer at Acme Corp.')
+    const textarea = screen.getByPlaceholderText(/paste the job description for the role you want to apply to/i)
+    await user.type(textarea, 'We are looking for a Senior Software Engineer to join our team at Acme Corp to build scalable distributed systems and lead technical initiatives.')
 
-    expect(tailorBtn).toBeEnabled()
+    await waitFor(() => expect(tailorBtn).toBeEnabled(), { timeout: 3000 })
   })
 
   it('clicking "Cover Letter" tool shows the company name input', async () => {
@@ -1004,5 +1015,519 @@ describe('ResumeEditor — template / style selector', () => {
   it('does not render the template-select at step 1', () => {
     renderEditor()
     expect(screen.queryByTestId('template-select')).not.toBeInTheDocument()
+  })
+})
+
+// ── async JD validation — tailor tool ────────────────────────────────────────
+// The tailor button is disabled and an error message is shown when the job
+// description has fewer than 10 words or contains no letters (sync pre-check,
+// no debounced AI call needed in tests).
+
+describe('ResumeEditor — Target Role Tailoring input validation', () => {
+  async function navigateToTargetRoleTailoring(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /target role tailoring/i }))
+  }
+
+  it('shows error message when job description is too short (< 10 words)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToTargetRoleTailoring(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description for the role you want to apply to/i)
+    await user.type(textarea, 'short text here')
+
+    expect(
+      screen.getByText(/please paste a complete job description/i),
+    ).toBeInTheDocument()
+  })
+
+  it('"Tailor Resume to Target Role" button is disabled when job description is too short', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToTargetRoleTailoring(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description for the role you want to apply to/i)
+    await user.type(textarea, 'too short')
+
+    const tailorBtn = screen.getByRole('button', { name: /tailor resume to target role/i })
+    expect(tailorBtn).toBeDisabled()
+  })
+
+  it('shows error when input has no letters (numbers only)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToTargetRoleTailoring(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description for the role you want to apply to/i)
+    // 10+ tokens but no letters
+    await user.type(textarea, '1 2 3 4 5 6 7 8 9 10 11')
+
+    expect(
+      screen.getByText(/please paste a complete job description/i),
+    ).toBeInTheDocument()
+  })
+
+  it('does not show an error and enables the tailor button for a valid job description', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToTargetRoleTailoring(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description for the role you want to apply to/i)
+    await user.type(
+      textarea,
+      'We are looking for a Senior Software Engineer with strong TypeScript and React skills to join our growing team.',
+    )
+
+    expect(screen.queryByText(/please paste a complete job description/i)).not.toBeInTheDocument()
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /tailor resume to target role/i })).toBeEnabled(),
+      { timeout: 3000 },
+    )
+  })
+})
+
+// ── ATS Score input validation ────────────────────────────────────────────────
+// The ATS job description textarea uses the same isValidJobDescription validator.
+
+describe('ResumeEditor — ATS Score input validation', () => {
+  async function navigateToATS(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
+  }
+
+  it('shows error message when ATS job description is too short', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(textarea, 'short text')
+
+    expect(
+      screen.getByText(/please paste a complete job description/i),
+    ).toBeInTheDocument()
+  })
+
+  it('"Analyze ATS Score" button is disabled when ATS job description is invalid', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(textarea, 'too short')
+
+    expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeDisabled()
+  })
+})
+
+// ── ATS dismiss button ────────────────────────────────────────────────────────
+// An X button on the ATS results card clears the result, job description,
+// and errors when clicked.
+
+describe('ResumeEditor — ATS dismiss button', () => {
+  it('dismiss button clears ATS results when clicked', async () => {
+    const { scoreATS: mockScoreATS } = await import('@/services/api')
+    vi.mocked(mockScoreATS).mockResolvedValue({
+      overallScore: 80,
+      summary: 'Good match',
+      matchedKeywords: ['TypeScript'],
+      missingKeywords: [],
+      suggestions: [],
+    })
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
+
+    // Type a valid job description and analyze
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(
+      textarea,
+      'We are hiring a Software Engineer with TypeScript React Node and strong communication skills for our platform team.',
+    )
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeEnabled(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /analyze ats score/i }))
+
+    // Wait for score to appear
+    await waitFor(() => expect(screen.getByText('80')).toBeInTheDocument())
+
+    // Click the dismiss X button (title="Dismiss results")
+    const dismissBtn = screen.getByTitle('Dismiss results')
+    await user.click(dismissBtn)
+
+    // Score should no longer be visible
+    expect(screen.queryByText('80')).not.toBeInTheDocument()
+  })
+})
+
+// ── Cover Letter inline streaming ─────────────────────────────────────────────
+// The "Generate Cover Letter" button no longer navigates to /cover-letter/new.
+// Instead it calls generateCoverLetter and streams inline.
+
+describe('ResumeEditor — Cover Letter inline streaming', () => {
+  async function navigateToCoverLetter(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /cover letter/i }))
+  }
+
+  it('calls generateCoverLetter (not navigate) when Generate Cover Letter is clicked with valid inputs', async () => {
+    // Return a stream that immediately completes
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('Dear Hiring Manager,'))
+        controller.close()
+      },
+    })
+    mockGenerateCoverLetter.mockResolvedValue(stream)
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
+    await user.type(
+      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      'We are looking for a talented Software Engineer with JavaScript and Python skills to join our engineering team today.',
+    )
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /generate cover letter/i })).not.toBeDisabled(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
+
+    await waitFor(() => expect(mockGenerateCoverLetter).toHaveBeenCalledTimes(1))
+    // The call includes the resume, job description, company name, and tone
+    expect(mockGenerateCoverLetter).toHaveBeenCalledWith(
+      mockResume,
+      expect.any(String),
+      'Acme Corp',
+      expect.any(String),
+    )
+  })
+
+  it('shows "Dismiss" and "Save Cover Letter" buttons (not "Open in Full Editor") after cover letter generates', async () => {
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('Dear Hiring Manager, thank you for this opportunity.'))
+        controller.close()
+      },
+    })
+    mockGenerateCoverLetter.mockResolvedValue(stream)
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Stripe')
+    await user.type(
+      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      'We are looking for a Senior Engineer with strong backend skills in Python and distributed systems at our payments company.',
+    )
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /generate cover letter/i })).not.toBeDisabled(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: /save cover letter/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /open in full editor/i })).not.toBeInTheDocument()
+  })
+})
+
+// ── Resume Polish tone selector ───────────────────────────────────────────────
+// A radio group with professional / concise / assertive options is rendered
+// before the "Generate Improvements" button in the Resume Polish workspace.
+
+describe('ResumeEditor — Resume Polish tone selector', () => {
+  async function navigateToPolish(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    // Resume Polish is the default tool — no extra navigation needed
+  }
+
+  it('renders three tone radio buttons: Professional, Concise, Assertive', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToPolish(user)
+
+    expect(screen.getByRole('radio', { name: /professional/i })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /concise/i })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /assertive/i })).toBeInTheDocument()
+  })
+
+  it('"Professional" radio is checked by default', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToPolish(user)
+
+    const professionalRadio = screen.getByRole('radio', { name: /professional/i })
+    expect(professionalRadio).toBeChecked()
+  })
+
+  it('selecting "Concise" unchecks "Professional" and checks "Concise"', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToPolish(user)
+
+    await user.click(screen.getByRole('radio', { name: /concise/i }))
+
+    expect(screen.getByRole('radio', { name: /concise/i })).toBeChecked()
+    expect(screen.getByRole('radio', { name: /professional/i })).not.toBeChecked()
+  })
+
+  it('passes the selected tone to enrichResume when Generate Improvements is clicked', async () => {
+    mockEnrichResume.mockResolvedValue(createPendingStream())
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToPolish(user)
+
+    // Switch to 'assertive' tone before clicking Generate
+    await user.click(screen.getByRole('radio', { name: /assertive/i }))
+    await user.click(screen.getByRole('button', { name: /generate improvements/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockEnrichResume).toHaveBeenCalledWith(mockResume, 'assertive')
+  })
+})
+
+// ── Cover Letter inline actions ───────────────────────────────────────────────
+// After generation, the right panel shows an editable textarea with "Cover Letter
+// Editor" heading. The left panel shows Dismiss and Save Cover Letter buttons.
+
+describe('ResumeEditor — Cover Letter inline actions', () => {
+  async function navigateToCoverLetter(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /cover letter/i }))
+  }
+
+  function createCoverLetterStream(content: string): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder()
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(content))
+        controller.close()
+      },
+    })
+  }
+
+  async function generateCoverLetterContent(user: ReturnType<typeof userEvent.setup>) {
+    mockGenerateCoverLetter.mockResolvedValue(
+      createCoverLetterStream('Dear Hiring Manager, I am excited to apply for this role.'),
+    )
+    await navigateToCoverLetter(user)
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
+    await user.type(
+      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      'We are looking for a talented Software Engineer with JavaScript and Python skills to join our engineering team today.',
+    )
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /generate cover letter/i })).not.toBeDisabled(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument(),
+    )
+  }
+
+  it('"Cover Letter Editor" heading appears in the right panel when cover letter content is present', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    expect(screen.getByText('Cover Letter Editor')).toBeInTheDocument()
+  })
+
+  it('the right panel textarea is editable (not disabled) after generation completes', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    const textarea = screen.getByPlaceholderText(/your cover letter will appear here/i)
+    expect(textarea).not.toBeDisabled()
+  })
+
+  it('"Dismiss" button clears cover letter content when clicked', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    // Content is present — Cover Letter Editor heading should be visible
+    expect(screen.getByText('Cover Letter Editor')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /dismiss/i }))
+
+    // After dismiss, the cover letter editor and actions should disappear
+    expect(screen.queryByText('Cover Letter Editor')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /save cover letter/i })).not.toBeInTheDocument()
+  })
+
+  it('"Save Cover Letter" button calls saveCoverLetter when clicked', async () => {
+    mockSaveCoverLetter.mockResolvedValue(undefined as any)
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    await user.click(screen.getByRole('button', { name: /save cover letter/i }))
+
+    await waitFor(() => expect(mockSaveCoverLetter).toHaveBeenCalledTimes(1))
+    // Should be called with cover letter content and a generated title
+    expect(mockSaveCoverLetter).toHaveBeenCalledWith(
+      expect.stringContaining('Dear Hiring Manager'),
+      expect.any(String),
+      'Acme Corp',
+      expect.any(String),
+      expect.any(String),
+      undefined,
+    )
+  })
+
+  it('"Save Cover Letter" button shows "Saved!" after a successful save', async () => {
+    mockSaveCoverLetter.mockResolvedValue(undefined as any)
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    await user.click(screen.getByRole('button', { name: /save cover letter/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /saved!/i })).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+  })
+})
+
+// ── Resume Polish comparing state (right panel) ───────────────────────────────
+// When enrichmentState === 'comparing', the right panel shows ComparisonView with
+// hideActions (Discard/Accept are in the center panel, not the sticky bar).
+// The center panel shows an "Improvements ready to review" card with Accept/Discard buttons.
+
+describe('ResumeEditor — Resume Polish comparing state', () => {
+  async function navigateToPolish(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+  }
+
+  // Helper: stream a valid JSON resume so the enrichment flow reaches 'comparing' state.
+  // fromBackend is mocked to return its argument unchanged.
+  function createEnrichStream(resumeJson: unknown): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder()
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(JSON.stringify(resumeJson)))
+        controller.close()
+      },
+    })
+  }
+
+  async function reachComparingState(user: ReturnType<typeof userEvent.setup>) {
+    const enrichedPayload = {
+      ...mockResume,
+      summary: 'An AI-enhanced summary for testing.',
+    }
+    mockEnrichResume.mockResolvedValue(createEnrichStream(enrichedPayload))
+
+    await navigateToPolish(user)
+    await user.click(screen.getByRole('button', { name: /generate improvements/i }))
+
+    // Wait for the 'comparing' UI: Accept Changes button appears in center panel
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /accept changes/i })).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+  }
+
+  it('right panel shows "Live Preview" label inside ComparisonView when comparing', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+
+    // ComparisonView renders its own "Live Preview" label in the header
+    expect(screen.getByText('Live Preview')).toBeInTheDocument()
+  })
+
+  it('right panel shows Split View / Unified View toggle buttons inside ComparisonView when comparing', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+
+    expect(screen.getByRole('button', { name: /split view/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /unified view/i })).toBeInTheDocument()
+  })
+
+  it('sticky action bar (with "AI enrichment ready") is NOT rendered because hideActions is true', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+
+    // ComparisonView is rendered with hideActions — the sticky bar is suppressed
+    expect(screen.queryByText(/ai enrichment ready/i)).not.toBeInTheDocument()
+  })
+
+  it('Discard button in the center panel has bg-destructive class when comparing', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+
+    const discardBtn = screen.getByRole('button', { name: /discard/i })
+    expect(discardBtn).toBeInTheDocument()
+    expect(discardBtn.className).toContain('bg-destructive')
+  })
+
+  it('clicking Discard in the center panel hides ComparisonView and shows Live Preview header', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+
+    await user.click(screen.getByRole('button', { name: /discard/i }))
+
+    // After discard, the split/unified view toggle is gone (ComparisonView unmounted)
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /split view/i })).not.toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+    // The regular preview header "Live Preview" is now in the right panel (not ComparisonView's)
+    expect(screen.getByText('Live Preview')).toBeInTheDocument()
   })
 })

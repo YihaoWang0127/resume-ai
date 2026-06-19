@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Sparkles,
@@ -36,6 +36,7 @@ import {
   Upload,
   LayoutDashboard,
   LogOut,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -43,12 +44,13 @@ import Modal from '@/components/Modal'
 import { cn, getInitials } from '@/lib/utils'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
-import { enrichResume, exportResume, fromBackend, scoreATS, tailorResume } from '@/services/api'
+import { enrichResume, exportResume, fromBackend, generateCoverLetter, scoreATS, tailorResume, validateJobDescription } from '@/services/api'
 import { saveResume, updateResume, type AtsMetadata } from '@/services/resumes'
+import { saveCoverLetter } from '@/services/coverLetters'
 import { useAuth } from '@/contexts/AuthContext'
+import ComparisonView from './ComparisonView'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
-import ComparisonView from './ComparisonView'
 
 interface Props {
   initialResume: ResumeSchema
@@ -79,6 +81,7 @@ function newSkill(): SkillCategory {
   return { category: '', items: [''] }
 }
 
+type JdValState = 'idle' | 'validating' | 'valid' | 'invalid'
 
 const STREAMING_MESSAGES = [
   'Analyzing your resume...',
@@ -102,7 +105,7 @@ type AiTool = 'polish' | 'tailor' | 'coverletter' | 'ats'
 
 const AI_TOOL_DEFS: Array<{ id: AiTool; label: string; description: string; Icon: LucideIcon }> = [
   { id: 'polish',      label: 'Resume Polish',  description: 'Improve wording, clarity, and bullet strength',  Icon: Sparkles },
-  { id: 'tailor',      label: 'Job Tailoring',  description: 'Tailor your resume to a specific role',          Icon: Wand2 },
+  { id: 'tailor',      label: 'Target Role Tailoring',  description: 'Optimize your resume for the job you want to apply for.',          Icon: Wand2 },
   { id: 'coverletter', label: 'Cover Letter',   description: 'Generate a personalized cover letter',           Icon: Mail },
   { id: 'ats',         label: 'ATS Score',      description: 'Check resume match against a job description',   Icon: Target },
 ]
@@ -156,6 +159,26 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [clCompany, setClCompany] = useState('')
   const [clJobDesc, setClJobDesc] = useState('')
   const [clTone, setClTone] = useState<CoverLetterTone>('professional')
+  const [clStreamContent, setClStreamContent] = useState('')
+  const [clIsStreaming, setClIsStreaming] = useState(false)
+  const [clStreamError, setClStreamError] = useState<string | null>(null)
+  const [clCompanyError, setClCompanyError] = useState<string | null>(null)
+  const [clSaving, setClSaving] = useState(false)
+  const [clSaved, setClSaved] = useState(false)
+  const [enrichTone, setEnrichTone] = useState<'professional' | 'concise' | 'assertive'>('professional')
+  // Job tailoring validation
+  const [jobDescValState, setJobDescValState] = useState<JdValState>('idle')
+  const [jobDescValError, setJobDescValError] = useState<string | null>(null)
+  const jobDescValTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // ATS validation
+  const [atsJobDescValState, setAtsJobDescValState] = useState<JdValState>('idle')
+  const [atsJobDescValError, setAtsJobDescValError] = useState<string | null>(null)
+  const atsJobDescValTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Cover letter JD validation
+  const [clJobDescValState, setClJobDescValState] = useState<JdValState>('idle')
+  const [clJobDescValError, setClJobDescValError] = useState<string | null>(null)
+  const clJobDescValTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clStreamReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null)
   const [saveTitle, setSaveTitle] = useState(
     () => `Resume - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   )
@@ -398,7 +421,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const startEnrich = () => {
     setOriginalResume(resume)
     setEnrichmentState('loading')
-    runStream(() => enrichResume(resume))
+    runStream(() => enrichResume(resume, enrichTone))
     // Enrich's loading/comparison UI lives in the right (preview) panel —
     // switch mobile view there so the user sees it (overrides runStream's
     // setMobileViewTab('edit') for the Tailor flow).
@@ -463,6 +486,49 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     runStream(() => tailorResume(resume, jobDesc))
   }
 
+  const handleGenerateCoverLetterInline = async () => {
+    const companyErr = clCompany.trim() ? null : 'Company name is required.'
+    setClCompanyError(companyErr)
+    if (companyErr) return
+
+    setClStreamContent('')
+    setClStreamError(null)
+    setClIsStreaming(true)
+    try {
+      const stream = await generateCoverLetter(resume, clJobDesc, clCompany, clTone)
+      const reader = stream.getReader()
+      clStreamReaderRef.current = reader
+      const decoder = new TextDecoder()
+      let accumulated = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        accumulated += decoder.decode(value, { stream: true })
+        setClStreamContent(accumulated)
+      }
+    } catch (err) {
+      setClStreamError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setClIsStreaming(false)
+      clStreamReaderRef.current = null
+    }
+  }
+
+  const handleSaveCoverLetter = async () => {
+    if (!clStreamContent.trim() || clSaving) return
+    setClSaving(true)
+    try {
+      const title = `Cover Letter — ${clCompany || 'Company'} · ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+      await saveCoverLetter(clStreamContent, title, clCompany || undefined, clJobDesc || undefined, clTone, currentResumeId ?? undefined)
+      setClSaved(true)
+      setTimeout(() => setClSaved(false), 2500)
+    } catch (err) {
+      console.error('[ResumeEditor] save cover letter failed:', err)
+    } finally {
+      setClSaving(false)
+    }
+  }
+
   const handleAnalyzeATS = async () => {
     setAtsLoading(true)
     setAtsError(null)
@@ -476,6 +542,43 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     } finally {
       setAtsLoading(false)
     }
+  }
+
+  const triggerJdValidation = (
+    text: string,
+    setValState: (s: JdValState) => void,
+    setValError: (e: string | null) => void,
+    timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+  ) => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+
+    const trimmed = text.trim()
+    if (!trimmed) {
+      setValState('idle')
+      setValError(null)
+      return
+    }
+
+    // Quick pre-check before calling AI
+    const words = trimmed.split(/\s+/).filter(Boolean)
+    if (words.length < 10 || !/[a-zA-Z]/.test(trimmed)) {
+      setValState('invalid')
+      setValError('Please paste a complete job description.')
+      return
+    }
+
+    // Debounced AI validation
+    setValState('validating')
+    timerRef.current = setTimeout(async () => {
+      try {
+        const result = await validateJobDescription(trimmed)
+        setValState(result.valid ? 'valid' : 'invalid')
+        setValError(result.valid ? null : (result.reason || "This doesn't look like a job description. Please paste a real job posting."))
+      } catch {
+        setValState('idle') // fail open — don't block user if API fails
+        setValError(null)
+      }
+    }, 800)
   }
 
   const handleExport = async (format: 'pdf' | 'docx') => {
@@ -703,7 +806,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     const onMouseMove = (e: MouseEvent) => {
       if (centerDragRef.current) {
         const delta = e.clientX - centerDragRef.current.startX
-        const newW = Math.max(260, Math.min(600, centerDragRef.current.startW + delta))
+        const newW = Math.max(380, Math.min(600, centerDragRef.current.startW + delta))
         setCenterWidth(newW)
       }
       if (sidebarDragRef.current) {
@@ -1112,6 +1215,24 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       AI will review your entire resume and suggest improvements to wording, clarity, impact, grammar, action verbs, and bullet strength — no job description required.
                     </p>
                   </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">Writing Tone</p>
+                    <div className="flex gap-3">
+                      {(['professional', 'concise', 'assertive'] as const).map((t) => (
+                        <label key={t} className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="enrich-tone"
+                            value={t}
+                            checked={enrichTone === t}
+                            onChange={() => setEnrichTone(t)}
+                            className="accent-primary"
+                          />
+                          {t.charAt(0).toUpperCase() + t.slice(1)}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                   {enrichmentState === 'comparing' ? (
                     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
                       <div className="flex items-center gap-2">
@@ -1119,7 +1240,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                         <span className="text-sm font-semibold text-foreground">Improvements ready to review</span>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        The AI has suggested improvements. Review the changes in the preview panel on the right, then accept or discard.
+                        The AI has suggested improvements to your resume. Review them in the preview on the right, then accept or discard.
                       </p>
                       <div className="flex gap-2">
                         <Button
@@ -1130,10 +1251,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           Accept Changes
                         </Button>
                         <Button
-                          variant="outline"
                           onClick={handleDiscardEnrichment}
-                          className="flex-1 min-h-[44px] rounded-lg border-border text-sm"
+                          className="flex-1 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
+                          <X className="size-4 mr-2" />
                           Discard
                         </Button>
                       </div>
@@ -1167,24 +1288,35 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </div>
               )}
 
-              {/* Tool: Job Tailoring */}
+              {/* Tool: Target Role Tailoring */}
               {aiTool === 'tailor' && (
                 <div className="space-y-5">
                   <div>
-                    <h2 className="text-base font-semibold text-foreground">Job Tailoring</h2>
+                    <h2 className="text-base font-semibold text-foreground">Target Role Tailoring</h2>
                     <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                      Paste a job description and AI will rewrite your resume to match the role's requirements and keywords.
+                      Optimize your resume for the job you want to apply for.
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-foreground uppercase tracking-wider">Job Description</label>
+                    <label className="block text-xs font-bold text-foreground uppercase tracking-wider">Target Job Description</label>
                     <textarea
                       rows={10}
-                      className={cn(field, 'resize-none')}
-                      placeholder="Paste the full job description here…"
+                      className={cn(field, 'resize-none', jobDescValState === 'invalid' ? 'border-destructive focus:border-destructive' : '')}
+                      placeholder="Paste the job description for the role you want to apply to."
                       value={jobDesc}
-                      onChange={(e) => setJobDesc(e.target.value)}
+                      onChange={(e) => {
+                        setJobDesc(e.target.value)
+                        triggerJdValidation(e.target.value, setJobDescValState, setJobDescValError, jobDescValTimerRef)
+                      }}
                     />
+                    {jobDescValState === 'validating' && (
+                      <p className="text-xs text-muted-foreground px-1 flex items-center gap-1.5">
+                        <Loader2 className="size-3 animate-spin" /> Checking job description…
+                      </p>
+                    )}
+                    {jobDescValState === 'invalid' && jobDescValError && (
+                      <p className="text-xs text-destructive px-1">{jobDescValError}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-foreground uppercase tracking-wider">Sections to tailor</p>
@@ -1203,12 +1335,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     </div>
                   </div>
                   <Button
-                    onClick={() => { if (jobDesc.trim()) handleTailor() }}
-                    disabled={!jobDesc.trim() || streamLoading}
+                    onClick={handleTailor}
+                    disabled={!jobDesc.trim() || jobDescValState === 'invalid' || jobDescValState === 'validating' || streamLoading}
                     className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
                   >
                     <Wand2 className="size-4 mr-2" />
-                    Tailor Resume to Job
+                    Tailor Resume to Target Role
                   </Button>
                 </div>
               )}
@@ -1227,11 +1359,14 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       Company Name <span className="text-destructive">*</span>
                     </label>
                     <input
-                      className={field}
+                      className={cn(field, clCompanyError ? 'border-destructive focus:border-destructive' : '')}
                       placeholder="e.g. Google, Stripe, Acme Corp"
                       value={clCompany}
-                      onChange={(e) => setClCompany(e.target.value)}
+                      onChange={(e) => { setClCompany(e.target.value); if (e.target.value.trim()) setClCompanyError(null) }}
                     />
+                    {clCompanyError && (
+                      <p className="text-xs text-destructive px-1">{clCompanyError}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-foreground uppercase tracking-wider">
@@ -1239,11 +1374,27 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     </label>
                     <textarea
                       rows={7}
-                      className={cn(field, 'resize-none')}
+                      className={cn(field, 'resize-none', clJobDescValState === 'invalid' ? 'border-destructive' : '')}
                       placeholder="Paste the job description for a more targeted cover letter…"
                       value={clJobDesc}
-                      onChange={(e) => setClJobDesc(e.target.value)}
+                      onChange={(e) => {
+                        setClJobDesc(e.target.value)
+                        if (e.target.value.trim()) {
+                          triggerJdValidation(e.target.value, setClJobDescValState, setClJobDescValError, clJobDescValTimerRef)
+                        } else {
+                          setClJobDescValState('idle')
+                          setClJobDescValError(null)
+                        }
+                      }}
                     />
+                    {clJobDescValState === 'validating' && (
+                      <p className="text-xs text-muted-foreground px-1 flex items-center gap-1.5">
+                        <Loader2 className="size-3 animate-spin" /> Checking job description…
+                      </p>
+                    )}
+                    {clJobDescValState === 'invalid' && clJobDescValError && (
+                      <p className="text-xs text-destructive px-1">{clJobDescValError}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-foreground uppercase tracking-wider">Tone</p>
@@ -1264,17 +1415,42 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     </div>
                   </div>
                   <Button
-                    onClick={() => {
-                      navigate('/cover-letter/new', {
-                        state: { companyName: clCompany, jobDescription: clJobDesc, tone: clTone, resume, from: '/editor' },
-                      })
-                    }}
-                    disabled={!clCompany.trim()}
+                    onClick={handleGenerateCoverLetterInline}
+                    disabled={clIsStreaming || !clCompany.trim() || (clJobDesc.trim() !== '' && (clJobDescValState === 'invalid' || clJobDescValState === 'validating'))}
                     className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
                   >
-                    <Mail className="size-4 mr-2" />
-                    Generate Cover Letter
+                    {clIsStreaming
+                      ? <Loader2 className="size-4 mr-2 animate-spin" />
+                      : clStreamContent
+                        ? <RefreshCw className="size-4 mr-2" />
+                        : <Mail className="size-4 mr-2" />}
+                    {clIsStreaming ? 'Generating…' : clStreamContent ? 'Regenerate Cover Letter' : 'Generate Cover Letter'}
                   </Button>
+                  {(clStreamContent || clIsStreaming) && (
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleSaveCoverLetter}
+                        disabled={clIsStreaming || clSaving || !clStreamContent.trim()}
+                        className="flex-1 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        {clSaving ? (
+                          <Loader2 className="size-4 mr-2 animate-spin" />
+                        ) : (
+                          <Save className="size-4 mr-2" />
+                        )}
+                        {clSaved ? 'Saved!' : 'Save Cover Letter'}
+                      </Button>
+                      <Button
+                        onClick={() => { setClStreamContent(''); setClStreamError(null); setClSaved(false) }}
+                        disabled={clIsStreaming}
+                        className="flex-1 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        <X className="size-4 mr-2" />
+                        Dismiss
+                      </Button>
+                    </div>
+                  )}
+                  {clStreamError && <p className="text-xs text-destructive px-1">{clStreamError}</p>}
                 </div>
               )}
 
@@ -1289,8 +1465,22 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   </div>
                   <div className="space-y-3 bg-background rounded-xl border border-border p-4 shadow-sm">
                     <label className="block text-xs font-medium text-muted-foreground">Job Description</label>
-                    <textarea className={cn(field, 'min-h-32 resize-none')} placeholder="Paste the job description here…" value={atsJobDesc} onChange={(e) => setAtsJobDesc(e.target.value)} />
-                    <Button size="sm" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsLoading} className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90">
+                    <textarea
+                      className={cn(field, 'min-h-32 resize-none', atsJobDescValState === 'invalid' ? 'border-destructive focus:border-destructive' : '')}
+                      placeholder="Paste the job description here…"
+                      value={atsJobDesc}
+                      onChange={(e) => {
+                        setAtsJobDesc(e.target.value)
+                        triggerJdValidation(e.target.value, setAtsJobDescValState, setAtsJobDescValError, atsJobDescValTimerRef)
+                      }}
+                    />
+                    {atsJobDescValState === 'validating' && (
+                      <p className="text-xs text-muted-foreground px-1 flex items-center gap-1.5">
+                        <Loader2 className="size-3 animate-spin" /> Checking job description…
+                      </p>
+                    )}
+                    {atsJobDescValState === 'invalid' && atsJobDescValError && <p className="text-xs text-destructive px-1">{atsJobDescValError}</p>}
+                    <Button size="sm" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsJobDescValState === 'invalid' || atsJobDescValState === 'validating' || atsLoading} className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90">
                       {atsLoading ? <Loader2 className="size-3.5 animate-spin mr-2" /> : <Target className="size-3.5 mr-2" />}
                       Analyze ATS Score
                     </Button>
@@ -1298,9 +1488,19 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   {atsError && <p className="text-xs text-destructive px-1">{atsError}</p>}
                   {atsResult && (
                     <div className="bg-background rounded-xl border border-border p-4 space-y-4 shadow-sm">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className={cn('text-4xl font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>{atsResult.overallScore}</span>
-                        <span className="text-sm text-muted-foreground">/ 100</span>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className={cn('text-4xl font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>{atsResult.overallScore}</span>
+                          <span className="text-sm text-muted-foreground">/ 100</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setAtsResult(null); setAtsJobDesc(''); setAtsError(null); setAtsJobDescValState('idle'); setAtsJobDescValError(null) }}
+                          className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+                          title="Dismiss results"
+                        >
+                          <X className="size-4" />
+                        </button>
                       </div>
                       {atsResult.summary && <p className="text-sm text-muted-foreground">{atsResult.summary}</p>}
                       {atsResult.matchedKeywords.length > 0 && (
@@ -1653,15 +1853,55 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           'lg:flex',
         )}>
           {enrichmentState === 'comparing' && enrichedResume && originalResume ? (
-            <ComparisonView
-              originalResume={originalResume}
-              enrichedResume={enrichedResume}
-              onAccept={handleAcceptEnrichment}
-              onDiscard={handleDiscardEnrichment}
-            />
+            <div className="flex-1 overflow-hidden p-4">
+              <ComparisonView
+                originalResume={originalResume}
+                enrichedResume={enrichedResume}
+                onAccept={handleAcceptEnrichment}
+                onDiscard={handleDiscardEnrichment}
+                hideActions
+              />
+            </div>
+          ) : aiTool === 'coverletter' && (clStreamContent || clIsStreaming) ? (
+            /* Cover Letter Editor — occupies the entire right panel, no Live Preview header */
+            <div className="flex flex-col h-full">
+              {/* Header: chevron toggle + Mail icon + label + streaming spinner */}
+              <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
+                <button
+                  onClick={() => setCenterCollapsed(prev => !prev)}
+                  title={centerCollapsed ? "Show editor" : "Minimize editor"}
+                  className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  {centerCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+                </button>
+                <Mail className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs font-semibold text-foreground">Cover Letter Editor</span>
+                {clIsStreaming && <Loader2 className="size-3.5 animate-spin text-primary ml-auto" />}
+              </div>
+              {/* Editable textarea */}
+              <div className="flex-1 overflow-hidden flex flex-col p-4 gap-2 bg-muted/30">
+                <textarea
+                  value={clStreamContent}
+                  onChange={(e) => setClStreamContent(e.target.value)}
+                  disabled={clIsStreaming}
+                  placeholder={clIsStreaming ? 'Generating your cover letter…' : 'Your cover letter will appear here. You can edit it directly.'}
+                  className="flex-1 w-full bg-card border border-border rounded-lg p-4 text-sm text-foreground leading-relaxed resize-none outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground disabled:opacity-60"
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground px-1">
+                  <span>
+                    {clStreamContent.trim() ? clStreamContent.trim().split(/\s+/).filter(Boolean).length : 0} words
+                  </span>
+                  {clIsStreaming ? (
+                    <span className="text-primary uppercase tracking-widest">Generating…</span>
+                  ) : (
+                    <span className="uppercase tracking-widest">Edit directly</span>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : (
             <>
-              {/* Preview panel header */}
+              {/* Preview panel header — only shown when NOT in cover letter editor mode */}
               <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
                 {/* Single toggle — always rendered, same position, icon changes */}
                 <button
@@ -1701,7 +1941,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     className={cn('transition-all duration-300', enrichmentState === 'loading' && 'opacity-30 blur-sm pointer-events-none')}
                     style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
                   >
-                    <ResumePreview resume={resume} flashSections={flashSections} industry={selectedIndustry} detectedIndustry={resume.detectedIndustry} />
+                    <ResumePreview
+                      resume={resume}
+                      flashSections={flashSections}
+                      industry={selectedIndustry}
+                      detectedIndustry={resume.detectedIndustry}
+                    />
                   </div>
                 </div>
                 {/* Streaming panel — shows in right panel so it's always visible */}
@@ -1847,10 +2092,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <h2
                   className="text-xl font-bold text-foreground uppercase tracking-wide"
                 >
-                  Tailor Resume for Job
+                  Target Role Tailoring
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Paste the job description and Claude will rewrite your resume to match
+                  Paste the job description for the role you want to apply to.
                 </p>
               </div>
               <button
@@ -1863,11 +2108,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             {/* Job description */}
             <div className="mb-5">
               <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-2">
-                Job Description
+                Target Job Description
               </label>
               <textarea
                 className="w-full min-h-48 border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary resize-none transition-shadow"
-                placeholder="Paste the full job description here..."
+                placeholder="Paste the job description for the role you want to apply to."
                 value={jobDesc}
                 onChange={(e) => setJobDesc(e.target.value)}
               />
@@ -1910,7 +2155,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-xs font-bold uppercase tracking-wide transition-colors"
               >
                 <Wand2 className="size-4" />
-                Tailor Resume
+                Tailor Resume to Target Role
               </button>
             </div>
       </Modal>

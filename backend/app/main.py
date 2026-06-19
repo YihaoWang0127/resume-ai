@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import ats_score, cover_letter, enrich, export, parse, tailor
+from app.routes import ats_score, cover_letter, enrich, export, parse, tailor, validate_jd
 
 app = FastAPI(title="Resume AI", version="0.1.0")
 
@@ -24,6 +24,7 @@ app.include_router(tailor.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(cover_letter.router, prefix="/api")
 app.include_router(ats_score.router, prefix="/api")
+app.include_router(validate_jd.router, prefix="/api")
 
 
 @app.get("/health")

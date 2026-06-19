@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -63,6 +63,7 @@ class TailorRequest(BaseModel):
 
 class EnrichRequest(BaseModel):
     resume: ResumeSchema
+    tone: Optional[Literal['professional', 'concise', 'assertive']] = 'professional'
 
 
 class ATSScoreRequest(BaseModel):
@@ -76,3 +77,12 @@ class ATSScoreResponse(BaseModel):
     missing_keywords: list[str] = Field(default_factory=list)
     suggestions: list[str] = Field(default_factory=list)
     summary: str = ""
+
+
+class ValidateJdRequest(BaseModel):
+    text: str
+
+
+class ValidateJdResponse(BaseModel):
+    valid: bool
+    reason: str = ""

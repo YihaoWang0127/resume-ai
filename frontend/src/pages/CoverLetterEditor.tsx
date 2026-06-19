@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useLocation, useNavigate, Navigate } from 'react-router-dom'
-import { Download, ChevronDown, Loader2, Save, RefreshCw } from 'lucide-react'
+import { Download, ChevronDown, Loader2, Save, RefreshCw, Sparkles } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import Navbar from '@/components/Navbar'
 import ExportMenu from '@/components/ExportMenu'
@@ -117,7 +117,7 @@ export default function CoverLetterEditor() {
   if (loadingRecord) {
     return (
       <div className="h-screen flex flex-col bg-background">
-        <Navbar onBack={() => navigate(state.from ?? '/dashboard')} />
+        <Navbar onBack={() => navigate(state.from ?? '/dashboard', { state: { activeTab: 'cover-letters' } })} />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="size-6 animate-spin text-primary" />
         </div>
@@ -191,7 +191,7 @@ export default function CoverLetterEditor() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      <Navbar onBack={() => navigate(state.from ?? '/dashboard')} />
+      <Navbar onBack={() => navigate(state.from ?? '/dashboard', { state: { activeTab: 'cover-letters' } })} />
 
       {/* ── Header bar ── */}
       <div className="shrink-0 border-b border-border px-6 py-3 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 bg-background">
@@ -328,6 +328,24 @@ export default function CoverLetterEditor() {
               <span>{wordCount(content)} words</span>
               <span className="uppercase tracking-widest">Edit directly</span>
             </div>
+          </div>
+
+          {/* AI Improve button */}
+          <div className="px-4 pb-2">
+            <button
+              type="button"
+              onClick={handleRegenerate}
+              disabled={!canRegenerate || regenerating}
+              className="w-full min-h-[44px] flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {regenerating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+              {regenerating ? 'Improving…' : 'AI Improve'}
+            </button>
+            {!canRegenerate && (
+              <p className="text-[11px] text-muted-foreground text-center mt-1.5">
+                Open from Resume Editor to enable AI refinement
+              </p>
+            )}
           </div>
         </div>
 

@@ -8,6 +8,7 @@ interface ComparisonViewProps {
   enrichedResume: ResumeSchema
   onAccept: () => void
   onDiscard: () => void
+  hideActions?: boolean
 }
 
 type ViewMode = 'split' | 'unified'
@@ -54,6 +55,7 @@ export default function ComparisonView({
   enrichedResume,
   onAccept,
   onDiscard,
+  hideActions,
 }: ComparisonViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('split')
   const leftScrollRef = useRef<HTMLDivElement>(null)
@@ -152,27 +154,29 @@ export default function ComparisonView({
         )}
 
         {/* Sticky action bar */}
-        <div className="shrink-0 mt-4 border border-border bg-card p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs font-bold text-foreground uppercase tracking-wider text-center sm:text-left">
-            AI enrichment ready — review changes
-          </p>
-          <div className="flex gap-3 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={onDiscard}
-              className="flex-1 sm:flex-none min-h-[44px] px-4 border border-destructive text-destructive text-xs font-bold uppercase tracking-wider hover:bg-destructive/10 transition-colors"
-            >
-              ✗ Discard
-            </button>
-            <button
-              type="button"
-              onClick={onAccept}
-              className="flex-1 sm:flex-none min-h-[44px] px-4 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors"
-            >
-              ✓ Accept Changes
-            </button>
+        {!hideActions && (
+          <div className="shrink-0 mt-4 border border-border bg-card p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs font-bold text-foreground uppercase tracking-wider text-center sm:text-left">
+              AI enrichment ready — review changes
+            </p>
+            <div className="flex gap-3 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={onDiscard}
+                className="flex-1 sm:flex-none min-h-[44px] px-4 border border-destructive text-destructive text-xs font-bold uppercase tracking-wider hover:bg-destructive/10 transition-colors"
+              >
+                ✗ Discard
+              </button>
+              <button
+                type="button"
+                onClick={onAccept}
+                className="flex-1 sm:flex-none min-h-[44px] px-4 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors"
+              >
+                ✓ Accept Changes
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
