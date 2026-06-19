@@ -925,7 +925,7 @@ describe('ResumeEditor — center panel Step 2 AI workspace', () => {
     expect(tailorBtn).toBeDisabled()
 
     const textarea = screen.getByPlaceholderText(/paste the full job description here/i)
-    await user.type(textarea, 'Senior Software Engineer at Acme Corp.')
+    await user.type(textarea, 'We are looking for a Senior Software Engineer to join our team at Acme Corp to build scalable distributed systems and lead technical initiatives.')
 
     expect(tailorBtn).toBeEnabled()
   })
