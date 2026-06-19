@@ -19,6 +19,9 @@ vi.mock('@/services/resumes', () => ({
   saveResume: vi.fn(),
   updateResume: vi.fn(),
 }))
+vi.mock('@/services/coverLetters', () => ({
+  saveCoverLetter: vi.fn(),
+}))
 vi.mock('@/components/ResumePreview', () => ({
   default: (props: { onIndustryChange?: (industry: string) => void }) => (
     <div data-testid="resume-preview">
@@ -41,6 +44,7 @@ vi.mock('@/components/StreamingOutput', () => ({
 import { useAuth } from '@/contexts/AuthContext'
 import { saveResume, updateResume } from '@/services/resumes'
 import { enrichResume, generateCoverLetter } from '@/services/api'
+import { saveCoverLetter } from '@/services/coverLetters'
 import ResumeEditor from '@/components/ResumeEditor'
 
 const mockUseAuth = vi.mocked(useAuth)
@@ -48,6 +52,7 @@ const mockSaveResume = vi.mocked(saveResume)
 const mockUpdateResume = vi.mocked(updateResume)
 const mockEnrichResume = vi.mocked(enrichResume)
 const mockGenerateCoverLetter = vi.mocked(generateCoverLetter)
+const mockSaveCoverLetter = vi.mocked(saveCoverLetter)
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -1202,7 +1207,7 @@ describe('ResumeEditor — Cover Letter inline streaming', () => {
     )
   })
 
-  it('shows "Open in Full Editor" button after cover letter generates', async () => {
+  it('shows "Dismiss" and "Save Cover Letter" buttons (not "Open in Full Editor") after cover letter generates', async () => {
     const encoder = new TextEncoder()
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -1226,8 +1231,10 @@ describe('ResumeEditor — Cover Letter inline streaming', () => {
     await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /open in full editor/i })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument(),
     )
+    expect(screen.getByRole('button', { name: /save cover letter/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /open in full editor/i })).not.toBeInTheDocument()
   })
 })
 
@@ -1291,5 +1298,209 @@ describe('ResumeEditor — Resume Polish tone selector', () => {
     })
 
     expect(mockEnrichResume).toHaveBeenCalledWith(mockResume, 'assertive')
+  })
+})
+
+// ── Cover Letter inline actions ───────────────────────────────────────────────
+// After generation, the right panel shows an editable textarea with "Cover Letter
+// Editor" heading. The left panel shows Dismiss and Save Cover Letter buttons.
+
+describe('ResumeEditor — Cover Letter inline actions', () => {
+  async function navigateToCoverLetter(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /cover letter/i }))
+  }
+
+  function createCoverLetterStream(content: string): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder()
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(content))
+        controller.close()
+      },
+    })
+  }
+
+  async function generateCoverLetterContent(user: ReturnType<typeof userEvent.setup>) {
+    mockGenerateCoverLetter.mockResolvedValue(
+      createCoverLetterStream('Dear Hiring Manager, I am excited to apply for this role.'),
+    )
+    await navigateToCoverLetter(user)
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
+    await user.type(
+      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      'We are looking for a talented Software Engineer with JavaScript and Python skills to join our engineering team today.',
+    )
+    await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument(),
+    )
+  }
+
+  it('"Cover Letter Editor" heading appears in the right panel when cover letter content is present', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    expect(screen.getByText('Cover Letter Editor')).toBeInTheDocument()
+  })
+
+  it('the right panel textarea is editable (not disabled) after generation completes', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    const textarea = screen.getByPlaceholderText(/your cover letter will appear here/i)
+    expect(textarea).not.toBeDisabled()
+  })
+
+  it('"Dismiss" button clears cover letter content when clicked', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    // Content is present — Cover Letter Editor heading should be visible
+    expect(screen.getByText('Cover Letter Editor')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /dismiss/i }))
+
+    // After dismiss, the cover letter editor and actions should disappear
+    expect(screen.queryByText('Cover Letter Editor')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /save cover letter/i })).not.toBeInTheDocument()
+  })
+
+  it('"Save Cover Letter" button calls saveCoverLetter when clicked', async () => {
+    mockSaveCoverLetter.mockResolvedValue(undefined as any)
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    await user.click(screen.getByRole('button', { name: /save cover letter/i }))
+
+    await waitFor(() => expect(mockSaveCoverLetter).toHaveBeenCalledTimes(1))
+    // Should be called with cover letter content and a generated title
+    expect(mockSaveCoverLetter).toHaveBeenCalledWith(
+      expect.stringContaining('Dear Hiring Manager'),
+      expect.any(String),
+      'Acme Corp',
+      expect.any(String),
+      expect.any(String),
+      undefined,
+    )
+  })
+
+  it('"Save Cover Letter" button label changes to "Saved!" after a successful save', async () => {
+    vi.useFakeTimers()
+    mockSaveCoverLetter.mockResolvedValue(undefined as any)
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+    renderEditor()
+
+    await generateCoverLetterContent(user)
+
+    await user.click(screen.getByRole('button', { name: /save cover letter/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /saved!/i })).toBeInTheDocument(),
+    )
+
+    // After 2500ms the label resets back to "Save Cover Letter"
+    await act(async () => {
+      vi.advanceTimersByTime(2500)
+    })
+
+    expect(screen.queryByRole('button', { name: /saved!/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save cover letter/i })).toBeInTheDocument()
+
+    vi.useRealTimers()
+  })
+})
+
+// ── Resume Polish comparing state (right panel) ───────────────────────────────
+// When enrichmentState === 'comparing', the right panel shows ResumePreview with
+// the enriched resume (NOT ComparisonView), the header shows "AI Enhanced Preview",
+// and the Discard button in the center panel is styled with bg-destructive.
+
+describe('ResumeEditor — Resume Polish comparing state', () => {
+  async function navigateToPolish(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+  }
+
+  // Helper: stream a valid JSON resume so the enrichment flow reaches 'comparing' state.
+  // fromBackend is mocked to return its argument unchanged.
+  function createEnrichStream(resumeJson: unknown): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder()
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(JSON.stringify(resumeJson)))
+        controller.close()
+      },
+    })
+  }
+
+  async function reachComparingState(user: ReturnType<typeof userEvent.setup>) {
+    const enrichedPayload = {
+      ...mockResume,
+      summary: 'An AI-enhanced summary for testing.',
+    }
+    mockEnrichResume.mockResolvedValue(createEnrichStream(enrichedPayload))
+
+    await navigateToPolish(user)
+    await user.click(screen.getByRole('button', { name: /generate improvements/i }))
+
+    // Wait for the 'comparing' UI: Accept Changes button appears
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /accept changes/i })).toBeInTheDocument(),
+    )
+  }
+
+  it('right panel header shows "AI Enhanced Preview" when comparing', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+
+    expect(screen.getByText('AI Enhanced Preview')).toBeInTheDocument()
+  })
+
+  it('right panel does NOT contain "AI enrichment ready — review changes" (ComparisonView is gone)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+
+    expect(
+      screen.queryByText(/ai enrichment ready/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it('Discard button has bg-destructive class when comparing', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+
+    const discardBtn = screen.getByRole('button', { name: /discard/i })
+    expect(discardBtn).toBeInTheDocument()
+    expect(discardBtn.className).toContain('bg-destructive')
+  })
+
+  it('clicking Discard returns right panel header to "Live Preview"', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+
+    await user.click(screen.getByRole('button', { name: /discard/i }))
+
+    await waitFor(() =>
+      expect(screen.queryByText('AI Enhanced Preview')).not.toBeInTheDocument(),
+    )
+    expect(screen.getByText('Live Preview')).toBeInTheDocument()
   })
 })

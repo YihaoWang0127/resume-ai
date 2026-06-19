@@ -45,10 +45,10 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
 import { enrichResume, exportResume, fromBackend, generateCoverLetter, scoreATS, tailorResume } from '@/services/api'
 import { saveResume, updateResume, type AtsMetadata } from '@/services/resumes'
+import { saveCoverLetter } from '@/services/coverLetters'
 import { useAuth } from '@/contexts/AuthContext'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
-import ComparisonView from './ComparisonView'
 
 interface Props {
   initialResume: ResumeSchema
@@ -170,6 +170,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [clStreamError, setClStreamError] = useState<string | null>(null)
   const [clCompanyError, setClCompanyError] = useState<string | null>(null)
   const [clJobDescError, setClJobDescError] = useState<string | null>(null)
+  const [clSaving, setClSaving] = useState(false)
+  const [clSaved, setClSaved] = useState(false)
   const [jobDescError, setJobDescError] = useState<string | null>(null)
   const [atsJobDescError, setAtsJobDescError] = useState<string | null>(null)
   const [enrichTone, setEnrichTone] = useState<'professional' | 'concise' | 'assertive'>('professional')
@@ -508,6 +510,21 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     } finally {
       setClIsStreaming(false)
       clStreamReaderRef.current = null
+    }
+  }
+
+  const handleSaveCoverLetter = async () => {
+    if (!clStreamContent.trim() || clSaving) return
+    setClSaving(true)
+    try {
+      const title = `Cover Letter — ${clCompany || 'Company'} · ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+      await saveCoverLetter(clStreamContent, title, clCompany || undefined, clJobDesc || undefined, clTone, currentResumeId ?? undefined)
+      setClSaved(true)
+      setTimeout(() => setClSaved(false), 2500)
+    } catch (err) {
+      console.error('[ResumeEditor] save cover letter failed:', err)
+    } finally {
+      setClSaving(false)
     }
   }
 
@@ -1185,7 +1202,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                         <span className="text-sm font-semibold text-foreground">Improvements ready to review</span>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        The AI has suggested improvements. Review the changes in the preview panel on the right, then accept or discard.
+                        The AI has suggested improvements to your resume. Review them in the preview on the right, then accept or discard.
                       </p>
                       <div className="flex gap-2">
                         <Button
@@ -1196,10 +1213,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           Accept Changes
                         </Button>
                         <Button
-                          variant="outline"
                           onClick={handleDiscardEnrichment}
-                          className="flex-1 min-h-[44px] rounded-lg border-border text-sm"
+                          className="flex-1 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
+                          <X className="size-4 mr-2" />
                           Discard
                         </Button>
                       </div>
@@ -1353,22 +1370,24 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
-                        size="sm"
-                        onClick={() => navigate('/cover-letter/new', {
-                          state: { content: clStreamContent, companyName: clCompany, tone: clTone, resume, from: '/editor' },
-                        })}
+                        onClick={() => { setClStreamContent(''); setClStreamError(null); setClSaved(false) }}
                         disabled={clIsStreaming}
-                        className="flex-1 text-xs min-h-[44px] rounded-lg"
+                        className="flex-1 min-h-[44px] rounded-lg text-sm border-border"
                       >
-                        Open in Full Editor
+                        <X className="size-4 mr-2" />
+                        Dismiss
                       </Button>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => { setClStreamContent(''); setClStreamError(null) }}
-                        className="text-xs min-h-[44px] rounded-lg"
+                        onClick={handleSaveCoverLetter}
+                        disabled={clIsStreaming || clSaving || !clStreamContent.trim()}
+                        className="flex-1 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90"
                       >
-                        <X className="size-3.5" />
+                        {clSaving ? (
+                          <Loader2 className="size-4 mr-2 animate-spin" />
+                        ) : (
+                          <Save className="size-4 mr-2" />
+                        )}
+                        {clSaved ? 'Saved!' : 'Save Cover Letter'}
                       </Button>
                     </div>
                   )}
@@ -1769,15 +1788,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           mobileViewTab === 'preview' ? 'flex' : 'hidden',
           'lg:flex',
         )}>
-          {enrichmentState === 'comparing' && enrichedResume && originalResume ? (
-            <ComparisonView
-              originalResume={originalResume}
-              enrichedResume={enrichedResume}
-              onAccept={handleAcceptEnrichment}
-              onDiscard={handleDiscardEnrichment}
-            />
-          ) : (
-            <>
+          <>
               {/* Preview panel header */}
               <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
                 {/* Single toggle — always rendered, same position, icon changes */}
@@ -1792,25 +1803,46 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     <ChevronLeft className="size-4" />
                   )}
                 </button>
-                <span className="text-xs font-semibold text-foreground hidden sm:block">Live Preview</span>
+                <span className="text-xs font-semibold text-foreground hidden sm:block">
+                  {enrichmentState === 'comparing' ? 'AI Enhanced Preview' : 'Live Preview'}
+                </span>
               </div>
               {/* Preview content area — relative wrapper so enrichment overlay stays within viewport */}
               <div className="flex-1 overflow-hidden relative flex flex-col">
                 {aiTool === 'coverletter' && (clStreamContent || clIsStreaming) ? (
-                  <div className="flex-1 overflow-auto bg-muted/60 p-4">
-                    <div className="w-full max-w-[620px] mx-auto bg-white rounded-sm shadow-paper px-10 py-10 min-h-[600px]">
-                      <p className="text-gray-400 text-xs mb-8 font-mono">
-                        {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                      </p>
-                      {clIsStreaming && !clStreamContent && (
-                        <p className="text-gray-300 text-sm italic">Generating your cover letter…</p>
-                      )}
-                      {clStreamContent.trim().split(/\n\n+/).filter(Boolean).map((para, i) => (
-                        <p key={i} className="text-gray-800 text-[13px] leading-7 mb-5 whitespace-pre-line">{para}</p>
-                      ))}
-                      {clIsStreaming && (
-                        <span className="inline-block w-2 h-4 bg-primary animate-pulse rounded-sm ml-1" />
-                      )}
+                  <div className="flex flex-col h-full">
+                    {/* Editor header */}
+                    <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
+                      <button
+                        onClick={() => setCenterCollapsed(prev => !prev)}
+                        title={centerCollapsed ? "Show editor" : "Minimize editor"}
+                        className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                      >
+                        {centerCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+                      </button>
+                      <Mail className="size-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-xs font-semibold text-foreground">Cover Letter Editor</span>
+                      {clIsStreaming && <Loader2 className="size-3.5 animate-spin text-primary ml-auto" />}
+                    </div>
+                    {/* Editable textarea */}
+                    <div className="flex-1 overflow-hidden flex flex-col p-4 gap-2 bg-muted/30">
+                      <textarea
+                        value={clStreamContent}
+                        onChange={(e) => setClStreamContent(e.target.value)}
+                        disabled={clIsStreaming}
+                        placeholder={clIsStreaming ? 'Generating your cover letter…' : 'Your cover letter will appear here. You can edit it directly.'}
+                        className="flex-1 w-full bg-card border border-border rounded-lg p-4 text-sm text-foreground leading-relaxed resize-none outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground disabled:opacity-60"
+                      />
+                      <div className="flex justify-between text-[11px] text-muted-foreground px-1">
+                        <span>
+                          {clStreamContent.trim() ? clStreamContent.trim().split(/\s+/).filter(Boolean).length : 0} words
+                        </span>
+                        {clIsStreaming ? (
+                          <span className="text-primary uppercase tracking-widest">Generating…</span>
+                        ) : (
+                          <span className="uppercase tracking-widest">Edit directly</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -1837,7 +1869,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     className={cn('transition-all duration-300', enrichmentState === 'loading' && 'opacity-30 blur-sm pointer-events-none')}
                     style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
                   >
-                    <ResumePreview resume={resume} flashSections={flashSections} industry={selectedIndustry} detectedIndustry={resume.detectedIndustry} />
+                    <ResumePreview
+                      resume={enrichmentState === 'comparing' && enrichedResume ? enrichedResume : resume}
+                      flashSections={flashSections}
+                      industry={selectedIndustry}
+                      detectedIndustry={resume.detectedIndustry}
+                    />
                   </div>
                 </div>
                 {/* Streaming panel — shows in right panel so it's always visible */}
@@ -1886,8 +1923,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </>
                 )}
               </div>
-            </>
-          )}
+          </>
         </div>
       </div>
 
