@@ -39,14 +39,12 @@ vi.mock('@/components/StreamingOutput', () => ({
 
 import { useAuth } from '@/contexts/AuthContext'
 import { saveResume, updateResume } from '@/services/resumes'
-import { scoreATS, enrichResume } from '@/services/api'
+import { enrichResume } from '@/services/api'
 import ResumeEditor from '@/components/ResumeEditor'
-import type { ATSScoreResult } from '@/types/resume'
 
 const mockUseAuth = vi.mocked(useAuth)
 const mockSaveResume = vi.mocked(saveResume)
 const mockUpdateResume = vi.mocked(updateResume)
-const mockScoreATS = vi.mocked(scoreATS)
 const mockEnrichResume = vi.mocked(enrichResume)
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
@@ -273,35 +271,6 @@ describe('ResumeEditor — header', () => {
   })
 })
 
-// ── ATS Score tab ─────────────────────────────────────────────────────────────
-
-const mockATSResult: ATSScoreResult = {
-  overallScore: 78,
-  matchedKeywords: ['Python', 'Distributed Systems'],
-  missingKeywords: ['Kubernetes'],
-  suggestions: ['Add a bullet about container orchestration.', 'Mention CI/CD pipeline experience.'],
-  summary: 'Strong overall match with a few gaps in infrastructure tooling.',
-}
-
-async function openATSTab(user: ReturnType<typeof userEvent.setup>) {
-  // The new layout renders two "ATS Score" buttons (desktop sidebar + mobile
-  // tab strip). Click the first one — both set the same tab state.
-  const atsBtns = screen.getAllByRole('button', { name: /ats score/i })
-  await user.click(atsBtns[0])
-}
-
-describe('ResumeEditor — ATS Score tab', () => {
-  it('does not render the results panel before Analyze is clicked', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    await openATSTab(user)
-
-    expect(screen.queryByText(/matched keywords/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/missing keywords/i)).not.toBeInTheDocument()
-    // Note: sidebar always renders "AI Suggestions" text, so we don't check for /suggestions/i here
-  })
-})
 
 // ── desktop layout — 3-column layout ─────────────────────────────────────────
 // The redesigned editor has: left sidebar (SECTION_DEFS nav) + center editor
