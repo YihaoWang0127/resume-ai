@@ -98,6 +98,15 @@ const ENRICHMENT_LOADING_MESSAGES = [
 
 type EnrichmentState = 'idle' | 'loading' | 'comparing'
 
+type AiTool = 'polish' | 'tailor' | 'coverletter' | 'ats'
+
+const AI_TOOL_DEFS: Array<{ id: AiTool; label: string; description: string; Icon: LucideIcon }> = [
+  { id: 'polish',      label: 'Resume Polish',  description: 'Improve wording, clarity, and bullet strength',  Icon: Sparkles },
+  { id: 'tailor',      label: 'Job Tailoring',  description: 'Tailor your resume to a specific role',          Icon: Wand2 },
+  { id: 'coverletter', label: 'Cover Letter',   description: 'Generate a personalized cover letter',           Icon: Mail },
+  { id: 'ats',         label: 'ATS Score',      description: 'Check resume match against a job description',   Icon: Target },
+]
+
 type CoverLetterTone = 'professional' | 'enthusiastic' | 'concise'
 
 const ZOOM_LEVELS = [75, 90, 100, 110, 125]
@@ -153,6 +162,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   )
   const [isSaving, setIsSaving] = useState(false)
   const [enrichmentState, setEnrichmentState] = useState<EnrichmentState>('idle')
+  const [aiTool, setAiTool] = useState<AiTool>('polish')
   const [originalResume, setOriginalResume] = useState<ResumeSchema | null>(null)
   const [enrichedResume, setEnrichedResume] = useState<ResumeSchema | null>(null)
   const [enrichMsgIndex, setEnrichMsgIndex] = useState(0)
@@ -161,6 +171,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [zoomLevel, setZoomLevel] = useState(100)
   const [centerCollapsed, setCenterCollapsed] = useState(false)
   const [centerWidth, setCenterWidth] = useState(380)
+  const [sidebarWidth, setSidebarWidth] = useState(240)
   const [autosaveOn] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [enrichProgress, setEnrichProgress] = useState(0)
@@ -171,6 +182,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null)
   const exportMenuRef = useRef<HTMLDivElement>(null)
   const centerDragRef = useRef<{ startX: number; startW: number } | null>(null)
+  const sidebarDragRef = useRef<{ startX: number; startW: number } | null>(null)
   const sectionRefs = useRef<Record<Tab, HTMLDivElement | null>>({
     contact: null, summary: null, experience: null, education: null, skills: null, ats: null,
   })
@@ -402,6 +414,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     setOriginalResume(null)
     setStream(null)
     setEnrichProgress(0)
+    setStreamLoading(false)
   }
 
   const handleEnrich = () => {
@@ -689,12 +702,21 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   // ── center panel resize ────────────────────────────────────────────────────
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
-      if (!centerDragRef.current) return
-      const delta = e.clientX - centerDragRef.current.startX
-      const newW = Math.max(260, Math.min(600, centerDragRef.current.startW + delta))
-      setCenterWidth(newW)
+      if (centerDragRef.current) {
+        const delta = e.clientX - centerDragRef.current.startX
+        const newW = Math.max(260, Math.min(600, centerDragRef.current.startW + delta))
+        setCenterWidth(newW)
+      }
+      if (sidebarDragRef.current) {
+        const delta = e.clientX - sidebarDragRef.current.startX
+        const newW = Math.max(180, Math.min(400, sidebarDragRef.current.startW + delta))
+        setSidebarWidth(newW)
+      }
     }
-    const onMouseUp = () => { centerDragRef.current = null }
+    const onMouseUp = () => {
+      centerDragRef.current = null
+      sidebarDragRef.current = null
+    }
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
     return () => {
@@ -729,8 +751,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   }
   const isAtsStale = atsResult !== null && atsResumeSnapshot !== null && JSON.stringify(resume) !== atsResumeSnapshot
   const wordCount = resume.summary?.split(/\s+/).filter(Boolean).length ?? 0
-  const aiSuggestionCount =
-    resume.experience.reduce((a, e) => a + e.bullets.length, 0) + (resume.summary ? 3 : 0)
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined
   const fullName = (user?.user_metadata?.full_name as string | undefined) ?? ''
   const displayName = fullName.trim() || user?.email || ''
@@ -930,31 +950,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           </>
         )}
         {currentStep === 2 && (
-          <>
-            <span className="text-sm font-semibold text-foreground">AI Enhance</span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTailorOpen(true)}
-                disabled={streamLoading}
-                className="flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
-              >
-                <Wand2 className="size-3.5" />
-                Tailor to Job
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEnrich}
-                disabled={streamLoading || enrichmentState === 'loading'}
-                className="flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
-              >
-                <Sparkles className="size-3.5" />
-                Generate Suggestions
-              </Button>
-            </div>
-          </>
+          <span className="text-sm font-semibold text-foreground">AI Enhance</span>
         )}
         {currentStep === 3 && (
           <>
@@ -1017,103 +1013,115 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       <div className="flex flex-1 overflow-hidden">
 
         {/* LEFT SIDEBAR ─────────────────────────────────────────────────────── */}
-        <aside className="hidden lg:flex flex-col w-[200px] xl:w-[220px] shrink-0 border-r border-border bg-background overflow-y-auto">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-4 pb-2">
-            Resume Sections
-          </p>
-          <nav>
-            {RESUME_SECTION_DEFS.map((s) => {
-              const complete = getSectionComplete(s.id)
-              return (
+        <aside className="hidden lg:flex flex-col shrink-0 border-r border-border bg-background overflow-y-auto" style={{ width: sidebarWidth }}>
+          {currentStep === 2 ? (
+            /* ── AI TOOL SELECTOR (Step 2 only) ─────────────────────────────── */
+            <>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-4 pb-2">
+                AI Enhance Tools
+              </p>
+              <nav className="flex flex-col">
+                {AI_TOOL_DEFS.map((tool) => (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    onClick={() => setAiTool(tool.id)}
+                    className={cn(
+                      'w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-l-2',
+                      aiTool === tool.id
+                        ? 'bg-primary/[0.08] border-primary'
+                        : 'border-transparent hover:bg-secondary/40',
+                    )}
+                  >
+                    <tool.Icon className={cn('size-4 shrink-0 mt-0.5', aiTool === tool.id ? 'text-primary' : 'text-muted-foreground')} />
+                    <div className="min-w-0">
+                      <p className={cn('text-sm font-medium leading-tight', aiTool === tool.id ? 'text-primary' : 'text-foreground')}>
+                        {tool.label}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 line-clamp-2">
+                        {tool.description}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </nav>
+            </>
+          ) : (
+            /* ── NORMAL SIDEBAR (Steps 1, 3, 4) ─────────────────────────────── */
+            <>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-4 pb-2">
+                Resume Sections
+              </p>
+              <nav>
+                {RESUME_SECTION_DEFS.map((s) => {
+                  const complete = getSectionComplete(s.id)
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => scrollToSection(s.id)}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors border-l-2',
+                        tab === s.id
+                          ? 'bg-primary/[0.08] text-primary border-primary'
+                          : 'text-foreground hover:bg-secondary/40 border-transparent',
+                      )}
+                    >
+                      <s.Icon className="size-4 shrink-0" />
+                      <span className="flex-1 font-medium">{s.label}</span>
+                      {complete ? (
+                        <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
+                      ) : (
+                        <div className="size-2 rounded-full bg-border shrink-0" />
+                      )}
+                    </button>
+                  )
+                })}
                 <button
-                  key={s.id}
-                  onClick={() => scrollToSection(s.id)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors border-l-2',
-                    tab === s.id
-                      ? 'bg-primary/[0.08] text-primary border-primary'
-                      : 'text-foreground hover:bg-secondary/40 border-transparent',
-                  )}
+                  type="button"
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-primary hover:bg-primary/5 transition-colors"
                 >
-                  <s.Icon className="size-4 shrink-0" />
-                  <span className="flex-1 font-medium">{s.label}</span>
-                  {complete ? (
-                    <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
-                  ) : (
-                    <div className="size-2 rounded-full bg-border shrink-0" />
-                  )}
+                  <Plus className="size-4" />
+                  Add Section
                 </button>
-              )
-            })}
-            <button
-              type="button"
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-primary hover:bg-primary/5 transition-colors"
-            >
-              <Plus className="size-4" />
-              Add Section
-            </button>
-          </nav>
+              </nav>
 
-          <div className="mx-4 mt-1 mb-0 h-px bg-border" />
+              <div className="mx-4 mt-1 mb-0 h-px bg-border" />
 
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-3 pb-2">
-            Review Tools
-          </p>
-          <nav>
-            {REVIEW_TOOL_DEFS.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => scrollToSection(s.id)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors border-l-2',
-                  tab === s.id
-                    ? 'bg-primary/[0.08] text-primary border-primary'
-                    : 'text-foreground hover:bg-secondary/40 border-transparent',
-                )}
-              >
-                <s.Icon className="size-4 shrink-0" />
-                <span className="flex-1 font-medium">{s.label}</span>
-                {s.id === 'ats' && atsResult ? (
-                  <span className="ml-auto text-[10px] font-bold text-primary tabular-nums">{atsResult.overallScore}</span>
-                ) : null}
-              </button>
-            ))}
-          </nav>
-          {/* AI Suggestions card */}
-          <div className="m-3 p-3 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="size-3.5 text-primary" />
-              <span className="text-sm font-semibold text-foreground">AI Suggestions</span>
-              <span className="ml-auto text-[9px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 font-bold leading-none">
-                {aiSuggestionCount}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-2.5 leading-relaxed">
-              Improve your content, impact and ATS score with AI suggestions.
-            </p>
-            {enrichmentState === 'loading' ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={cancelEnrich}
-                className="w-full text-xs rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 h-8"
-              >
-                <X className="size-3 mr-1" />
-                Cancel
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEnrich}
-                disabled={streamLoading}
-                className="w-full text-xs rounded-lg border-primary/30 text-primary hover:bg-primary/10 h-8"
-              >
-                View Suggestions
-              </Button>
-            )}
-          </div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-3 pb-2">
+                Review Tools
+              </p>
+              <nav>
+                {REVIEW_TOOL_DEFS.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => scrollToSection(s.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors border-l-2',
+                      tab === s.id
+                        ? 'bg-primary/[0.08] text-primary border-primary'
+                        : 'text-foreground hover:bg-secondary/40 border-transparent',
+                    )}
+                  >
+                    <s.Icon className="size-4 shrink-0" />
+                    <span className="flex-1 font-medium">{s.label}</span>
+                    {s.id === 'ats' && atsResult ? (
+                      <span className="ml-auto text-[10px] font-bold text-primary tabular-nums">{atsResult.overallScore}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </nav>
+            </>
+          )}
         </aside>
+
+        {/* SIDEBAR / CENTER RESIZE HANDLE ───────────────────────────────────── */}
+        <div
+          className="hidden lg:flex shrink-0 w-1.5 cursor-col-resize bg-border hover:bg-primary/50 transition-colors z-10"
+          onMouseDown={(e) => {
+            sidebarDragRef.current = { startX: e.clientX, startW: sidebarWidth }
+            e.preventDefault()
+          }}
+        />
 
         {/* CENTER EDITOR ────────────────────────────────────────────────────── */}
         <div
@@ -1127,6 +1135,261 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           {!centerCollapsed && (
           <>
 
+          {currentStep === 2 ? (
+            /* ── AI TOOL WORKSPACE (Step 2 only) ────────────────────────────── */
+            <div className="flex-1 overflow-y-auto p-5 lg:p-6">
+              {/* Tool: Resume Polish */}
+              {aiTool === 'polish' && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">Resume Polish</h2>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                      AI will review your entire resume and suggest improvements to wording, clarity, impact, grammar, action verbs, and bullet strength — no job description required.
+                    </p>
+                  </div>
+                  {enrichmentState === 'comparing' ? (
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="size-4 text-primary shrink-0" />
+                        <span className="text-sm font-semibold text-foreground">Improvements ready to review</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        The AI has suggested improvements. Review the changes in the preview panel on the right, then accept or discard.
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleAcceptEnrichment}
+                          className="flex-1 min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm"
+                        >
+                          <CheckCircle2 className="size-4 mr-2" />
+                          Accept Changes
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={handleDiscardEnrichment}
+                          className="flex-1 min-h-[44px] rounded-lg border-border text-sm"
+                        >
+                          Discard
+                        </Button>
+                      </div>
+                    </div>
+                  ) : enrichmentState === 'loading' ? (
+                    <div className="rounded-xl border border-border bg-muted/30 p-5 flex flex-col items-center gap-3 text-center">
+                      <Loader2 className="size-6 animate-spin text-primary" />
+                      <p className="text-sm font-medium text-foreground">{ENRICHMENT_LOADING_MESSAGES[enrichMsgIndex]}</p>
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${enrichProgress}%` }} />
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={cancelEnrich}
+                        className="min-h-[44px] rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 px-6"
+                      >
+                        <X className="size-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={handleEnrich}
+                      disabled={streamLoading}
+                      className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
+                    >
+                      <Sparkles className="size-4 mr-2" />
+                      Generate Improvements
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Tool: Job Tailoring */}
+              {aiTool === 'tailor' && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">Job Tailoring</h2>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                      Paste a job description and AI will rewrite your resume to match the role's requirements and keywords.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-foreground uppercase tracking-wider">Job Description</label>
+                    <textarea
+                      rows={10}
+                      className={cn(field, 'resize-none')}
+                      placeholder="Paste the full job description here…"
+                      value={jobDesc}
+                      onChange={(e) => setJobDesc(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">Sections to tailor</p>
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                      {(['summary', 'experience', 'education', 'skills'] as const).map((s) => (
+                        <label key={s} className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={tailorSections[s]}
+                            onChange={(e) => setTailorSections((prev) => ({ ...prev, [s]: e.target.checked }))}
+                            className="accent-primary"
+                          />
+                          {s.charAt(0).toUpperCase() + s.slice(1)}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => { if (jobDesc.trim()) handleTailor() }}
+                    disabled={!jobDesc.trim() || streamLoading}
+                    className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
+                  >
+                    <Wand2 className="size-4 mr-2" />
+                    Tailor Resume to Job
+                  </Button>
+                </div>
+              )}
+
+              {/* Tool: Cover Letter */}
+              {aiTool === 'coverletter' && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">Cover Letter</h2>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                      Generate a personalized cover letter using your resume. Optionally paste a job description for a tailored result.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-foreground uppercase tracking-wider">
+                      Company Name <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      className={field}
+                      placeholder="e.g. Google, Stripe, Acme Corp"
+                      value={clCompany}
+                      onChange={(e) => setClCompany(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-foreground uppercase tracking-wider">
+                      Job Description <span className="text-muted-foreground font-normal normal-case">(optional)</span>
+                    </label>
+                    <textarea
+                      rows={7}
+                      className={cn(field, 'resize-none')}
+                      placeholder="Paste the job description for a more targeted cover letter…"
+                      value={clJobDesc}
+                      onChange={(e) => setClJobDesc(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">Tone</p>
+                    <div className="flex gap-4">
+                      {(['professional', 'enthusiastic', 'concise'] as CoverLetterTone[]).map((t) => (
+                        <label key={t} className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="cl-tone-workspace"
+                            value={t}
+                            checked={clTone === t}
+                            onChange={() => setClTone(t)}
+                            className="accent-primary"
+                          />
+                          {t.charAt(0).toUpperCase() + t.slice(1)}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      navigate('/cover-letter/new', {
+                        state: { companyName: clCompany, jobDescription: clJobDesc, tone: clTone, resume, from: '/editor' },
+                      })
+                    }}
+                    disabled={!clCompany.trim()}
+                    className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
+                  >
+                    <Mail className="size-4 mr-2" />
+                    Generate Cover Letter
+                  </Button>
+                </div>
+              )}
+
+              {/* Tool: ATS Score */}
+              {aiTool === 'ats' && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">ATS Score</h2>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                      Analyze how well your resume matches a job description's keywords and requirements.
+                    </p>
+                  </div>
+                  <div className="space-y-3 bg-background rounded-xl border border-border p-4 shadow-sm">
+                    <label className="block text-xs font-medium text-muted-foreground">Job Description</label>
+                    <textarea className={cn(field, 'min-h-32 resize-none')} placeholder="Paste the job description here…" value={atsJobDesc} onChange={(e) => setAtsJobDesc(e.target.value)} />
+                    <Button size="sm" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsLoading} className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90">
+                      {atsLoading ? <Loader2 className="size-3.5 animate-spin mr-2" /> : <Target className="size-3.5 mr-2" />}
+                      Analyze ATS Score
+                    </Button>
+                  </div>
+                  {atsError && <p className="text-xs text-destructive px-1">{atsError}</p>}
+                  {atsResult && (
+                    <div className="bg-background rounded-xl border border-border p-4 space-y-4 shadow-sm">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className={cn('text-4xl font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>{atsResult.overallScore}</span>
+                        <span className="text-sm text-muted-foreground">/ 100</span>
+                      </div>
+                      {atsResult.summary && <p className="text-sm text-muted-foreground">{atsResult.summary}</p>}
+                      {atsResult.matchedKeywords.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Matched Keywords</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {atsResult.matchedKeywords.map((kw, i) => <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-primary/40 text-primary bg-primary/10">{kw}</span>)}
+                          </div>
+                        </div>
+                      )}
+                      {atsResult.missingKeywords.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Missing Keywords</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {atsResult.missingKeywords.map((kw, i) => <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-destructive/40 text-destructive bg-destructive/10">{kw}</span>)}
+                          </div>
+                        </div>
+                      )}
+                      {atsResult.suggestions.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suggestions</p>
+                          <ul className="space-y-1.5">
+                            {atsResult.suggestions.map((s, i) => (
+                              <li key={i} className="flex gap-2 items-start">
+                                <span className="text-primary text-xs mt-0.5 shrink-0">•</span>
+                                <span className="text-sm text-foreground">{s}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {atsResult && (
+                    <div className="space-y-2">
+                      {isAtsStale && (
+                        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                          <span className="text-xs text-amber-700 dark:text-amber-400">Outdated — resume changed since last check.</span>
+                          <button type="button" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsLoading} className="shrink-0 text-xs font-bold text-primary hover:underline disabled:opacity-50">Run again</button>
+                        </div>
+                      )}
+                      {!isAtsStale && atsResultSaved === false && (
+                        <p className="text-xs text-muted-foreground px-1">ATS result not saved yet. Save your resume to persist it.</p>
+                      )}
+                      {!isAtsStale && atsResultSaved === true && (
+                        <p className="text-xs text-green-600 px-1">&#10003; ATS result saved with this resume.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
           {/* Mobile: horizontal section tab strip */}
           <div className="lg:hidden shrink-0 flex overflow-x-auto scrollbar-none bg-background border-b border-border">
             {[...RESUME_SECTION_DEFS, ...REVIEW_TOOL_DEFS].map((s) => (
@@ -1479,6 +1742,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             </div>
 
           </div>
+          </>
+          )}
           </>
           )}
         </div>
