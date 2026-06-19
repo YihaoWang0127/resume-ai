@@ -3,6 +3,10 @@ import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { prefetchResumes, clearResumesCache } from '@/services/resumes'
+import { prefetchCoverLetters, clearCoverLettersCache } from '@/services/coverLetters'
+import { prefetchAiUsageStats, clearAiUsageStatsCache } from '@/services/aiUsage'
+import { prefetchPreferences, clearPreferencesCache } from '@/services/preferences'
 
 // A session belongs to a non-anonymous user who hasn't verified their email yet.
 // Anonymous/guest sessions are intentionally unverified and must never be gated.
@@ -83,6 +87,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null)
       setLoading(false)
 
+      if (session?.user && !session.user.is_anonymous) {
+        prefetchResumes()
+        prefetchCoverLetters()
+        prefetchAiUsageStats()
+        prefetchPreferences()
+      }
+
       // Auto-show modal once after load if no session at all
       if (!session && !autoShowFired.current) {
         autoShowFired.current = true
@@ -103,6 +114,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setSession(session)
       setUser(session?.user ?? null)
+
+      if (!session) {
+        clearResumesCache()
+        clearCoverLettersCache()
+        clearAiUsageStatsCache()
+        clearPreferencesCache()
+      } else if (session.user && !session.user.is_anonymous) {
+        prefetchResumes()
+        prefetchCoverLetters()
+        prefetchAiUsageStats()
+        prefetchPreferences()
+      }
     })
 
     return () => subscription.unsubscribe()

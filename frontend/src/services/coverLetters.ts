@@ -3,6 +3,31 @@ import type { CoverLetter } from '@/types/coverLetter'
 
 export type { CoverLetter }
 
+let _listPromise: Promise<CoverLetter[]> | null = null
+
+async function _fetchCoverLetters(): Promise<CoverLetter[]> {
+  try {
+    const { data, error } = await supabase
+      .from('cover_letters')
+      .select('*')
+      .order('updated_at', { ascending: false })
+
+    if (error) throw error
+    return data ?? []
+  } catch (err) {
+    _listPromise = null
+    throw err
+  }
+}
+
+export function prefetchCoverLetters(): void {
+  if (!_listPromise) _listPromise = _fetchCoverLetters().catch(() => { _listPromise = null; return [] })
+}
+
+export function clearCoverLettersCache(): void {
+  _listPromise = null
+}
+
 export async function saveCoverLetter(
   content: string,
   title: string,
@@ -29,6 +54,7 @@ export async function saveCoverLetter(
     .single()
 
   if (error) throw error
+  _listPromise = null
   return data
 }
 
@@ -51,17 +77,13 @@ export async function updateCoverLetter(
     .single()
 
   if (error) throw error
+  _listPromise = null
   return data
 }
 
-export async function listCoverLetters(): Promise<CoverLetter[]> {
-  const { data, error } = await supabase
-    .from('cover_letters')
-    .select('*')
-    .order('updated_at', { ascending: false })
-
-  if (error) throw error
-  return data ?? []
+export function listCoverLetters(): Promise<CoverLetter[]> {
+  if (!_listPromise) _listPromise = _fetchCoverLetters()
+  return _listPromise
 }
 
 export async function getCoverLetter(id: string): Promise<CoverLetter> {
@@ -82,4 +104,5 @@ export async function deleteCoverLetter(id: string): Promise<void> {
     .eq('id', id)
 
   if (error) throw error
+  _listPromise = null
 }
