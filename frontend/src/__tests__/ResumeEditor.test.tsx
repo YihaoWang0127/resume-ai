@@ -473,13 +473,13 @@ describe('ResumeEditor — enrich with AI loading overlay', () => {
       await Promise.resolve()
     })
 
-    expect(screen.getByText(ENRICHMENT_LOADING_MESSAGES[0])).toBeInTheDocument()
+    expect(screen.getAllByText(ENRICHMENT_LOADING_MESSAGES[0])[0]).toBeInTheDocument()
 
     await act(async () => {
       vi.advanceTimersByTime(1500)
     })
 
-    expect(screen.getByText(ENRICHMENT_LOADING_MESSAGES[1])).toBeInTheDocument()
+    expect(screen.getAllByText(ENRICHMENT_LOADING_MESSAGES[1])[0]).toBeInTheDocument()
     expect(screen.queryByText(ENRICHMENT_LOADING_MESSAGES[0])).not.toBeInTheDocument()
   })
 
@@ -1063,10 +1063,10 @@ describe('ResumeEditor — center panel Step 2 AI workspace', () => {
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
-    // Click the sidebar ATS Score tool — the sidebar renders a button with "ATS Score" label
-    // Multiple "ATS Score" buttons exist (sidebar tool + mobile tab strip); click the sidebar one
-    const atsToolBtns = screen.getAllByRole('button', { name: /^ats score$/i })
-    await user.click(atsToolBtns[0])
+    // Click the sidebar ATS Score tool — the sidebar tool button's accessible name is the
+    // concatenation of its children: "ATS Score Check resume match against a job description"
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
 
     expect(screen.getByRole('heading', { name: /^ats score$/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeInTheDocument()
