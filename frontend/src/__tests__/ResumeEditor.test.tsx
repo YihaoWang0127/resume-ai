@@ -464,7 +464,10 @@ describe('ResumeEditor — enrich with AI loading overlay', () => {
     mockEnrichResume.mockResolvedValue(createPendingStream())
     renderEditor()
 
-    fireEvent.click(screen.getByRole('button', { name: /view suggestions/i }))
+    // Navigate to Step 2 where "Generate Improvements" button lives in the Resume Polish workspace
+    fireEvent.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    // Resume Polish is the default tool — "Generate Improvements" button is visible
+    fireEvent.click(screen.getByRole('button', { name: /generate improvements/i }))
 
     await act(async () => {
       await Promise.resolve()
@@ -484,7 +487,10 @@ describe('ResumeEditor — enrich with AI loading overlay', () => {
     mockEnrichResume.mockResolvedValue(createPendingStream())
     renderEditor()
 
-    fireEvent.click(screen.getByRole('button', { name: /view suggestions/i }))
+    // Navigate to Step 2 where "Generate Improvements" button lives in the Resume Polish workspace
+    fireEvent.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    // Resume Polish is the default tool — "Generate Improvements" button is visible
+    fireEvent.click(screen.getByRole('button', { name: /generate improvements/i }))
 
     await act(async () => {
       await Promise.resolve()
@@ -494,6 +500,49 @@ describe('ResumeEditor — enrich with AI loading overlay', () => {
     const wrapper = preview.parentElement as HTMLElement
     expect(wrapper.className).toContain('opacity-30')
     expect(wrapper.className).toContain('blur-sm')
+  })
+})
+
+// ── cancelEnrich re-enables the Generate Improvements button ─────────────────
+// Bug fix: cancelEnrich() must call setStreamLoading(false) so the button is
+// re-enabled after a cancel, not stuck in the disabled state.
+
+describe('ResumeEditor — cancelEnrich re-enables Generate Improvements', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('re-enables "Generate Improvements" button after Cancel is clicked', async () => {
+    mockEnrichResume.mockResolvedValue(createPendingStream())
+    renderEditor()
+
+    fireEvent.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const generateBtn = screen.getByRole('button', { name: /generate improvements/i })
+    fireEvent.click(generateBtn)
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // While loading, the Cancel button appears and Generate Improvements is gone
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /generate improvements/i })).not.toBeInTheDocument()
+
+    // Click Cancel
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // After cancel, "Generate Improvements" button should be back and enabled
+    const reenabledBtn = screen.getByRole('button', { name: /generate improvements/i })
+    expect(reenabledBtn).toBeInTheDocument()
+    expect(reenabledBtn).not.toBeDisabled()
   })
 })
 
@@ -562,17 +611,16 @@ describe('ResumeEditor — stage toolbar', () => {
     expect(screen.getByText('Auto-saved just now')).toBeInTheDocument()
   })
 
-  it('shows "AI Enhance" title, "Tailor to Job", and "Generate Suggestions" buttons at step 2', async () => {
+  it('shows "AI Enhance" title at step 2 (no toolbar action buttons)', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
 
-    // Stage toolbar title
+    // Stage toolbar title — just the span, no extra action buttons in toolbar
     expect(screen.getAllByText('AI Enhance')[0]).toBeInTheDocument()
-    // Stage toolbar actions
-    expect(screen.getByRole('button', { name: /tailor to job/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /generate suggestions/i })).toBeInTheDocument()
+    // The stage toolbar no longer renders "Tailor to Job" or "Generate Suggestions" buttons
+    // Those actions live inside the center panel tool workspaces instead
   })
 
   it('shows "Preview & Customize" title and template select at step 3', async () => {
@@ -868,6 +916,175 @@ describe('ResumeEditor — center panel content area padding', () => {
     // Find the scrollable div that wraps all sections (overflow-y-auto p-4 lg:p-6).
     expect(container.querySelector('.overflow-y-auto.p-4')).not.toBeNull()
     expect(container.querySelector('.lg\\:p-6')).not.toBeNull()
+  })
+})
+
+// ── left sidebar conditional rendering ───────────────────────────────────────
+// Step 2 (AI Enhance): shows AI Enhance Tools panel with 4 tool selector nav buttons
+// (Resume Polish, Job Tailoring, Cover Letter, ATS Score). Resume Sections nav absent.
+// Steps 1, 3, 4: shows Resume Sections nav and Review Tools nav. AI Enhance panel absent.
+
+describe('ResumeEditor — left sidebar conditional rendering', () => {
+  it('shows Resume Sections nav in the sidebar at Step 1 (Edit)', () => {
+    renderEditor()
+
+    // The sidebar label "Resume Sections" is visible at step 1
+    expect(screen.getByText('Resume Sections')).toBeInTheDocument()
+    // At least the Contact section nav button should be present
+    expect(screen.getAllByRole('button', { name: /^contact$/i }).length).toBeGreaterThan(0)
+  })
+
+  it('does not show the AI Enhance Tools panel in the sidebar at Step 1', () => {
+    renderEditor()
+
+    // "AI Enhance Tools" label is only rendered in step 2 sidebar
+    expect(screen.queryByText('AI Enhance Tools')).not.toBeInTheDocument()
+    // The tool selector nav buttons (Resume Polish, Job Tailoring, etc.) are absent at step 1
+    expect(screen.queryByRole('button', { name: /resume polish/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /job tailoring/i })).not.toBeInTheDocument()
+  })
+
+  it('shows AI Enhance Tools panel with tool selector nav buttons at Step 2', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+
+    // The sidebar AI Enhance Tools heading
+    expect(screen.getByText('AI Enhance Tools')).toBeInTheDocument()
+    // The 4 tool selector nav buttons are rendered
+    expect(screen.getAllByRole('button', { name: /resume polish/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /job tailoring/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /cover letter/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /ats score/i }).length).toBeGreaterThan(0)
+  })
+
+  it('does not show Resume Sections nav label in the sidebar at Step 2', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+
+    // "Resume Sections" label in the sidebar is replaced by the AI panel at step 2
+    expect(screen.queryByText('Resume Sections')).not.toBeInTheDocument()
+  })
+
+  it('shows Resume Sections nav again in the sidebar at Step 3 (Preview)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+
+    expect(screen.getByText('Resume Sections')).toBeInTheDocument()
+    expect(screen.queryByText('AI Enhance Tools')).not.toBeInTheDocument()
+  })
+})
+
+// ── center panel Step 2 AI workspace ─────────────────────────────────────────
+// When currentStep === 2, the center panel renders a per-tool workspace:
+//   - default ('polish'): "Resume Polish" heading + "Generate Improvements" button
+//   - 'tailor': "Job Tailoring" heading + job desc textarea + "Tailor Resume to Job" button
+//   - 'coverletter': "Cover Letter" heading + company name input + "Generate Cover Letter" button
+//   - 'ats': "ATS Score" heading + job desc textarea + "Analyze ATS Score" button
+// The resume form (Contact Information etc.) is hidden in step 2.
+
+describe('ResumeEditor — center panel Step 2 AI workspace', () => {
+  it('shows "Resume Polish" heading in center panel by default at Step 2', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+
+    expect(screen.getByRole('heading', { name: /resume polish/i })).toBeInTheDocument()
+  })
+
+  it('shows "Generate Improvements" button in the Resume Polish workspace at Step 2', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+
+    expect(screen.getByRole('button', { name: /generate improvements/i })).toBeInTheDocument()
+  })
+
+  it('does NOT show resume form at Step 2 (center panel shows AI workspace)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+
+    // The Contact Information form heading is hidden at step 2
+    expect(screen.queryByRole('heading', { name: /contact information/i })).not.toBeInTheDocument()
+  })
+
+  it('clicking "Job Tailoring" tool shows the job description workspace', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /job tailoring/i }))
+
+    expect(screen.getByRole('heading', { name: /job tailoring/i })).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText(/paste the full job description here/i),
+    ).toBeInTheDocument()
+  })
+
+  it('"Tailor Resume to Job" button is disabled when job description is empty, enabled after typing', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /job tailoring/i }))
+
+    const tailorBtn = screen.getByRole('button', { name: /tailor resume to job/i })
+    expect(tailorBtn).toBeDisabled()
+
+    const textarea = screen.getByPlaceholderText(/paste the full job description here/i)
+    await user.type(textarea, 'Senior Software Engineer at Acme Corp.')
+
+    expect(tailorBtn).toBeEnabled()
+  })
+
+  it('clicking "Cover Letter" tool shows the company name input', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /cover letter/i }))
+
+    expect(screen.getByRole('heading', { name: /cover letter/i })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/e\.g\. google/i)).toBeInTheDocument()
+  })
+
+  it('clicking "ATS Score" tool in Step 2 sidebar shows the ATS analyze button', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    // Click the sidebar ATS Score tool — the sidebar renders a button with "ATS Score" label
+    // Multiple "ATS Score" buttons exist (sidebar tool + mobile tab strip); click the sidebar one
+    const atsToolBtns = screen.getAllByRole('button', { name: /^ats score$/i })
+    await user.click(atsToolBtns[0])
+
+    expect(screen.getByRole('heading', { name: /^ats score$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeInTheDocument()
+  })
+
+  it('does NOT show "AI Job Workspace" heading at Step 2 (heading is per-tool now)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+
+    expect(screen.queryByRole('heading', { name: /ai job workspace/i })).not.toBeInTheDocument()
+  })
+
+  it('shows resume form (Contact Information) at Step 1 (Edit)', () => {
+    renderEditor()
+
+    expect(screen.getByRole('heading', { name: /contact information/i })).toBeInTheDocument()
   })
 })
 
