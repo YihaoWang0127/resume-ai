@@ -392,7 +392,7 @@ describe('ResumeEditor — ATS Score tab', () => {
 // horizontal tab bar are gone; navigation now lives in an <aside> sidebar.
 
 describe('ResumeEditor — desktop layout', () => {
-  it('renders sidebar nav buttons, zoom controls, stage Continue button, and Template dropdown', () => {
+  it('renders sidebar nav buttons, zoom controls, and stage Continue button', () => {
     renderEditor()
 
     for (const label of ['Contact', 'Summary', 'Experience', 'Education', 'Skills', 'ATS Score']) {
@@ -401,7 +401,7 @@ describe('ResumeEditor — desktop layout', () => {
     expect(screen.getByText('100%')).toBeInTheDocument()
     // Step 1 bottom bar shows "Continue to AI Enhance" instead of "Next Step"
     expect(screen.getByRole('button', { name: /continue to ai enhance/i })).toBeInTheDocument()
-    expect(screen.getByText('Template')).toBeInTheDocument()
+    // Template dropdown only appears in Stage 3 toolbar — tested separately
   })
 })
 
