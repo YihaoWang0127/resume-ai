@@ -107,6 +107,19 @@ export async function updateAtsScore(
   return data
 }
 
+export async function clearAtsScore(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('resumes')
+    .update({
+      ats_score: null,
+      ats_score_updated_at: null,
+      ats_job_description: null,
+      ats_result: null,
+    })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function listResumes(): Promise<SavedResume[]> {
   const { data, error } = await supabase
     .from('resumes')

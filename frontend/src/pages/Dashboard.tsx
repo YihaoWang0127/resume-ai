@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { listResumes, deleteResume, updateAtsScore, type SavedResume } from '@/services/resumes'
+import { listResumes, deleteResume, updateAtsScore, clearAtsScore, type SavedResume } from '@/services/resumes'
 import { listCoverLetters, deleteCoverLetter, type CoverLetter } from '@/services/coverLetters'
 import { exportResume, exportCoverLetter, scoreATS } from '@/services/api'
 import { getAiUsageStats } from '@/services/aiUsage'
@@ -54,6 +54,9 @@ export default function Dashboard() {
   const [atsLoading, setAtsLoading] = useState(false)
   const [atsResult, setAtsResult] = useState<ATSScoreResult | null>(null)
   const [atsError, setAtsError] = useState<string | null>(null)
+  const [atsViewMode, setAtsViewMode] = useState(false)
+  const [atsNewCheckStep, setAtsNewCheckStep] = useState<'closed' | 'resume-pick'>('closed')
+  const [atsClearingId, setAtsClearingId] = useState<string | null>(null)
 
   const [deleteTarget, setDeleteTarget] = useState<SavedResume | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -172,6 +175,43 @@ export default function Dashboard() {
     setAtsResult(null)
     setAtsError(null)
     setAtsLoading(false)
+    setAtsViewMode(false)
+  }
+
+  // Open modal showing saved ATS results (skip JD entry)
+  const openAtsDetail = (r: SavedResume) => {
+    setAtsTarget(r)
+    setAtsJobDesc(r.ats_job_description ?? '')
+    setAtsResult(r.ats_result ?? null)
+    setAtsViewMode(true)
+  }
+
+  // Open modal to run a fresh ATS check
+  const openAtsCheck = (r: SavedResume) => {
+    setAtsTarget(r)
+    setAtsJobDesc('')
+    setAtsResult(null)
+    setAtsError(null)
+    setAtsViewMode(false)
+  }
+
+  // Clear ATS score for a resume (in ATS Score tab)
+  const handleClearAts = async (r: SavedResume) => {
+    setAtsClearingId(r.id)
+    try {
+      await clearAtsScore(r.id)
+      setResumes((prev) =>
+        prev.map((x) =>
+          x.id === r.id
+            ? { ...x, ats_score: null, ats_score_updated_at: null, ats_job_description: null, ats_result: null }
+            : x
+        )
+      )
+    } catch (err) {
+      console.error('Failed to clear ATS score:', err)
+    } finally {
+      setAtsClearingId(null)
+    }
   }
 
   const handleRunAtsCheck = async () => {
@@ -297,6 +337,13 @@ export default function Dashboard() {
               }`}
             >
               ATS Score
+              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                activeTab === 'ats-score'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-primary/10 text-primary border border-primary/30'
+              }`}>
+                {resumes.filter((r) => r.ats_score != null).length}
+              </span>
             </button>
           </div>
         </div>
@@ -352,10 +399,14 @@ export default function Dashboard() {
                       </div>
                       {r.ats_score != null && (
                         <div className="mt-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-bold tracking-wider">
+                          <button
+                            type="button"
+                            onClick={() => openAtsDetail(r)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-bold tracking-wider hover:bg-primary/20 transition-colors cursor-pointer"
+                          >
                             <Target className="size-2.5 shrink-0" />
                             ATS {r.ats_score}
-                          </span>
+                          </button>
                         </div>
                       )}
                       <p className="mt-2.5 text-xs text-muted-foreground">
@@ -547,6 +598,9 @@ export default function Dashboard() {
                 >
                   ATS Score
                 </h2>
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 rounded-full">
+                  {resumes.filter((r) => r.ats_score != null).length}
+                </span>
               </div>
 
               {resumes.length === 0 ? (
@@ -559,38 +613,53 @@ export default function Dashboard() {
                 />
               ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {resumes.map((r) => (
+                {resumes.filter((r) => r.ats_score != null).map((r) => (
                   <div
                     key={r.id}
                     className="bg-card border border-primary/40 rounded-xl p-5 flex flex-col min-h-[160px] hover:border-primary/70 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-foreground text-sm truncate">{r.title}</p>
-                      {r.ats_score != null ? (
-                        <>
-                          <p className="mt-2 text-sm font-bold text-primary">
-                            Score: {r.ats_score}/100
-                          </p>
-                          <p className="mt-1 text-[11px] text-muted-foreground">
-                            Checked {r.ats_score_updated_at ? formatDate(r.ats_score_updated_at) : '—'}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="mt-2 text-[11px] text-muted-foreground">Not checked yet</p>
-                      )}
+                      <p className="mt-2 text-sm font-bold text-primary">
+                        Score: {r.ats_score}/100
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Checked {r.ats_score_updated_at ? formatDate(r.ats_score_updated_at) : '—'}
+                      </p>
                     </div>
 
                     <div className="flex gap-2 mt-4 pt-3 border-t border-border">
                       <button
-                        onClick={() => setAtsTarget(r)}
+                        onClick={() => openAtsDetail(r)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
                       >
                         <Target className="size-3.5" />
-                        Check ATS Score
+                        Detail
+                      </button>
+                      <button
+                        onClick={() => handleClearAts(r)}
+                        disabled={atsClearingId === r.id}
+                        className="w-11 min-h-[44px] flex items-center justify-center text-red-500 border border-red-500/40 hover:bg-red-500/10 rounded transition-colors shrink-0 disabled:opacity-50"
+                      >
+                        {atsClearingId === r.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
                       </button>
                     </div>
                   </div>
                 ))}
+
+                {/* ADD NEW ATS CHECK card */}
+                <button
+                  type="button"
+                  onClick={() => setAtsNewCheckStep('resume-pick')}
+                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-3 min-h-[160px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
+                >
+                  <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center transition-colors">
+                    <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors text-center px-2">
+                    New ATS Check
+                  </span>
+                </button>
               </div>
               )}
             </section>
@@ -926,7 +995,7 @@ export default function Dashboard() {
       </Modal>
 
       {/* ── ATS Score Check modal ───────────────────────────────────────────── */}
-      <Modal open={!!atsTarget} overlayClassName="bg-black/60 px-4" className="max-w-lg rounded-xl relative">
+      <Modal open={!!atsTarget} overlayClassName="bg-black/60 backdrop-blur-sm px-4" className="max-w-lg rounded-xl relative">
             <button
               type="button"
               onClick={closeAtsModal}
@@ -944,7 +1013,7 @@ export default function Dashboard() {
               <span className="text-foreground font-medium">"{atsTarget?.title}"</span>
             </p>
 
-            {!atsResult ? (
+            {!atsResult && !atsViewMode ? (
               <>
                 <div>
                   <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-1.5">
@@ -986,22 +1055,37 @@ export default function Dashboard() {
               </>
             ) : (
               <>
+                {/* Saved JD (read-only, shown in view mode) */}
+                {atsViewMode && atsJobDesc && (
+                  <details className="mb-4">
+                    <summary className="text-xs font-bold text-foreground uppercase tracking-wider cursor-pointer hover:text-primary transition-colors">
+                      Job Description
+                    </summary>
+                    <p className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto">
+                      {atsJobDesc}
+                    </p>
+                  </details>
+                )}
+
+                {/* Results */}
                 <div className="space-y-5">
                   {/* Overall score */}
-                  <div className="text-center py-4 bg-primary/5 border border-primary/20 rounded-xl">
-                    <p className="text-3xl font-bold text-primary">{atsResult.overallScore}/100</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Overall ATS Score
-                    </p>
-                  </div>
+                  {atsResult && (
+                    <div className="text-center py-4 bg-primary/5 border border-primary/20 rounded-xl">
+                      <p className="text-3xl font-bold text-primary">{atsResult.overallScore}/100</p>
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Overall ATS Score
+                      </p>
+                    </div>
+                  )}
 
                   {/* Summary */}
-                  {atsResult.summary && (
+                  {atsResult?.summary && (
                     <p className="text-sm text-foreground">{atsResult.summary}</p>
                   )}
 
                   {/* Matched keywords */}
-                  {atsResult.matchedKeywords.length > 0 && (
+                  {atsResult && atsResult.matchedKeywords.length > 0 && (
                     <div>
                       <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
                         Matched Keywords
@@ -1020,7 +1104,7 @@ export default function Dashboard() {
                   )}
 
                   {/* Missing keywords */}
-                  {atsResult.missingKeywords.length > 0 && (
+                  {atsResult && atsResult.missingKeywords.length > 0 && (
                     <div>
                       <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
                         Missing Keywords
@@ -1039,7 +1123,7 @@ export default function Dashboard() {
                   )}
 
                   {/* Suggestions */}
-                  {atsResult.suggestions.length > 0 && (
+                  {atsResult && atsResult.suggestions.length > 0 && (
                     <div>
                       <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
                         Suggestions
@@ -1053,16 +1137,84 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                <div className="flex justify-end gap-3 mt-6">
+                <div className="flex justify-between gap-3 mt-6">
+                  {atsViewMode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAtsResult(null)
+                        setAtsJobDesc('')
+                        setAtsViewMode(false)
+                      }}
+                      className="px-4 py-2 border border-primary/40 text-xs font-bold text-primary hover:bg-primary/10 uppercase tracking-wide transition-colors"
+                    >
+                      Re-run Check
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={closeAtsModal}
-                    className="px-4 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors"
+                    className="ml-auto px-4 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors"
                   >
                     Close
                   </button>
                 </div>
               </>
+            )}
+      </Modal>
+      {/* ── New ATS Check — resume picker ─────────────────────────────────────────── */}
+      <Modal open={atsNewCheckStep === 'resume-pick'} overlayClassName="bg-black/60 backdrop-blur-sm px-4" className="max-w-md rounded-xl relative">
+            <button
+              type="button"
+              onClick={() => setAtsNewCheckStep('closed')}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Close"
+            >
+              <X className="size-4" />
+            </button>
+
+            <h2 className="text-lg font-bold text-foreground uppercase tracking-wide mb-1">
+              New ATS Check
+            </h2>
+            <p className="text-xs text-muted-foreground mb-5">Choose the resume to check</p>
+
+            {resumes.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-sm text-muted-foreground mb-3">No saved resumes yet.</p>
+                <button
+                  type="button"
+                  onClick={() => { setAtsNewCheckStep('closed'); setUploadModalOpen(true) }}
+                  className="text-xs font-bold uppercase tracking-wider text-primary border border-primary/50 px-4 py-2 hover:bg-primary/10 transition-colors"
+                >
+                  Upload a Resume First
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                {resumes.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => {
+                      setAtsNewCheckStep('closed')
+                      openAtsCheck(r)
+                    }}
+                    className="w-full text-left px-4 py-3 border border-border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                  >
+                    <p className="text-sm font-bold text-foreground truncate">{r.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] font-bold uppercase text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full">
+                        {r.detected_industry}
+                      </span>
+                      {r.ats_score != null && (
+                        <span className="text-[10px] font-bold text-muted-foreground">
+                          Last score: {r.ats_score}/100
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
             )}
       </Modal>
     </div>

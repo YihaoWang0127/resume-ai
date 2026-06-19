@@ -7,7 +7,7 @@ import type { ResumeSchema } from '@/types/resume'
 // ── module mocks (hoisted) ────────────────────────────────────────────────────
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn() }))
-vi.mock('@/services/resumes', () => ({ listResumes: vi.fn(), deleteResume: vi.fn(), updateAtsScore: vi.fn() }))
+vi.mock('@/services/resumes', () => ({ listResumes: vi.fn(), deleteResume: vi.fn(), updateAtsScore: vi.fn(), clearAtsScore: vi.fn() }))
 vi.mock('@/services/coverLetters', () => ({ listCoverLetters: vi.fn(), deleteCoverLetter: vi.fn() }))
 vi.mock('@/services/api', () => ({ exportResume: vi.fn(), exportCoverLetter: vi.fn(), scoreATS: vi.fn() }))
 vi.mock('@/services/aiUsage', () => ({ getAiUsageStats: vi.fn() }))
@@ -23,7 +23,7 @@ vi.mock('@/components/ResumeUploader', () => ({
 // ── imports after mocks ───────────────────────────────────────────────────────
 
 import { useAuth } from '@/contexts/AuthContext'
-import { listResumes, deleteResume, updateAtsScore } from '@/services/resumes'
+import { listResumes, deleteResume, updateAtsScore, clearAtsScore } from '@/services/resumes'
 import { listCoverLetters, deleteCoverLetter } from '@/services/coverLetters'
 import { scoreATS } from '@/services/api'
 import { getAiUsageStats } from '@/services/aiUsage'
@@ -33,6 +33,7 @@ const mockUseAuth = vi.mocked(useAuth)
 const mockListResumes = vi.mocked(listResumes)
 const mockDeleteResume = vi.mocked(deleteResume)
 const mockUpdateAtsScore = vi.mocked(updateAtsScore)
+const mockClearAtsScore = vi.mocked(clearAtsScore)
 const mockListCoverLetters = vi.mocked(listCoverLetters)
 const mockDeleteCoverLetter = vi.mocked(deleteCoverLetter)
 const mockScoreATS = vi.mocked(scoreATS)
@@ -129,6 +130,7 @@ beforeEach(() => {
   mockDeleteResume.mockResolvedValue(undefined)
   mockDeleteCoverLetter.mockResolvedValue(undefined)
   mockUpdateAtsScore.mockResolvedValue({} as any)
+  mockClearAtsScore.mockResolvedValue(undefined)
   mockGetAiUsageStats.mockResolvedValue({ ...emptyUsageStats, callsThisMonth: 3 } as any)
 })
 
@@ -285,17 +287,23 @@ describe('Dashboard — tab switching', () => {
     expect(screen.queryByRole('heading', { name: /my resumes/i })).not.toBeInTheDocument()
   })
 
-  it('shows resume cards with "Check ATS Score" buttons on the ATS Score tab', async () => {
+  it('shows only resumes with ats_score on the ATS Score tab and a "New ATS Check" card', async () => {
+    // Default mock has no ats_score on either resume → neither card appears
     const user = userEvent.setup()
     renderDashboard()
     await goToAtsScoreTab(user)
 
-    expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /check ats score/i }).length).toBe(2)
-    expect(screen.getAllByText('Not checked yet').length).toBe(2)
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /ats score/i })).toBeInTheDocument()
+    )
+    // No scored resumes → no resume cards appear in the grid
+    expect(screen.queryByText('Software Engineer Resume')).not.toBeInTheDocument()
+    expect(screen.queryByText('Product Manager Resume')).not.toBeInTheDocument()
+    // The "New ATS Check" dashed card is always present
+    expect(screen.getByText('New ATS Check')).toBeInTheDocument()
   })
 
-  it('shows the saved ATS score on the ATS Score tab when a resume has one', async () => {
+  it('shows only the scored resume on ATS Score tab when one resume has ats_score', async () => {
     mockListResumes.mockResolvedValue([
       { ...savedResume1, ats_score: 85, ats_score_updated_at: '2024-02-01T00:00:00Z' },
       savedResume2,
@@ -304,19 +312,35 @@ describe('Dashboard — tab switching', () => {
     renderDashboard()
     await goToAtsScoreTab(user)
 
+    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
     expect(screen.getByText('Score: 85/100')).toBeInTheDocument()
+    // The un-scored resume must not appear
+    expect(screen.queryByText('Product Manager Resume')).not.toBeInTheDocument()
   })
 })
+
+// ── helper: open the ATS JD-entry modal via New ATS Check → resume picker ────
+// Requires at least one resume in the list (uses the first one listed in the picker).
+async function openFreshAtsCheckModal(user: ReturnType<typeof userEvent.setup>) {
+  await goToAtsScoreTab(user)
+  await waitFor(() => expect(screen.getByText('New ATS Check')).toBeInTheDocument())
+  await user.click(screen.getByText('New ATS Check'))
+  // The resume-picker modal opens; pick the first resume
+  await waitFor(() => expect(screen.getByRole('heading', { name: /new ats check/i })).toBeInTheDocument())
+  await user.click(screen.getAllByRole('button', { name: /software engineer resume/i })[0])
+  // The ATS JD-entry modal should now be open
+  await waitFor(() =>
+    expect(screen.getByPlaceholderText(/paste the job description here/i)).toBeInTheDocument()
+  )
+}
 
 // ── ATS check modal ──────────────────────────────────────────────────────────
 
 describe('Dashboard — ATS check modal', () => {
-  it('opens the ATS check modal when "Check ATS Score" is clicked', async () => {
+  it('opens the ATS JD-entry modal via New ATS Check → resume picker', async () => {
     const user = userEvent.setup()
     renderDashboard()
-    await goToAtsScoreTab(user)
-
-    await user.click(screen.getAllByRole('button', { name: /check ats score/i })[0])
+    await openFreshAtsCheckModal(user)
 
     expect(screen.getByRole('heading', { name: /check ats score/i })).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/paste the job description here/i)).toBeInTheDocument()
@@ -333,9 +357,8 @@ describe('Dashboard — ATS check modal', () => {
 
     const user = userEvent.setup()
     renderDashboard()
-    await goToAtsScoreTab(user)
+    await openFreshAtsCheckModal(user)
 
-    await user.click(screen.getAllByRole('button', { name: /check ats score/i })[0])
     await user.type(screen.getByPlaceholderText(/paste the job description here/i), 'We need a React engineer')
     await user.click(screen.getByRole('button', { name: /run check/i }))
 
@@ -360,9 +383,8 @@ describe('Dashboard — ATS check modal', () => {
 
     const user = userEvent.setup()
     renderDashboard()
-    await goToAtsScoreTab(user)
+    await openFreshAtsCheckModal(user)
 
-    await user.click(screen.getAllByRole('button', { name: /check ats score/i })[0])
     await user.type(screen.getByPlaceholderText(/paste the job description here/i), 'job description')
     await user.click(screen.getByRole('button', { name: /run check/i }))
 
@@ -372,24 +394,20 @@ describe('Dashboard — ATS check modal', () => {
     expect(mockUpdateAtsScore).not.toHaveBeenCalled()
   })
 
-  it('closes the ATS check modal', async () => {
+  it('closes the ATS check modal via the Close button', async () => {
     const user = userEvent.setup()
     renderDashboard()
-    await goToAtsScoreTab(user)
+    await openFreshAtsCheckModal(user)
 
-    await user.click(screen.getAllByRole('button', { name: /check ats score/i })[0])
     expect(screen.getByRole('heading', { name: /check ats score/i })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /close/i }))
-    expect(screen.queryByRole('heading', { name: /check ats score/i })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(screen.queryByPlaceholderText(/paste the job description here/i)).not.toBeInTheDocument()
   })
 
   it('disables the Run Check button until a job description is entered', async () => {
     const user = userEvent.setup()
     renderDashboard()
-    await goToAtsScoreTab(user)
-
-    await user.click(screen.getAllByRole('button', { name: /check ats score/i })[0])
+    await openFreshAtsCheckModal(user)
 
     expect(screen.getByRole('button', { name: /run check/i })).toBeDisabled()
     await user.type(screen.getByPlaceholderText(/paste the job description here/i), 'job description')
@@ -513,6 +531,191 @@ describe('Dashboard — cover letter delete flow', () => {
     await waitFor(() => expect(mockDeleteCoverLetter).toHaveBeenCalledWith(savedCoverLetter1.id))
     await waitFor(() =>
       expect(screen.queryByText('Cover Letter for Stripe')).not.toBeInTheDocument()
+    )
+  })
+})
+
+// ── ATS badge on resume card (new behavior) ───────────────────────────────────
+
+describe('Dashboard — ATS badge on resume card', () => {
+  const resumeWithAts = {
+    ...savedResume1,
+    ats_score: 72,
+    ats_score_updated_at: '2024-02-10T00:00:00Z',
+    ats_job_description: 'We need a TypeScript engineer',
+    ats_result: {
+      overallScore: 72,
+      matchedKeywords: ['TypeScript'],
+      missingKeywords: ['GraphQL'],
+      suggestions: ['Add more metrics'],
+      summary: 'Good overall match.',
+    },
+  }
+
+  it('shows an ATS score badge on resume cards that have a saved ats_score', async () => {
+    mockListResumes.mockResolvedValue([resumeWithAts, savedResume2] as any)
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
+    // Badge text: "ATS 72"
+    expect(screen.getByText(/ATS 72/)).toBeInTheDocument()
+    // Resume without a score should not show a badge
+    expect(screen.queryByText(/ATS.*Product/)).not.toBeInTheDocument()
+  })
+
+  it('ATS badge is a button that opens the detail modal in view mode (not JD entry form)', async () => {
+    mockListResumes.mockResolvedValue([resumeWithAts, savedResume2] as any)
+    const user = userEvent.setup()
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText(/ATS 72/)).toBeInTheDocument())
+
+    await user.click(screen.getByText(/ATS 72/))
+
+    // ATS modal heading appears
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /check ats score/i })).toBeInTheDocument()
+    )
+    // View mode shows the score result directly — NOT the JD entry textarea
+    expect(screen.queryByPlaceholderText(/paste the job description here/i)).not.toBeInTheDocument()
+    expect(screen.getByText('72/100')).toBeInTheDocument()
+    expect(screen.getByText('Good overall match.')).toBeInTheDocument()
+    expect(screen.getByText('TypeScript')).toBeInTheDocument()
+    expect(screen.getByText('GraphQL')).toBeInTheDocument()
+  })
+
+  it('ATS badge detail modal shows Re-run Check button (view mode indicator)', async () => {
+    mockListResumes.mockResolvedValue([resumeWithAts, savedResume2] as any)
+    const user = userEvent.setup()
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText(/ATS 72/)).toBeInTheDocument())
+
+    await user.click(screen.getByText(/ATS 72/))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /re-run check/i })).toBeInTheDocument()
+    )
+  })
+
+  it('ATS badge is not rendered for resumes without ats_score', async () => {
+    // Default mock: both resumes have no ats_score
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
+    expect(screen.queryByText(/ATS \d+/)).not.toBeInTheDocument()
+  })
+})
+
+// ── ATS Score tab — Detail and trash buttons (new behavior) ───────────────────
+
+describe('Dashboard — ATS Score tab Detail and trash buttons', () => {
+  const resumeWithAts = {
+    ...savedResume1,
+    ats_score: 80,
+    ats_score_updated_at: '2024-02-15T00:00:00Z',
+    ats_job_description: 'Looking for a React developer',
+    ats_result: {
+      overallScore: 80,
+      matchedKeywords: ['React'],
+      missingKeywords: ['Vue'],
+      suggestions: ['Add Vue experience'],
+      summary: 'Strong match.',
+    },
+  }
+
+  beforeEach(() => {
+    mockListResumes.mockResolvedValue([resumeWithAts, savedResume2] as any)
+  })
+
+  it('Detail button in ATS Score tab opens view mode showing saved score (no JD textarea)', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await goToAtsScoreTab(user)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /detail/i })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /detail/i }))
+
+    // View mode — score shown immediately, no JD entry textarea
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument())
+    expect(screen.queryByPlaceholderText(/paste the job description here/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Strong match.')).toBeInTheDocument()
+    expect(screen.getByText('React')).toBeInTheDocument()
+    expect(screen.getByText('Vue')).toBeInTheDocument()
+  })
+
+  it('trash button in ATS Score tab calls clearAtsScore and removes the resume from the tab', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await goToAtsScoreTab(user)
+
+    // There should be one trash button for the scored resume
+    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
+
+    // The red trash buttons are scoped to the ATS tab; select the one in the card (not in a modal)
+    const trashButtons = Array.from(
+      document.querySelectorAll<HTMLElement>('button[class*="red-500"]')
+    )
+    expect(trashButtons.length).toBeGreaterThan(0)
+    await user.click(trashButtons[0])
+
+    await waitFor(() => expect(mockClearAtsScore).toHaveBeenCalledWith(resumeWithAts.id))
+    // After clearing, the resume disappears from the ATS tab list
+    await waitFor(() =>
+      expect(screen.queryByText('Software Engineer Resume')).not.toBeInTheDocument()
+    )
+  })
+
+  it('ATS Score tab count badge shows only the number of scored resumes', async () => {
+    renderDashboard()
+    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
+
+    // ATS Score tab button — contains the count badge (1 scored resume out of 2)
+    const atsTab = screen.getByRole('button', { name: /ats score/i })
+    expect(atsTab.textContent).toContain('1')
+  })
+})
+
+// ── ATS Score tab — New ATS Check card ───────────────────────────────────────
+
+describe('Dashboard — ATS Score tab New ATS Check card', () => {
+  it('shows the "New ATS Check" dashed card in the ATS Score tab', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await goToAtsScoreTab(user)
+
+    await waitFor(() => expect(screen.getByText('New ATS Check')).toBeInTheDocument())
+  })
+
+  it('"New ATS Check" card opens the resume-picker modal', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await goToAtsScoreTab(user)
+
+    await waitFor(() => expect(screen.getByText('New ATS Check')).toBeInTheDocument())
+    await user.click(screen.getByText('New ATS Check'))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /new ats check/i })).toBeInTheDocument()
+    )
+    expect(screen.getByText(/choose the resume to check/i)).toBeInTheDocument()
+  })
+
+  it('resume picker lists all resumes and selecting one opens the ATS JD-entry modal', async () => {
+    const user = userEvent.setup()
+    renderDashboard()
+    await goToAtsScoreTab(user)
+
+    await waitFor(() => expect(screen.getByText('New ATS Check')).toBeInTheDocument())
+    await user.click(screen.getByText('New ATS Check'))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /new ats check/i })).toBeInTheDocument()
+    )
+    // Both resumes are listed in the picker
+    expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument()
+    expect(screen.getByText('Product Manager Resume')).toBeInTheDocument()
+
+    // Picking a resume opens the JD entry form
+    await user.click(screen.getByText('Software Engineer Resume'))
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText(/paste the job description here/i)).toBeInTheDocument()
     )
   })
 })
