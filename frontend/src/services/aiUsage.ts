@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase'
 import type { AiUsageAction, AiUsageEntry, AiUsageStats } from '@/types/aiUsage'
 
+let _statsPromise: Promise<AiUsageStats> | null = null
+
 function emptyStats(): AiUsageStats {
   return {
     totalCalls: 0,
@@ -33,48 +35,68 @@ export async function logAiUsage(action: AiUsageAction, model: string): Promise<
       // Table not yet created (migration not applied) or any other failure — swallow it.
       return
     }
+
+    _statsPromise = null
   } catch {
     // Never throw from usage logging.
   }
 }
 
-export async function getAiUsageStats(): Promise<AiUsageStats> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+async function _fetchAiUsageStats(): Promise<AiUsageStats> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
-    .from('ai_usage_log')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(500)
+    const { data, error } = await supabase
+      .from('ai_usage_log')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(500)
 
-  if (error) {
-    // Table not yet created (migration not applied) — treat as "no usage yet"
-    if (error.code === 'PGRST205' || error.code === '42P01') return emptyStats()
-    throw error
-  }
-
-  const rows = (data ?? []) as AiUsageEntry[]
-
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth()
-
-  const stats = emptyStats()
-  stats.totalCalls = rows.length
-
-  for (const row of rows) {
-    const created = new Date(row.created_at)
-    if (created.getFullYear() === currentYear && created.getMonth() === currentMonth) {
-      stats.callsThisMonth += 1
+    if (error) {
+      // Table not yet created (migration not applied) — treat as "no usage yet"
+      if (error.code === 'PGRST205' || error.code === '42P01') return emptyStats()
+      throw error
     }
-    if (row.action in stats.callsByAction) {
-      stats.callsByAction[row.action] += 1
+
+    const rows = (data ?? []) as AiUsageEntry[]
+
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth()
+
+    const stats = emptyStats()
+    stats.totalCalls = rows.length
+
+    for (const row of rows) {
+      const created = new Date(row.created_at)
+      if (created.getFullYear() === currentYear && created.getMonth() === currentMonth) {
+        stats.callsThisMonth += 1
+      }
+      if (row.action in stats.callsByAction) {
+        stats.callsByAction[row.action] += 1
+      }
     }
+
+    stats.recent = rows.slice(0, 10)
+
+    return stats
+  } catch (err) {
+    _statsPromise = null
+    throw err
   }
+}
 
-  stats.recent = rows.slice(0, 10)
+export function getAiUsageStats(): Promise<AiUsageStats> {
+  if (!_statsPromise) _statsPromise = _fetchAiUsageStats()
+  return _statsPromise
+}
 
-  return stats
+export function prefetchAiUsageStats(): void {
+  if (!_statsPromise) _statsPromise = _fetchAiUsageStats().catch(() => { _statsPromise = null; return emptyStats() })
+}
+
+export function clearAiUsageStatsCache(): void {
+  _statsPromise = null
 }

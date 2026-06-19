@@ -8,7 +8,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 import { supabase } from '@/lib/supabase'
-import { logAiUsage, getAiUsageStats } from '@/services/aiUsage'
+import { logAiUsage, getAiUsageStats, clearAiUsageStatsCache } from '@/services/aiUsage'
 import type { AiUsageEntry } from '@/types/aiUsage'
 
 const mockFrom = vi.mocked(supabase.from)
@@ -16,7 +16,10 @@ const mockGetUser = vi.mocked(supabase.auth.getUser)
 
 const mockUser = { id: 'user-123', email: 'jane@example.com' }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  clearAiUsageStatsCache()
+})
 
 // Helper: set up the standard supabase query chain for ai_usage_log
 function setupQueryChain(resolvedValue: { data: unknown; error: unknown }) {

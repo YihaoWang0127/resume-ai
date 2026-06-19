@@ -21,6 +21,31 @@ export interface AtsMetadata {
   jobDescription: string
 }
 
+let _listPromise: Promise<SavedResume[]> | null = null
+
+async function _fetchResumes(): Promise<SavedResume[]> {
+  try {
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('*')
+      .order('updated_at', { ascending: false })
+
+    if (error) throw error
+    return data ?? []
+  } catch (err) {
+    _listPromise = null
+    throw err
+  }
+}
+
+export function prefetchResumes(): void {
+  if (!_listPromise) _listPromise = _fetchResumes().catch(() => { _listPromise = null; return [] })
+}
+
+export function clearResumesCache(): void {
+  _listPromise = null
+}
+
 export async function saveResume(
   resume: ResumeSchema,
   title: string,
@@ -49,6 +74,7 @@ export async function saveResume(
     .single()
 
   if (error) throw error
+  _listPromise = null
   return data
 }
 
@@ -79,6 +105,7 @@ export async function updateResume(
     .single()
 
   if (error) throw error
+  _listPromise = null
   return data
 }
 
@@ -104,6 +131,7 @@ export async function updateAtsScore(
     .single()
 
   if (error) throw error
+  _listPromise = null
   return data
 }
 
@@ -118,16 +146,12 @@ export async function clearAtsScore(id: string): Promise<void> {
     })
     .eq('id', id)
   if (error) throw error
+  _listPromise = null
 }
 
-export async function listResumes(): Promise<SavedResume[]> {
-  const { data, error } = await supabase
-    .from('resumes')
-    .select('*')
-    .order('updated_at', { ascending: false })
-
-  if (error) throw error
-  return data ?? []
+export function listResumes(): Promise<SavedResume[]> {
+  if (!_listPromise) _listPromise = _fetchResumes()
+  return _listPromise
 }
 
 export async function getResume(id: string): Promise<SavedResume> {
@@ -148,4 +172,5 @@ export async function deleteResume(id: string): Promise<void> {
     .eq('id', id)
 
   if (error) throw error
+  _listPromise = null
 }

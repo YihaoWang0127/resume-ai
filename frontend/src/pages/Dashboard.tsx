@@ -102,8 +102,7 @@ export default function Dashboard() {
     }).finally(() => setFetching(false))
   }, [user, isGuest])
 
-  if (loading) return null
-  if (!user || isGuest) return <Navigate to="/" replace />
+  if (!loading && (!user || isGuest)) return <Navigate to="/" replace />
 
   // ── resume actions ───────────────────────────────────────────────────────────
   const handleEdit = (r: SavedResume) => {
@@ -348,7 +347,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {fetching ? (
+        {(loading || fetching) ? (
           <>
             <section className="mb-12">
               <div className="h-7 w-40 bg-muted rounded animate-pulse mb-6" />
