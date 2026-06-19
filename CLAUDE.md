@@ -35,6 +35,10 @@ don't duplicate those tables here.
 - Verify with: `npx tsc --noEmit` (frontend) or `python -c "import app.main"` (backend)
 - Report: files modified, what changed, anything skipped, follow-up needed
 
+## When to Use /orchestrator vs. Direct Chat
+
+Use direct chat (no `/orchestrator`) for quick one-offs: answering questions, single-file typo/copy/config tweaks, or anything you want to eyeball before deciding if it's PR-worthy. Use `/orchestrator` for anything that should go through the full pipeline — feature work, bug fixes, multi-file changes, and anything that needs tests, README updates, QA, or a PR. You can always start in direct chat and escalate mid-conversation by invoking `/orchestrator` once scope grows.
+
 ## PR-Ready Workflow
 
 This project uses CI/CD — every real code or doc change should end in a PR, and "PR created" is
