@@ -94,6 +94,25 @@ feature, fix, or multi-file task.
 ## PR-Ready Workflow
 
 This project uses CI/CD. Every real code or documentation change should end in a PR.
+
+**Important:** PR created is not the same as PR ready.
+
+A task is only considered PR-ready when:
+- the PR has been created
+- `gh pr checks <PR_URL>` has been run after PR creation
+- all required GitHub/Vercel checks have passed, or failures/pending checks are clearly reported
+- fixable CI failures have been fixed, committed, pushed, and re-checked
+
+After `pr-agent` returns a PR URL, the orchestrator must run Step 6.5 — CI Fix Loop before reporting final completion.
+
+Final summaries must include CI status:
+- `passed`
+- `failed`
+- `pending`
+- `not verified`
+
+Do not claim a PR is green unless checks were actually polled and passed.
+
 `/orchestrator` handles this automatically via three modes:
 
 | Mode | Use For |

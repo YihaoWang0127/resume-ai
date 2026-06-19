@@ -183,6 +183,17 @@ After pr-agent reports a PR URL, monitor CI and auto-fix any failures. Cap at **
 5. Return to the polling step. After 3 push→re-check cycles without all checks passing, stop and
    report remaining failures to the user — do not loop further.
 
+6. Record final CI status as one of:
+   - `passed` — all required checks passed
+   - `failed` — checks still fail after the fix loop
+   - `pending` — checks did not finish before timeout
+   - `not verified` — checks could not be queried
+
+Do not report the task as fully complete unless CI status is `passed`.
+
+If CI status is `failed`, `pending`, or `not verified`, report the PR URL and the exact remaining status,
+but do not claim the PR is green or ready to merge.
+
 **Important:** when routing a test failure (frontend or backend), explicitly tell the fix agent:
 "The CI check `<job-name>` failed with this output: `<log>`. Fix the failing tests so they pass.
 Do NOT delete or skip tests — fix the underlying issue. After fixing, run `<test command>` locally
@@ -198,6 +209,8 @@ One consolidated summary:
 - qa-agent: TypeScript/build/import status.
 - Local verification: what was tested, automated vs. user-confirmed, result.
 - pr-agent: branch name and PR URL (or why skipped).
+- CI status: `passed`, `failed`, `pending`, or `not verified`.
+- CI checks: list check names and statuses when available.
 - CI fix loop: all checks passed / N failures auto-fixed (list what) / still failing after 3 attempts (list remaining).
 - Any unresolved follow-ups.
 

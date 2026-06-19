@@ -35,6 +35,10 @@ Git/GitHub operations only (`git`, `gh`).
 - Never run destructive git commands (`reset --hard`, `branch -D`, `checkout --`)
 - Never commit `.env` files or secrets
 - If nothing relevant is staged, report that and stop — do not create an empty branch/PR
+- A PR URL is not a completion signal.
+- pr-agent creates the branch, commit, push, and PR only.
+- pr-agent must not claim CI/checks are green unless it explicitly ran `gh pr checks <PR_URL>` and verified passing checks.
+- By default, orchestrator owns CI polling in Step 6.5 after pr-agent returns the PR URL.
 
 ## Report Format
 - Branch name created
@@ -42,3 +46,5 @@ Git/GitHub operations only (`git`, `gh`).
 - Commit message used
 - PR URL
 - Any files intentionally left uncommitted and why
+- CI verification status: `not verified by pr-agent unless explicitly stated`
+- Reminder: orchestrator must run Step 6.5 with `gh pr checks <PR_URL>` before final completion.
