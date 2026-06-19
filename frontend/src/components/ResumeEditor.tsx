@@ -25,7 +25,6 @@ import {
   RotateCw,
   Minus,
   Clock,
-  Eye,
   Settings,
   ArrowRight,
   Bold,
@@ -41,7 +40,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/Modal'
-import ExportMenu from '@/components/ExportMenu'
 import { cn, getInitials } from '@/lib/utils'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
@@ -158,9 +156,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [zoomLevel, setZoomLevel] = useState(100)
   const [centerCollapsed, setCenterCollapsed] = useState(false)
   const [centerWidth, setCenterWidth] = useState(380)
-  const [autosaveOn, setAutosaveOn] = useState(false)
-  const [saveChecked, setSaveChecked] = useState(false)
-  const [updateChecked, setUpdateChecked] = useState(false)
+  const [autosaveOn] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [enrichProgress, setEnrichProgress] = useState(0)
   const accountMenuRef = useRef<HTMLDivElement>(null)
@@ -796,65 +792,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               </span>
             </div>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setTailorOpen(true)}
-            disabled={streamLoading}
-            className="hidden lg:flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
-          >
-            <Wand2 className="size-3.5" />
-            Tailor
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setCoverLetterOpen(true)}
-            disabled={streamLoading}
-            className="hidden lg:flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
-          >
-            <Mail className="size-3.5" />
-            Cover Letter
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setMobileViewTab(mobileViewTab === 'preview' ? 'edit' : 'preview')}
-            className="hidden sm:flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
-          >
-            <Eye className="size-3.5" />
-            Preview
-          </Button>
-          <div ref={exportMenuRef} className="relative">
-            <Button
-              size="sm"
-              onClick={() => setExportMenuOpen((o) => !o)}
-              disabled={isExporting}
-              className="flex items-center gap-1.5 text-xs h-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              {isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
-              <span className="hidden sm:block">Download</span>
-              <ChevronDown className="size-3" />
-            </Button>
-            {exportMenuOpen && (
-              <ExportMenu rounded="lg" className="min-w-[190px]">
-                <button
-                  onClick={() => handleExport('pdf')}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary text-foreground text-left"
-                >
-                  <Download className="size-3.5 text-muted-foreground" />
-                  Save as PDF
-                </button>
-                <button
-                  onClick={() => handleExport('docx')}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary text-foreground text-left"
-                >
-                  <FileText className="size-3.5 text-muted-foreground" />
-                  Save as Word (.docx)
-                </button>
-              </ExportMenu>
-            )}
-          </div>
           <div ref={accountMenuRef} className="relative">
             <button
               type="button"
@@ -961,6 +898,125 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         >
           Preview
         </button>
+      </div>
+
+      {/* ── STAGE TOOLBAR ─────────────────────────────────────────────────────── */}
+      <div className="shrink-0 h-14 border-b border-border bg-background flex items-center justify-between px-4 lg:px-6">
+        {currentStep === 1 && (
+          <>
+            <span className="text-sm font-semibold text-foreground">Edit Resume</span>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
+              <span className="hidden sm:block">Auto-saved just now</span>
+            </div>
+          </>
+        )}
+        {currentStep === 2 && (
+          <>
+            <span className="text-sm font-semibold text-foreground">AI Enhance</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTailorOpen(true)}
+                disabled={streamLoading}
+                className="flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
+              >
+                <Wand2 className="size-3.5" />
+                Tailor to Job
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEnrich}
+                disabled={streamLoading || enrichmentState === 'loading'}
+                className="flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
+              >
+                <Sparkles className="size-3.5" />
+                Generate Suggestions
+              </Button>
+            </div>
+          </>
+        )}
+        {currentStep === 3 && (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-foreground">Live Preview</span>
+              <div className="w-px h-3 bg-border" />
+              <span className="text-xs font-medium text-muted-foreground">Template</span>
+              <select
+                data-testid="template-select"
+                className="text-xs border border-border rounded-lg px-2 py-1 bg-background text-foreground outline-none focus:ring-1 focus:ring-primary/50"
+                value={selectedIndustry}
+                onChange={(e) => setSelectedIndustry(e.target.value)}
+              >
+                <option value="general">Modern</option>
+                <option value="tech">Tech</option>
+                <option value="finance">Finance</option>
+                <option value="creative">Creative</option>
+                <option value="healthcare">Healthcare</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-medium text-muted-foreground">Style</span>
+              {[
+                { hex: '#0071E3', id: 'tech' },
+                { hex: '#16a34a', id: 'healthcare' },
+                { hex: '#7c3aed', id: 'creative' },
+                { hex: '#1e3a5f', id: 'finance' },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedIndustry(s.id)}
+                  title={s.id}
+                  className={cn(
+                    'size-5 rounded-full border-2 transition-transform hover:scale-110',
+                    selectedIndustry === s.id ? 'border-foreground scale-110' : 'border-transparent',
+                  )}
+                  style={{ background: s.hex }}
+                />
+              ))}
+              <button type="button" className="p-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors">
+                <Settings className="size-3.5" />
+              </button>
+            </div>
+          </>
+        )}
+        {currentStep === 4 && (
+          <>
+            <span className="text-sm font-semibold text-foreground">Download Resume</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCoverLetterOpen(true)}
+                className="flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
+              >
+                <Mail className="size-3.5" />
+                Generate Cover Letter
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport('pdf')}
+                disabled={isExporting}
+                className="flex items-center gap-1.5 text-xs h-8 rounded-lg border-border"
+              >
+                {isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+                Download PDF
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleExport('docx')}
+                disabled={isExporting}
+                className="flex items-center gap-1.5 text-xs h-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <FileText className="size-3.5" />
+                Download DOCX
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── MAIN ──────────────────────────────────────────────────────────────── */}
@@ -1410,55 +1466,20 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           ) : (
             <>
               {/* Preview panel header */}
-              <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 bg-background border-b border-border">
-                <div className="flex items-center gap-2">
-                  {/* Single toggle — always rendered, same position, icon changes */}
-                  <button
-                    onClick={() => setCenterCollapsed(prev => !prev)}
-                    title={centerCollapsed ? "Show editor" : "Minimize editor"}
-                    className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-                  >
-                    {centerCollapsed ? (
-                      <ChevronRight className="size-4" />
-                    ) : (
-                      <ChevronLeft className="size-4" />
-                    )}
-                  </button>
-                  <span className="text-xs font-semibold text-foreground hidden sm:block">Live Preview</span>
-                  <div className="w-px h-3 bg-border hidden sm:block" />
-                  <span className="text-xs font-medium text-muted-foreground">Template</span>
-                  <select
-                    data-testid="template-select"
-                    className="text-xs border border-border rounded-lg px-2 py-1 bg-background text-foreground outline-none focus:ring-1 focus:ring-primary/50"
-                    value={selectedIndustry}
-                    onChange={(e) => setSelectedIndustry(e.target.value)}
-                  >
-                    <option value="general">Modern</option>
-                    <option value="tech">Tech</option>
-                    <option value="finance">Finance</option>
-                    <option value="creative">Creative</option>
-                    <option value="healthcare">Healthcare</option>
-                  </select>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-medium text-muted-foreground">Style</span>
-                  <div className="flex items-center gap-1.5">
-                    {[
-                      { hex: '#0071E3', id: 'tech' },
-                      { hex: '#16a34a', id: 'healthcare' },
-                      { hex: '#7c3aed', id: 'creative' },
-                      { hex: '#1e3a5f', id: 'finance' },
-                    ].map((s) => (
-                      <button key={s.id} onClick={() => setSelectedIndustry(s.id)} title={s.id}
-                        className={cn('size-5 rounded-full border-2 transition-transform hover:scale-110', selectedIndustry === s.id ? 'border-foreground scale-110' : 'border-transparent')}
-                        style={{ background: s.hex }}
-                      />
-                    ))}
-                  </div>
-                  <button type="button" className="p-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors">
-                    <Settings className="size-3.5" />
-                  </button>
-                </div>
+              <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
+                {/* Single toggle — always rendered, same position, icon changes */}
+                <button
+                  onClick={() => setCenterCollapsed(prev => !prev)}
+                  title={centerCollapsed ? "Show editor" : "Minimize editor"}
+                  className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  {centerCollapsed ? (
+                    <ChevronRight className="size-4" />
+                  ) : (
+                    <ChevronLeft className="size-4" />
+                  )}
+                </button>
+                <span className="text-xs font-semibold text-foreground hidden sm:block">Live Preview</span>
               </div>
               {/* Preview content area — relative wrapper so enrichment overlay stays within viewport */}
               <div className="flex-1 overflow-hidden relative flex flex-col">
@@ -1580,72 +1601,47 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           </button>
         </div>
         <div className="flex items-center gap-2">
-          {/* Save button: toggles autosave on/off */}
-          <button
-            type="button"
-            onClick={() => {
-              const next = !autosaveOn
-              setAutosaveOn(next)
-              setSaveChecked(true)
-              setTimeout(() => setSaveChecked(false), 2000)
-              if (next && !currentResumeId) {
-                // If turning on autosave without a saved resume, prompt save dialog
-                handleSaveClick()
-              }
-            }}
-            className={cn(
-              'hidden sm:flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors min-h-[32px]',
-              autosaveOn
-                ? 'border-green-400 text-green-700 bg-green-50 hover:bg-green-100'
-                : 'border-border text-foreground hover:bg-secondary/60',
-            )}
-          >
-            {saveChecked ? (
-              <CheckCircle2 className="size-3 text-green-500" />
-            ) : (
-              <Save className="size-3" />
-            )}
-            {autosaveOn ? 'Autosave On' : 'Save'}
-          </button>
-          {/* Update button: manual immediate save */}
-          {currentResumeId && (
+          {/* Save Changes — shown in stages 1, 2, 3 (not 4 which has download buttons) */}
+          {currentStep < 4 && (
             <button
-              onClick={async () => {
-                await handleUpdate()
-                setUpdateChecked(true)
-                setTimeout(() => setUpdateChecked(false), 2000)
-              }}
+              type="button"
+              onClick={currentResumeId ? handleUpdate : handleSaveClick}
               disabled={isSaving}
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors disabled:opacity-50 min-h-[32px]"
             >
-              {updateChecked ? (
-                <CheckCircle2 className="size-3 text-green-500" />
-              ) : isSaving ? (
+              {isSaving ? (
                 <Loader2 className="size-3 animate-spin" />
               ) : (
                 <Save className="size-3" />
               )}
-              Update
+              Save Changes
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setCurrentStep((s) => Math.max(s - 1, 1))}
-            disabled={currentStep === 1}
-            className="flex items-center gap-1.5 px-4 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors min-h-[32px] disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <ArrowLeft className="size-3.5" />
-            Prev Step
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrentStep((s) => Math.min(s + 1, 4))}
-            disabled={currentStep === 4}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors min-h-[32px] disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Next Step
-            <ArrowRight className="size-3.5" />
-          </button>
+
+          {/* Back button — shown in stages 2, 3, 4 */}
+          {currentStep > 1 && (
+            <button
+              type="button"
+              onClick={() => setCurrentStep((s) => Math.max(s - 1, 1))}
+              className="flex items-center gap-1.5 px-4 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors min-h-[32px]"
+            >
+              <ArrowLeft className="size-3.5" />
+              {currentStep === 2 ? 'Back to Edit' : currentStep === 3 ? 'Back to AI Enhance' : 'Back to Preview'}
+            </button>
+          )}
+
+          {/* Next stage button — shown in stages 1, 2, 3 */}
+          {currentStep < 4 && (
+            <button
+              type="button"
+              onClick={() => setCurrentStep((s) => Math.min(s + 1, 4))}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors min-h-[32px]"
+            >
+              {currentStep === 1 ? 'Continue to AI Enhance' : currentStep === 2 ? 'Continue to Preview' : 'Continue to Download'}
+              <ArrowRight className="size-3.5" />
+            </button>
+          )}
+
         </div>
       </div>
 

@@ -96,39 +96,43 @@ beforeEach(() => {
 })
 
 // ── save / update buttons ─────────────────────────────────────────────────────
+// The bottom bar now has a single "Save Changes" button (visible in steps 1-3)
+// that either opens the save dialog (no existing ID) or calls updateResume (existing ID).
 
 describe('ResumeEditor — save button', () => {
-  it('shows Save button and opens save dialog when logged-in user clicks it', async () => {
+  it('shows "Save Changes" button and opens save dialog when logged-in user clicks it', async () => {
     const user = userEvent.setup()
     renderEditor()
 
-    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
     expect(screen.getByRole('heading', { name: /save resume/i })).toBeInTheDocument()
   })
 
-  it('calls onSignUp instead of opening dialog when a guest clicks Save', async () => {
+  it('calls onSignUp instead of opening dialog when a guest clicks Save Changes', async () => {
     mockUseAuth.mockReturnValue({ ...defaultAuth, user: guestUser, isGuest: true } as any)
     const onSignUp = vi.fn()
     const user = userEvent.setup()
     renderEditor({ onSignUp })
 
-    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     expect(onSignUp).toHaveBeenCalled()
     expect(screen.queryByRole('heading', { name: /save resume/i })).not.toBeInTheDocument()
   })
 
-  it('shows both Save (autosave toggle) and Update buttons when initialResumeId is provided', () => {
+  it('shows "Save Changes" button when initialResumeId is provided (calls update inline, no dialog)', () => {
     renderEditor({ initialResumeId: 'existing-id' })
-    expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^update$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
+    // No separate "Update" button — Save Changes handles both paths
+    expect(screen.queryByRole('button', { name: /^update$/i })).not.toBeInTheDocument()
   })
 })
 
 // Helper: get the save dialog container after opening it
+// "Save Changes" opens the save dialog when there is no existing resume ID.
 async function openSaveDialog(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: /^save$/i }))
+  await user.click(screen.getByRole('button', { name: /save changes/i }))
   return screen.getByRole('heading', { name: /save resume/i }).closest('div.bg-card') as HTMLElement
 }
 
@@ -189,10 +193,18 @@ describe('ResumeEditor — save dialog', () => {
     const user = userEvent.setup()
     renderEditor()
 
+    // Navigate to step 3 where the template-select is rendered in the stage toolbar
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+
     // Change the style via the template-select dropdown
     await user.selectOptions(screen.getByTestId('template-select'), 'finance')
 
-    const dialog = await openSaveDialog(user)
+    // "Save Changes" opens the save dialog (no existing resume ID)
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    // Confirm in the save dialog
+    const dialog = screen.getByRole('heading', { name: /save resume/i }).closest('div.bg-card') as HTMLElement
     await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
 
     await waitFor(() =>
@@ -214,10 +226,15 @@ describe('ResumeEditor — update existing resume', () => {
     const user = userEvent.setup()
     renderEditor({ initialResumeId: 'existing-id' })
 
+    // Navigate to step 3 where the template-select is rendered in the stage toolbar
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+
     // Change the style via the template-select dropdown
     await user.selectOptions(screen.getByTestId('template-select'), 'finance')
 
-    await user.click(screen.getByRole('button', { name: /^update$/i }))
+    // "Save Changes" calls handleUpdate when currentResumeId is set
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     await waitFor(() =>
       expect(mockUpdateResume).toHaveBeenCalledWith(
@@ -233,13 +250,13 @@ describe('ResumeEditor — update existing resume', () => {
 // ── header layout ─────────────────────────────────────────────────────────────
 // The new design replaced the Navbar with an inline header that shows a
 // logo, a "Back to Dashboard" link, a step indicator, and an avatar.
-// There is no user-email button or dropdown in this design.
+// The Download button was removed from the header — it now lives in the
+// stage toolbar (step 4) and the bottom bar (step 4).
 
 describe('ResumeEditor — header', () => {
-  it('renders the Back to Dashboard and Download buttons', () => {
+  it('renders the Back to Dashboard button', () => {
     renderEditor()
     expect(screen.getByRole('button', { name: /back to dashboard/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /download/i })).toBeInTheDocument()
   })
 
   it('calls onBack when the back button is clicked', async () => {
@@ -375,14 +392,15 @@ describe('ResumeEditor — ATS Score tab', () => {
 // horizontal tab bar are gone; navigation now lives in an <aside> sidebar.
 
 describe('ResumeEditor — desktop layout', () => {
-  it('renders sidebar nav buttons, zoom controls, Next Step button, and Template dropdown', () => {
+  it('renders sidebar nav buttons, zoom controls, stage Continue button, and Template dropdown', () => {
     renderEditor()
 
     for (const label of ['Contact', 'Summary', 'Experience', 'Education', 'Skills', 'ATS Score']) {
       expect(screen.getAllByRole('button', { name: new RegExp(`^${label}$`, 'i') }).length).toBeGreaterThan(0)
     }
     expect(screen.getByText('100%')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /next step/i })).toBeInTheDocument()
+    // Step 1 bottom bar shows "Continue to AI Enhance" instead of "Next Step"
+    expect(screen.getByRole('button', { name: /continue to ai enhance/i })).toBeInTheDocument()
     expect(screen.getByText('Template')).toBeInTheDocument()
   })
 })
@@ -483,77 +501,153 @@ describe('ResumeEditor — step indicator', () => {
     renderEditor()
 
     expect(screen.getAllByText('Edit')[0]).toBeInTheDocument()
-    expect(screen.getByText('AI Enhance')).toBeInTheDocument()
+    expect(screen.getAllByText('AI Enhance')[0]).toBeInTheDocument()
   })
 
-  it('advances currentStep when "Next Step" is clicked', async () => {
+  it('advances currentStep when "Continue to AI Enhance" is clicked', async () => {
     const user = userEvent.setup()
     renderEditor()
 
-    // Initially step-1 badge uses bg-primary; step-2 badge uses border-border.
-    // After click, step-2 should become active (bg-primary).
-    const nextBtn = screen.getByRole('button', { name: /next step/i })
-    await user.click(nextBtn)
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
 
-    // Step 2 is now active. The "AI Enhance" label should now be styled as
-    // active — we verify the button is still present (state changed without
-    // error) and can be clicked again.
-    expect(screen.getByRole('button', { name: /next step/i })).toBeInTheDocument()
+    // Step 2 is now active — the stage toolbar shows the AI Enhance title
+    // and the bottom bar shows "Continue to Preview"
+    expect(screen.getByRole('button', { name: /continue to preview/i })).toBeInTheDocument()
   })
 
-  it('does not advance beyond step 4 when Next Step is clicked repeatedly', async () => {
+  it('advances through all 4 steps via contextual Continue buttons', async () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const nextBtn = screen.getByRole('button', { name: /next step/i })
-    // Click 5 times — should not throw or go past 4
-    for (let i = 0; i < 5; i++) {
-      await user.click(nextBtn)
-    }
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+    await user.click(screen.getByRole('button', { name: /continue to download/i }))
 
-    // The "Download" step-4 label must still be visible and nothing crashed
+    // Step 4 — "Download" label in step indicator must be visible
     expect(screen.getAllByText('Download')[0]).toBeInTheDocument()
+    // No more Continue buttons at step 4
+    expect(screen.queryByRole('button', { name: /continue to/i })).not.toBeInTheDocument()
   })
 
-  it('renders a "Prev Step" button in the bottom bar', () => {
-    renderEditor()
-    expect(screen.getByRole('button', { name: /prev step/i })).toBeInTheDocument()
-  })
-
-  it('"Prev Step" is disabled when currentStep is 1', () => {
-    renderEditor()
-    // Step starts at 1, so Prev Step must be disabled immediately.
-    expect(screen.getByRole('button', { name: /prev step/i })).toBeDisabled()
-  })
-
-  it('"Next Step" is disabled when currentStep reaches 4', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    const nextBtn = screen.getByRole('button', { name: /next step/i })
-    // Advance from step 1 to step 4 (3 clicks)
-    for (let i = 0; i < 3; i++) {
-      await user.click(nextBtn)
-    }
-
-    expect(nextBtn).toBeDisabled()
-  })
-
-  it('"Prev Step" decrements currentStep when clicked', async () => {
+  it('decrements currentStep when a Back button is clicked', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     // Advance to step 2 first
-    await user.click(screen.getByRole('button', { name: /next step/i }))
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    expect(screen.getByRole('button', { name: /back to edit/i })).toBeInTheDocument()
 
-    const prevBtn = screen.getByRole('button', { name: /prev step/i })
-    // Prev Step should now be enabled at step 2
-    expect(prevBtn).toBeEnabled()
+    // Go back to step 1
+    await user.click(screen.getByRole('button', { name: /back to edit/i }))
 
-    await user.click(prevBtn)
+    // Back at step 1 — no Back button, only Continue to AI Enhance
+    expect(screen.queryByRole('button', { name: /back to/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /continue to ai enhance/i })).toBeInTheDocument()
+  })
+})
 
-    // Back at step 1 — Prev Step should be disabled again
-    expect(prevBtn).toBeDisabled()
+// ── stage toolbar ─────────────────────────────────────────────────────────────
+// A new toolbar appears below the header and renders stage-specific content
+// based on currentStep (1=Edit Resume, 2=AI Enhance, 3=Preview & Customize, 4=Download).
+
+describe('ResumeEditor — stage toolbar', () => {
+  it('shows "Edit Resume" title and auto-save status at step 1', () => {
+    renderEditor()
+
+    expect(screen.getByText('Edit Resume')).toBeInTheDocument()
+    // Auto-saved status text (hidden on narrow viewports but in DOM)
+    expect(screen.getByText('Auto-saved just now')).toBeInTheDocument()
+  })
+
+  it('shows "AI Enhance" title, "Tailor to Job", and "Generate Suggestions" buttons at step 2', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+
+    // Stage toolbar title
+    expect(screen.getAllByText('AI Enhance')[0]).toBeInTheDocument()
+    // Stage toolbar actions
+    expect(screen.getByRole('button', { name: /tailor to job/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /generate suggestions/i })).toBeInTheDocument()
+  })
+
+  it('shows template select and style dots at step 3', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+
+    // template-select is present (it was previously in the preview panel header;
+    // at step 3 it now lives in the stage toolbar too)
+    expect(screen.getByTestId('template-select')).toBeInTheDocument()
+  })
+
+  it('shows "Download Resume" title, "Generate Cover Letter", "Download PDF", and "Download DOCX" buttons at step 4', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+    await user.click(screen.getByRole('button', { name: /continue to download/i }))
+
+    expect(screen.getByText('Download Resume')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /generate cover letter/i })).toBeInTheDocument()
+    // "Download PDF" appears in both stage toolbar and bottom bar — at least one present
+    expect(screen.getAllByRole('button', { name: /download pdf/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /download docx/i }).length).toBeGreaterThan(0)
+  })
+})
+
+// ── bottom bar contextual navigation ─────────────────────────────────────────
+// Bottom bar replaces generic Prev Step / Next Step with stage-specific labels.
+
+describe('ResumeEditor — bottom bar contextual navigation', () => {
+  it('stage 1: shows "Continue to AI Enhance" and no Back button', () => {
+    renderEditor()
+
+    expect(screen.getByRole('button', { name: /continue to ai enhance/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /back to/i })).not.toBeInTheDocument()
+  })
+
+  it('stage 2: shows "Save Changes", "Back to Edit", and "Continue to Preview"', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /back to edit/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /continue to preview/i })).toBeInTheDocument()
+  })
+
+  it('stage 3: shows "Save Changes", "Back to AI Enhance", and "Continue to Download"', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /back to ai enhance/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /continue to download/i })).toBeInTheDocument()
+  })
+
+  it('stage 4: shows "Back to Preview", "Download PDF", "Download DOCX" — no Save Changes, no Continue', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+    await user.click(screen.getByRole('button', { name: /continue to download/i }))
+
+    expect(screen.getByRole('button', { name: /back to preview/i })).toBeInTheDocument()
+    // Download PDF and DOCX appear in bottom bar at step 4
+    expect(screen.getAllByRole('button', { name: /download pdf/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /download docx/i }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /continue to/i })).not.toBeInTheDocument()
   })
 })
 
@@ -776,23 +870,39 @@ describe('ResumeEditor — center panel content area padding', () => {
 })
 
 // ── template / style selector ─────────────────────────────────────────────────
+// The template-select now lives in the stage toolbar and is only rendered at step 3.
 
 describe('ResumeEditor — template / style selector', () => {
-  it('renders the Template <select> with industry options', () => {
+  async function navigateToStep3(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to preview/i }))
+  }
+
+  it('renders the Template <select> with industry options at step 3', async () => {
+    const user = userEvent.setup()
     renderEditor()
+
+    await navigateToStep3(user)
 
     const select = screen.getByTestId('template-select') as HTMLSelectElement
     expect(select).toBeInTheDocument()
     expect(select.options.length).toBeGreaterThanOrEqual(5)
   })
 
-  it('updates selectedIndustry when a new template is chosen', async () => {
+  it('updates selectedIndustry when a new template is chosen at step 3', async () => {
     const user = userEvent.setup()
     renderEditor()
+
+    await navigateToStep3(user)
 
     const select = screen.getByTestId('template-select')
     await user.selectOptions(select, 'tech')
 
     expect((select as HTMLSelectElement).value).toBe('tech')
+  })
+
+  it('does not render the template-select at step 1', () => {
+    renderEditor()
+    expect(screen.queryByTestId('template-select')).not.toBeInTheDocument()
   })
 })
