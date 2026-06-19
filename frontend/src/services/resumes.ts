@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { ResumeSchema } from '@/types/resume'
+import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
 
 export interface SavedResume {
   id: string
@@ -11,20 +11,40 @@ export interface SavedResume {
   updated_at: string
   ats_score?: number | null
   ats_score_updated_at?: string | null
+  ats_job_description?: string | null
+  ats_result?: ATSScoreResult | null
 }
 
-export async function saveResume(resume: ResumeSchema, title: string): Promise<SavedResume> {
+export interface AtsMetadata {
+  score: number
+  result: ATSScoreResult
+  jobDescription: string
+}
+
+export async function saveResume(
+  resume: ResumeSchema,
+  title: string,
+  ats?: AtsMetadata,
+): Promise<SavedResume> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
+  const insert: Record<string, unknown> = {
+    user_id: user.id,
+    title,
+    resume_data: resume,
+    detected_industry: resume.detectedIndustry ?? 'general',
+  }
+  if (ats) {
+    insert.ats_score = ats.score
+    insert.ats_score_updated_at = new Date().toISOString()
+    insert.ats_job_description = ats.jobDescription
+    insert.ats_result = ats.result
+  }
+
   const { data, error } = await supabase
     .from('resumes')
-    .insert({
-      user_id: user.id,
-      title,
-      resume_data: resume,
-      detected_industry: resume.detectedIndustry ?? 'general',
-    })
+    .insert(insert)
     .select()
     .single()
 
@@ -32,13 +52,24 @@ export async function saveResume(resume: ResumeSchema, title: string): Promise<S
   return data
 }
 
-export async function updateResume(id: string, resume: ResumeSchema, title?: string): Promise<SavedResume> {
+export async function updateResume(
+  id: string,
+  resume: ResumeSchema,
+  title?: string,
+  ats?: AtsMetadata,
+): Promise<SavedResume> {
   const update: Record<string, unknown> = {
     resume_data: resume,
     detected_industry: resume.detectedIndustry ?? 'general',
     updated_at: new Date().toISOString(),
   }
   if (title !== undefined) update.title = title
+  if (ats) {
+    update.ats_score = ats.score
+    update.ats_score_updated_at = new Date().toISOString()
+    update.ats_job_description = ats.jobDescription
+    update.ats_result = ats.result
+  }
 
   const { data, error } = await supabase
     .from('resumes')
@@ -51,13 +82,23 @@ export async function updateResume(id: string, resume: ResumeSchema, title?: str
   return data
 }
 
-export async function updateAtsScore(id: string, score: number): Promise<SavedResume> {
+export async function updateAtsScore(
+  id: string,
+  score: number,
+  extended?: { jobDescription: string; result: ATSScoreResult },
+): Promise<SavedResume> {
+  const update: Record<string, unknown> = {
+    ats_score: score,
+    ats_score_updated_at: new Date().toISOString(),
+  }
+  if (extended) {
+    update.ats_job_description = extended.jobDescription
+    update.ats_result = extended.result
+  }
+
   const { data, error } = await supabase
     .from('resumes')
-    .update({
-      ats_score: score,
-      ats_score_updated_at: new Date().toISOString(),
-    })
+    .update(update)
     .eq('id', id)
     .select()
     .single()

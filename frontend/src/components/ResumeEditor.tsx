@@ -44,7 +44,7 @@ import { cn, getInitials } from '@/lib/utils'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
 import { enrichResume, exportResume, fromBackend, scoreATS, tailorResume } from '@/services/api'
-import { saveResume, updateResume } from '@/services/resumes'
+import { saveResume, updateResume, type AtsMetadata } from '@/services/resumes'
 import { useAuth } from '@/contexts/AuthContext'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
@@ -129,6 +129,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [atsLoading, setAtsLoading] = useState(false)
   const [atsResult, setAtsResult] = useState<ATSScoreResult | null>(null)
   const [atsError, setAtsError] = useState<string | null>(null)
+  const [atsResumeSnapshot, setAtsResumeSnapshot] = useState<string | null>(null)
+  const [atsResultSaved, setAtsResultSaved] = useState<boolean | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [streamLoading, setStreamLoading] = useState(false)
   const [panelCollapsed, setPanelCollapsed] = useState(false)
@@ -455,6 +457,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     try {
       const result = await scoreATS(resume, atsJobDesc)
       setAtsResult(result)
+      setAtsResumeSnapshot(JSON.stringify(resume))
+      setAtsResultSaved(false)
     } catch (err) {
       setAtsError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -517,10 +521,15 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       setSaveToast({ text, ok })
       setTimeout(() => setSaveToast(null), 3000)
     }
+    const atsPayload: AtsMetadata | undefined =
+      atsResult && atsResumeSnapshot
+        ? { score: atsResult.overallScore, result: atsResult, jobDescription: atsJobDesc }
+        : undefined
     try {
-      const saved = await saveResume({ ...resume, detectedIndustry: selectedIndustry }, saveTitle.trim())
+      const saved = await saveResume({ ...resume, detectedIndustry: selectedIndustry }, saveTitle.trim(), atsPayload)
       setCurrentResumeId(saved.id)
       setSaveDialogOpen(false)
+      if (atsPayload) setAtsResultSaved(true)
       showToast('Resume saved!', true)
     } catch (err) {
       console.error(err)
@@ -537,8 +546,13 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       setSaveToast({ text, ok })
       setTimeout(() => setSaveToast(null), 3000)
     }
+    const atsPayload: AtsMetadata | undefined =
+      atsResult && atsResumeSnapshot
+        ? { score: atsResult.overallScore, result: atsResult, jobDescription: atsJobDesc }
+        : undefined
     try {
-      await updateResume(currentResumeId, { ...resume, detectedIndustry: selectedIndustry })
+      await updateResume(currentResumeId, { ...resume, detectedIndustry: selectedIndustry }, undefined, atsPayload)
+      if (atsPayload) setAtsResultSaved(true)
       showToast('Resume updated!', true)
     } catch (err) {
       console.error(err)
@@ -713,6 +727,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     if (id === 'skills') return isSkillsComplete
     return false
   }
+  const isAtsStale = atsResult !== null && atsResumeSnapshot !== null && JSON.stringify(resume) !== atsResumeSnapshot
   const wordCount = resume.summary?.split(/\s+/).filter(Boolean).length ?? 0
   const aiSuggestionCount =
     resume.experience.reduce((a, e) => a + e.bullets.length, 0) + (resume.summary ? 3 : 0)
@@ -1434,6 +1449,30 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                         ))}
                       </ul>
                     </div>
+                  )}
+                </div>
+              )}
+              {/* ATS result status */}
+              {atsResult && (
+                <div className="space-y-2">
+                  {isAtsStale && (
+                    <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                      <span className="text-xs text-amber-700 dark:text-amber-400">Outdated — resume changed since last check.</span>
+                      <button
+                        type="button"
+                        onClick={handleAnalyzeATS}
+                        disabled={!atsJobDesc.trim() || atsLoading}
+                        className="shrink-0 text-xs font-bold text-primary hover:underline disabled:opacity-50"
+                      >
+                        Run again
+                      </button>
+                    </div>
+                  )}
+                  {!isAtsStale && atsResultSaved === false && (
+                    <p className="text-xs text-muted-foreground px-1">ATS result not saved yet. Save your resume to persist it.</p>
+                  )}
+                  {!isAtsStale && atsResultSaved === true && (
+                    <p className="text-xs text-green-600 px-1">&#10003; ATS result saved with this resume.</p>
                   )}
                 </div>
               )}
