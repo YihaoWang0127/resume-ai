@@ -291,92 +291,6 @@ async function openATSTab(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('ResumeEditor — ATS Score tab', () => {
-  it('switches to the ATS Score tab and shows the job description field', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    await openATSTab(user)
-
-    expect(screen.getAllByText(/job description/i)[0]).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Paste the job description here…')).toBeInTheDocument()
-  })
-
-  it('disables the Analyze button until a job description is entered', async () => {
-    const user = userEvent.setup()
-    renderEditor()
-
-    await openATSTab(user)
-
-    const analyzeButton = screen.getByRole('button', { name: /analyze/i })
-    expect(analyzeButton).toBeDisabled()
-
-    const textarea = screen.getByPlaceholderText('Paste the job description here…')
-    await user.type(textarea, 'Senior Software Engineer role requiring Python.')
-
-    expect(analyzeButton).toBeEnabled()
-  })
-
-  it('shows a loading state and calls scoreATS when Analyze is clicked', async () => {
-    let resolvePromise: (value: ATSScoreResult) => void = () => {}
-    mockScoreATS.mockReturnValue(
-      new Promise<ATSScoreResult>((resolve) => {
-        resolvePromise = resolve
-      }),
-    )
-
-    const user = userEvent.setup()
-    renderEditor()
-
-    await openATSTab(user)
-    const textarea = screen.getByPlaceholderText('Paste the job description here…')
-    await user.type(textarea, 'Senior Software Engineer role requiring Python.')
-
-    const analyzeButton = screen.getByRole('button', { name: /analyze/i })
-    await user.click(analyzeButton)
-
-    expect(analyzeButton).toBeDisabled()
-    expect(mockScoreATS).toHaveBeenCalledWith(
-      mockResume,
-      'Senior Software Engineer role requiring Python.',
-    )
-
-    resolvePromise(mockATSResult)
-    await waitFor(() => expect(analyzeButton).toBeEnabled())
-  })
-
-  it('renders the results panel with score, summary, keywords, and suggestions', async () => {
-    mockScoreATS.mockResolvedValue(mockATSResult)
-    const user = userEvent.setup()
-    renderEditor()
-
-    await openATSTab(user)
-    const textarea = screen.getByPlaceholderText('Paste the job description here…')
-    await user.type(textarea, 'Senior Software Engineer role requiring Python.')
-    await user.click(screen.getByRole('button', { name: /analyze/i }))
-
-    await waitFor(() => expect(screen.getAllByText('78').length).toBeGreaterThan(0))
-    expect(screen.getByText(mockATSResult.summary)).toBeInTheDocument()
-    expect(screen.getByText('Python')).toBeInTheDocument()
-    expect(screen.getByText('Distributed Systems')).toBeInTheDocument()
-    expect(screen.getByText('Kubernetes')).toBeInTheDocument()
-    expect(screen.getByText('Add a bullet about container orchestration.')).toBeInTheDocument()
-    expect(screen.getByText('Mention CI/CD pipeline experience.')).toBeInTheDocument()
-  })
-
-  it('shows an error message when scoreATS rejects', async () => {
-    mockScoreATS.mockRejectedValue(new Error('502 Bad Gateway'))
-    const user = userEvent.setup()
-    renderEditor()
-
-    await openATSTab(user)
-    const textarea = screen.getByPlaceholderText('Paste the job description here…')
-    await user.type(textarea, 'Senior Software Engineer role requiring Python.')
-    await user.click(screen.getByRole('button', { name: /analyze/i }))
-
-    await waitFor(() => expect(screen.getByText(/502 bad gateway/i)).toBeInTheDocument())
-    expect(screen.queryByText('78')).not.toBeInTheDocument()
-  })
-
   it('does not render the results panel before Analyze is clicked', async () => {
     const user = userEvent.setup()
     renderEditor()
@@ -414,7 +328,7 @@ describe('ResumeEditor — desktop layout', () => {
 // headings and key form elements should be in the DOM without any navigation.
 
 describe('ResumeEditor — all sections always visible', () => {
-  it('renders all 6 section headings, key textareas, and add buttons on initial render', () => {
+  it('renders all 5 section headings, key textareas, and add buttons on initial render', () => {
     renderEditor()
 
     expect(screen.getByRole('heading', { name: /contact information/i })).toBeInTheDocument()
@@ -422,9 +336,7 @@ describe('ResumeEditor — all sections always visible', () => {
     expect(screen.getByRole('heading', { name: /^experience$/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /^education$/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /^skills$/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /^ats score$/i })).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/brief professional summary/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Paste the job description here…')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add experience/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add education/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add skills/i })).toBeInTheDocument()
@@ -634,7 +546,7 @@ describe('ResumeEditor — stage toolbar', () => {
     expect(screen.getByTestId('template-select')).toBeInTheDocument()
   })
 
-  it('shows "Download Resume" title, "Generate Cover Letter", "Download PDF", and "Download DOCX" buttons at step 4', async () => {
+  it('shows "Download Resume" title, "Download PDF", and "Download DOCX" buttons at step 4', async () => {
     const user = userEvent.setup()
     renderEditor()
 
@@ -643,7 +555,7 @@ describe('ResumeEditor — stage toolbar', () => {
     await user.click(screen.getByRole('button', { name: /continue to download/i }))
 
     expect(screen.getByText('Download Resume')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /generate cover letter/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /generate cover letter/i })).not.toBeInTheDocument()
     // "Download PDF" appears in both stage toolbar and bottom bar — at least one present
     expect(screen.getAllByRole('button', { name: /download pdf/i }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('button', { name: /download docx/i }).length).toBeGreaterThan(0)
