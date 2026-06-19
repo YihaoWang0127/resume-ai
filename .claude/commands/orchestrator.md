@@ -24,7 +24,8 @@ $ARGUMENTS
 | settings-agent | settings-agent.md | `Settings.tsx`, `components/settings/*` |
 | shared-agent | shared-agent.md | `App.tsx`, `index.css`, `AuthContext`, `lib/supabase.ts`, `services/*.ts`, `ExportMenu`, `EmptyState`, `ErrorBoundary`, `NotFound`, `ServerError` |
 | backend-agent | backend-agent.md | `backend/app/**` |
-| test-enricher-agent | test-enricher-agent.md | Adds tests when behavior changed (conditional) |
+| test-enricher-agent | test-enricher-agent.md | Adds new targeted tests when behavior changed (conditional, runs in closing pipeline) |
+| test-agent | test-agent.md | Runs + fixes the full existing suite (only when user explicitly says "run tests") |
 | qa-agent | qa-agent.md | Scoped TypeScript/build/import validation |
 | readme-agent | readme-agent.md | README.md updates (conditional) |
 | pr-agent | pr-agent.md | Branch, commit, push, PR (runs last) |

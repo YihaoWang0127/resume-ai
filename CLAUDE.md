@@ -12,61 +12,20 @@ generates cover letters, and exports as PDF/DOCX/TXT. Supabase handles auth and 
 
 ## Current V1 Architecture
 
-**Tech Stack**
-- Frontend: React 18 + Vite + TypeScript + Tailwind + shadcn/ui
-- Backend: FastAPI + Python 3.11 + Anthropic SDK (stateless — no Supabase on backend)
-- Database: Supabase (PostgreSQL + Auth + Row Level Security)
-- PDF: ReportLab | DOCX: python-docx
-- Deploy: Vercel (frontend) + Render (backend)
-
 **Claude Models**
 - Haiku 4.5: validation + parsing (fast, cheap)
 - Sonnet 4.6: enrichment, tailoring, cover letters (quality)
 
-**Key Files**
-- Backend entry: `backend/app/main.py`
-- Claude prompts: `backend/app/prompts/resume.py`
-- Claude service: `backend/app/services/claude.py`
-- Frontend routes: `frontend/src/App.tsx`
-- Auth context: `frontend/src/contexts/AuthContext.tsx`
-- Supabase client: `frontend/src/lib/supabase.ts`
-- Resume CRUD: `frontend/src/services/resumes.ts`
-- Cover letter CRUD: `frontend/src/services/coverLetters.ts`
-
-**API Routes**
-| Method | Path | Purpose |
-|---|---|---|
-| POST | /api/parse | Upload + validate + parse resume |
-| POST | /api/enrich | Stream enriched resume |
-| POST | /api/tailor | Stream tailored resume |
-| POST | /api/export | Export resume PDF/DOCX |
-| POST | /api/cover-letter | Stream cover letter |
-| POST | /api/cover-letter/export | Export cover letter PDF/DOCX/TXT |
-
-**Database Tables**
-- `resumes`: id, user_id, title, resume_data (JSONB), detected_industry
-- `cover_letters`: id, user_id, resume_id, title, content, company_name, job_description, tone
-- Both have Row Level Security enabled
+Tech stack, key files, API routes, and database schema are documented once, in `README.md`
+(§Tech Stack, §Project Structure, §API Endpoints, §Database) — treat README as the source of
+truth for all of that and don't re-list it here.
 
 ## Agent System
 
 All specialist subagents live in `.claude/commands/`. Use `/orchestrator <task>` for any
-feature, fix, or multi-file task.
-
-## Agent Roster
-
-| Agent | Owns |
-|---|---|
-| ui-agent | `Home.tsx`, `Navbar.tsx`, `AuthModal.tsx`, `Modal.tsx`, `ResumeUploader.tsx` |
-| editor-agent | `Editor.tsx`, `ResumeEditor.tsx`, `ResumePreview.tsx`, `StreamingOutput.tsx`, `CoverLetterEditor.tsx` |
-| dashboard-agent | `Dashboard.tsx` |
-| settings-agent | `Settings.tsx`, `components/settings/*` |
-| shared-agent | `App.tsx`, `index.css`, `AuthContext`, `lib/supabase.ts`, `services/*.ts`, `ExportMenu`, `EmptyState`, `ErrorBoundary`, `NotFound`, `ServerError` |
-| backend-agent | `backend/app/**` (routes, services, prompts, models) |
-| test-enricher-agent | `frontend/src/__tests__/`, `backend/tests/` — adds tests when behavior changed |
-| qa-agent | Scoped TypeScript/build/import validation |
-| readme-agent | `README.md` — updates when public behavior changed |
-| pr-agent | Branch, commit, push, and PR for session changes (runs last) |
+feature, fix, or multi-file task — it owns the full Agent Roster, Routing Table, mode selection,
+wave ordering, and closing/PR pipeline. See `.claude/commands/orchestrator.md` for all of that;
+don't duplicate those tables here.
 
 **Subagent rules (applies to all specialists)**
 - Read only files in your scope — do not scan the whole project for simple changes
@@ -76,52 +35,12 @@ feature, fix, or multi-file task.
 - Verify with: `npx tsc --noEmit` (frontend) or `python -c "import app.main"` (backend)
 - Report: files modified, what changed, anything skipped, follow-up needed
 
-## Routing Rules
-
-| Files | Agent |
-|---|---|
-| `frontend/src/pages/Home.tsx`, `components/Navbar.tsx`, `AuthModal.tsx`, `Modal.tsx`, `ResumeUploader.tsx` | ui-agent |
-| `frontend/src/pages/Editor.tsx`, `components/ResumeEditor.tsx`, `ResumePreview.tsx`, `StreamingOutput.tsx`, `pages/CoverLetterEditor.tsx` | editor-agent |
-| `frontend/src/pages/Dashboard.tsx` | dashboard-agent |
-| `frontend/src/pages/Settings.tsx`, `components/settings/**` | settings-agent |
-| `frontend/src/App.tsx`, `index.css`, `contexts/*`, `lib/supabase.ts`, `services/*.ts`, `components/ExportMenu.tsx`, `EmptyState.tsx`, `ErrorBoundary.tsx`, `pages/NotFound.tsx`, `ServerError.tsx` | shared-agent |
-| `backend/app/**` | backend-agent |
-
-**Wave order:** backend-agent and shared-agent run first (dependencies); page/component agents run in parallel after.
-
-**Fallback:** If a task touches files not owned by any agent (e.g. a new page not yet in the roster), the orchestrator implements it directly using the same UI/Styling and Backend Rules below.
-
 ## PR-Ready Workflow
 
-This project uses CI/CD. Every real code or documentation change should end in a PR.
-
-**Important:** PR created is not the same as PR ready.
-
-A task is only considered PR-ready when:
-- the PR has been created
-- `gh pr checks <PR_URL>` has been run after PR creation
-- all required GitHub/Vercel checks have passed, or failures/pending checks are clearly reported
-- fixable CI failures have been fixed, committed, pushed, and re-checked
-
-After `pr-agent` returns a PR URL, the orchestrator must run Step 6.5 — CI Fix Loop before reporting final completion.
-
-Final summaries must include CI status:
-- `passed`
-- `failed`
-- `pending`
-- `not verified`
-
-Do not claim a PR is green unless checks were actually polled and passed.
-
-`/orchestrator` handles this automatically via three modes:
-
-| Mode | Use For |
-|---|---|
-| pr-lite | Copy changes, spacing/color/visual polish, docs-only, agent-instruction-only |
-| pr-standard | Normal feature work, bug fixes, refactors (default) |
-| pr-release | Production polish, larger features, changes needing extra verification |
-
-See `.claude/commands/orchestrator.md` for mode-specific behavior.
+This project uses CI/CD — every real code or doc change should end in a PR, and "PR created" is
+not the same as "PR ready." The full procedure (verification gate, PR creation, the capped CI
+auto-fix loop, and mode selection) lives in `.claude/commands/orchestrator.md` (Steps 5–7) —
+do not claim a PR is green unless checks were actually polled and passed.
 
 ## Testing Policy
 
