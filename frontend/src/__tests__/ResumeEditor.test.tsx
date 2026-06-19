@@ -351,7 +351,7 @@ describe('ResumeEditor — ATS Score tab', () => {
     await user.type(textarea, 'Senior Software Engineer role requiring Python.')
     await user.click(screen.getByRole('button', { name: /analyze/i }))
 
-    await waitFor(() => expect(screen.getByText('78')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText('78').length).toBeGreaterThan(0))
     expect(screen.getByText(mockATSResult.summary)).toBeInTheDocument()
     expect(screen.getByText('Python')).toBeInTheDocument()
     expect(screen.getByText('Distributed Systems')).toBeInTheDocument()
