@@ -940,9 +940,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         )}
         {currentStep === 3 && (
           <>
+            <span className="text-sm font-semibold text-foreground">Preview &amp; Customize</span>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-foreground">Live Preview</span>
-              <div className="w-px h-3 bg-border" />
               <span className="text-xs font-medium text-muted-foreground">Template</span>
               <select
                 data-testid="template-select"
@@ -956,29 +955,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <option value="creative">Creative</option>
                 <option value="healthcare">Healthcare</option>
               </select>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="text-xs font-medium text-muted-foreground">Style</span>
-              {[
-                { hex: '#0071E3', id: 'tech' },
-                { hex: '#16a34a', id: 'healthcare' },
-                { hex: '#7c3aed', id: 'creative' },
-                { hex: '#1e3a5f', id: 'finance' },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSelectedIndustry(s.id)}
-                  title={s.id}
-                  className={cn(
-                    'size-5 rounded-full border-2 transition-transform hover:scale-110',
-                    selectedIndustry === s.id ? 'border-foreground scale-110' : 'border-transparent',
-                  )}
-                  style={{ background: s.hex }}
-                />
-              ))}
-              <button type="button" className="p-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors">
-                <Settings className="size-3.5" />
-              </button>
             </div>
           </>
         )}
@@ -1601,22 +1577,20 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           </button>
         </div>
         <div className="flex items-center gap-2">
-          {/* Save Changes — shown in stages 1, 2, 3 (not 4 which has download buttons) */}
-          {currentStep < 4 && (
-            <button
-              type="button"
-              onClick={currentResumeId ? handleUpdate : handleSaveClick}
-              disabled={isSaving}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors disabled:opacity-50 min-h-[32px]"
-            >
-              {isSaving ? (
-                <Loader2 className="size-3 animate-spin" />
-              ) : (
-                <Save className="size-3" />
-              )}
-              Save Changes
-            </button>
-          )}
+          {/* Save Changes — shown in all stages */}
+          <button
+            type="button"
+            onClick={currentResumeId ? handleUpdate : handleSaveClick}
+            disabled={isSaving}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-medium text-foreground rounded-lg hover:bg-secondary/60 transition-colors disabled:opacity-50 min-h-[32px]"
+          >
+            {isSaving ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : (
+              <Save className="size-3" />
+            )}
+            Save Changes
+          </button>
 
           {/* Back button — shown in stages 2, 3, 4 */}
           {currentStep > 1 && (
