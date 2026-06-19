@@ -572,15 +572,14 @@ describe('ResumeEditor — stage toolbar', () => {
     expect(screen.getByRole('button', { name: /generate suggestions/i })).toBeInTheDocument()
   })
 
-  it('shows template select and style dots at step 3', async () => {
+  it('shows "Preview & Customize" title and template select at step 3', async () => {
     const user = userEvent.setup()
     renderEditor()
 
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
     await user.click(screen.getByRole('button', { name: /continue to preview/i }))
 
-    // template-select is present (it was previously in the preview panel header;
-    // at step 3 it now lives in the stage toolbar too)
+    expect(screen.getAllByText('Preview & Customize').length).toBeGreaterThan(0)
     expect(screen.getByTestId('template-select')).toBeInTheDocument()
   })
 
@@ -646,7 +645,7 @@ describe('ResumeEditor — bottom bar contextual navigation', () => {
     // Download PDF and DOCX appear in bottom bar at step 4
     expect(screen.getAllByRole('button', { name: /download pdf/i }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('button', { name: /download docx/i }).length).toBeGreaterThan(0)
-    expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /continue to/i })).not.toBeInTheDocument()
   })
 })
