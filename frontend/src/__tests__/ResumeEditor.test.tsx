@@ -540,8 +540,8 @@ describe('ResumeEditor — step indicator', () => {
     // Go back to step 1
     await user.click(screen.getByRole('button', { name: /back to edit/i }))
 
-    // Back at step 1 — no Back button, only Continue to AI Enhance
-    expect(screen.queryByRole('button', { name: /back to/i })).not.toBeInTheDocument()
+    // Back at step 1 — no stage-navigation Back button, only Continue to AI Enhance
+    expect(screen.queryByRole('button', { name: /back to edit|back to ai enhance|back to preview/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /continue to ai enhance/i })).toBeInTheDocument()
   })
 })
@@ -608,7 +608,7 @@ describe('ResumeEditor — bottom bar contextual navigation', () => {
     renderEditor()
 
     expect(screen.getByRole('button', { name: /continue to ai enhance/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /back to/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /back to edit|back to ai enhance|back to preview/i })).not.toBeInTheDocument()
   })
 
   it('stage 2: shows "Save Changes", "Back to Edit", and "Continue to Preview"', async () => {
