@@ -102,13 +102,16 @@ type CoverLetterTone = 'professional' | 'enthusiastic' | 'concise'
 
 const ZOOM_LEVELS = [75, 90, 100, 110, 125]
 
-const SECTION_DEFS: Array<{ id: Tab; label: string; description: string; Icon: LucideIcon }> = [
+const RESUME_SECTION_DEFS: Array<{ id: Tab; label: string; description: string; Icon: LucideIcon }> = [
   { id: 'contact',    label: 'Contact',    description: 'Add your contact details and professional links.',    Icon: User },
   { id: 'summary',    label: 'Summary',    description: 'Write a brief professional summary.',                 Icon: FileText },
   { id: 'experience', label: 'Experience', description: 'Add your work experience and achievements.',          Icon: Briefcase },
   { id: 'education',  label: 'Education',  description: 'Add your educational background.',                    Icon: GraduationCap },
   { id: 'skills',     label: 'Skills',     description: 'List your technical and soft skills.',                Icon: Zap },
-  { id: 'ats',        label: 'ATS Score',  description: 'Analyze your resume against a job description.',      Icon: Target },
+]
+
+const REVIEW_TOOL_DEFS: Array<{ id: Tab; label: string; Icon: LucideIcon }> = [
+  { id: 'ats', label: 'ATS Score', Icon: Target },
 ]
 
 export default function ResumeEditor({ initialResume, initialResumeId, onBack, onSignUp }: Props) {
@@ -1001,10 +1004,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         {/* LEFT SIDEBAR ─────────────────────────────────────────────────────── */}
         <aside className="hidden lg:flex flex-col w-[200px] xl:w-[220px] shrink-0 border-r border-border bg-background overflow-y-auto">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-4 pb-2">
-            Edit Sections
+            Resume Sections
           </p>
-          <nav className="flex-1">
-            {SECTION_DEFS.map((s) => {
+          <nav>
+            {RESUME_SECTION_DEFS.map((s) => {
               const complete = getSectionComplete(s.id)
               return (
                 <button
@@ -1034,6 +1037,32 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               <Plus className="size-4" />
               Add Section
             </button>
+          </nav>
+
+          <div className="mx-4 mt-1 mb-0 h-px bg-border" />
+
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 pt-3 pb-2">
+            Review Tools
+          </p>
+          <nav>
+            {REVIEW_TOOL_DEFS.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => scrollToSection(s.id)}
+                className={cn(
+                  'w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors border-l-2',
+                  tab === s.id
+                    ? 'bg-primary/[0.08] text-primary border-primary'
+                    : 'text-foreground hover:bg-secondary/40 border-transparent',
+                )}
+              >
+                <s.Icon className="size-4 shrink-0" />
+                <span className="flex-1 font-medium">{s.label}</span>
+                {s.id === 'ats' && atsResult ? (
+                  <span className="ml-auto text-[10px] font-bold text-primary tabular-nums">{atsResult.overallScore}</span>
+                ) : null}
+              </button>
+            ))}
           </nav>
           {/* AI Suggestions card */}
           <div className="m-3 p-3 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
@@ -1085,7 +1114,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
           {/* Mobile: horizontal section tab strip */}
           <div className="lg:hidden shrink-0 flex overflow-x-auto scrollbar-none bg-background border-b border-border">
-            {SECTION_DEFS.map((s) => (
+            {[...RESUME_SECTION_DEFS, ...REVIEW_TOOL_DEFS].map((s) => (
               <button
                 key={s.id}
                 onClick={() => scrollToSection(s.id)}
