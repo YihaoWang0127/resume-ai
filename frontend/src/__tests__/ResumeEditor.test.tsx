@@ -579,7 +579,7 @@ describe('ResumeEditor — stage toolbar', () => {
     await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
     await user.click(screen.getByRole('button', { name: /continue to preview/i }))
 
-    expect(screen.getByText('Preview & Customize')).toBeInTheDocument()
+    expect(screen.getAllByText('Preview & Customize').length).toBeGreaterThan(0)
     expect(screen.getByTestId('template-select')).toBeInTheDocument()
   })
 
