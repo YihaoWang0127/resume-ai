@@ -13,12 +13,16 @@ export interface SavedResume {
   ats_score_updated_at?: string | null
   ats_job_description?: string | null
   ats_result?: ATSScoreResult | null
+  ats_company_name?: string | null
+  ats_job_title?: string | null
 }
 
 export interface AtsMetadata {
   score: number
   result: ATSScoreResult
   jobDescription: string
+  companyName?: string
+  jobTitle?: string
 }
 
 let _listPromise: Promise<SavedResume[]> | null = null
@@ -65,6 +69,8 @@ export async function saveResume(
     insert.ats_score_updated_at = new Date().toISOString()
     insert.ats_job_description = ats.jobDescription
     insert.ats_result = ats.result
+    insert.ats_company_name = ats.companyName ?? null
+    insert.ats_job_title = ats.jobTitle ?? null
   }
 
   const { data, error } = await supabase
@@ -95,6 +101,8 @@ export async function updateResume(
     update.ats_score_updated_at = new Date().toISOString()
     update.ats_job_description = ats.jobDescription
     update.ats_result = ats.result
+    update.ats_company_name = ats.companyName ?? null
+    update.ats_job_title = ats.jobTitle ?? null
   }
 
   const { data, error } = await supabase
@@ -112,7 +120,7 @@ export async function updateResume(
 export async function updateAtsScore(
   id: string,
   score: number,
-  extended?: { jobDescription: string; result: ATSScoreResult },
+  extended?: { jobDescription: string; result: ATSScoreResult; companyName?: string; jobTitle?: string },
 ): Promise<SavedResume> {
   const update: Record<string, unknown> = {
     ats_score: score,
@@ -121,6 +129,8 @@ export async function updateAtsScore(
   if (extended) {
     update.ats_job_description = extended.jobDescription
     update.ats_result = extended.result
+    update.ats_company_name = extended.companyName ?? null
+    update.ats_job_title = extended.jobTitle ?? null
   }
 
   const { data, error } = await supabase
@@ -143,6 +153,8 @@ export async function clearAtsScore(id: string): Promise<void> {
       ats_score_updated_at: null,
       ats_job_description: null,
       ats_result: null,
+      ats_company_name: null,
+      ats_job_title: null,
     })
     .eq('id', id)
   if (error) throw error

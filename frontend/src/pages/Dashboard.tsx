@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Navigate, useLocation } from 'react-router-dom'
-import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target, MoreHorizontal } from 'lucide-react'
+import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target, MoreHorizontal, Building2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { listResumes, deleteResume, updateAtsScore, clearAtsScore, type SavedResume } from '@/services/resumes'
 import { listCoverLetters, deleteCoverLetter, type CoverLetter } from '@/services/coverLetters'
@@ -12,6 +12,7 @@ import ResumeUploader from '@/components/ResumeUploader'
 import Modal from '@/components/Modal'
 import ExportMenu from '@/components/ExportMenu'
 import EmptyState from '@/components/EmptyState'
+import ResumePreview from '@/components/ResumePreview'
 import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
 
 function extractJobTitle(jobDescription: string | null): string | null {
@@ -73,6 +74,11 @@ export default function Dashboard() {
   const [atsViewMode, setAtsViewMode] = useState(false)
   const [atsNewCheckStep, setAtsNewCheckStep] = useState<'closed' | 'resume-pick'>('closed')
   const [atsClearingId, setAtsClearingId] = useState<string | null>(null)
+  const [atsCompanyName, setAtsCompanyName] = useState('')
+  const [atsJobTitle, setAtsJobTitle] = useState('')
+
+  // ── Resume preview modal ─────────────────────────────────────────────────────
+  const [previewResume, setPreviewResume] = useState<SavedResume | null>(null)
 
   const [deleteTarget, setDeleteTarget] = useState<SavedResume | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -196,6 +202,8 @@ export default function Dashboard() {
     setAtsError(null)
     setAtsLoading(false)
     setAtsViewMode(false)
+    setAtsCompanyName('')
+    setAtsJobTitle('')
   }
 
   // Open modal showing saved ATS results (skip JD entry)
@@ -204,15 +212,19 @@ export default function Dashboard() {
     setAtsJobDesc(r.ats_job_description ?? '')
     setAtsResult(r.ats_result ?? null)
     setAtsViewMode(true)
+    setAtsCompanyName(r.ats_company_name ?? '')
+    setAtsJobTitle(r.ats_job_title ?? '')
   }
 
-  // Open modal to run a fresh ATS check
+  // Open modal to run a fresh ATS check (Re-check: pre-fills from saved data)
   const openAtsCheck = (r: SavedResume) => {
     setAtsTarget(r)
-    setAtsJobDesc('')
+    setAtsJobDesc(r.ats_job_description ?? '')
     setAtsResult(null)
     setAtsError(null)
     setAtsViewMode(false)
+    setAtsCompanyName(r.ats_company_name ?? '')
+    setAtsJobTitle(r.ats_job_title ?? '')
   }
 
   // Clear ATS score for a resume (in ATS Score tab)
@@ -245,11 +257,15 @@ export default function Dashboard() {
         await updateAtsScore(atsTarget.id, result.overallScore, {
           jobDescription: atsJobDesc,
           result,
+          companyName: atsCompanyName || undefined,
+          jobTitle: atsJobTitle || undefined,
         })
         const updatedAt = new Date().toISOString()
         setResumes((prev) =>
           prev.map((r) =>
-            r.id === atsTarget.id ? { ...r, ats_score: result.overallScore, ats_score_updated_at: updatedAt } : r
+            r.id === atsTarget.id
+              ? { ...r, ats_score: result.overallScore, ats_score_updated_at: updatedAt, ats_company_name: atsCompanyName || null, ats_job_title: atsJobTitle || null }
+              : r
           )
         )
         setAtsTarget((prev) => (prev ? { ...prev, ats_score: result.overallScore, ats_score_updated_at: updatedAt } : prev))
@@ -412,13 +428,11 @@ export default function Dashboard() {
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-foreground text-base truncate">{r.title}</p>
-                      <div className="mt-2.5">
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground text-[10px] font-bold uppercase tracking-wider truncate max-w-full">
+                      <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
                           {r.detected_industry}
                         </span>
-                      </div>
-                      {r.ats_score != null && (
-                        <div className="mt-2">
+                        {r.ats_score != null && (
                           <button
                             type="button"
                             onClick={() => openAtsDetail(r)}
@@ -427,8 +441,8 @@ export default function Dashboard() {
                             <Target className="size-2.5 shrink-0" />
                             ATS {r.ats_score}
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                       <p className="mt-2.5 text-xs text-muted-foreground">
                         Updated {formatDate(r.updated_at)}
                       </p>
@@ -439,7 +453,7 @@ export default function Dashboard() {
 
                     <div className="flex gap-1.5 mt-5 pt-4 border-t border-border w-full">
                       <button
-                        onClick={() => handleEdit(r)}
+                        onClick={() => setPreviewResume(r)}
                         className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] px-3 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded transition-colors"
                       >
                         Preview
@@ -570,26 +584,26 @@ export default function Dashboard() {
                     className="bg-card border border-border rounded-xl p-5 flex flex-col min-h-[200px] hover:border-primary/30 hover:shadow-sm transition-all"
                   >
                     <div className="flex-1 min-w-0">
-                      {/* Primary heading: company name */}
+                      {/* Primary heading: cover letter title */}
                       <p className="font-semibold text-foreground text-sm truncate">
-                        {cl.company_name || cl.title}
+                        {cl.title}
                       </p>
-                      {/* Job title (extracted from job_description first line) */}
-                      {(() => {
-                        const jobTitle = extractJobTitle(cl.job_description)
-                        return jobTitle ? (
-                          <p className="mt-0.5 text-xs text-muted-foreground truncate">{jobTitle}</p>
-                        ) : null
-                      })()}
                       {/* Company badge */}
                       {cl.company_name && (
                         <div className="mt-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground text-[10px] font-semibold uppercase tracking-wider truncate max-w-full">
-                            <Mail className="size-2.5 shrink-0" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-semibold uppercase tracking-wider truncate max-w-full">
+                            <Mail className="size-2.5 shrink-0 text-primary" />
                             {cl.company_name}
                           </span>
                         </div>
                       )}
+                      {/* Job title (extracted from job_description first line) — below company badge */}
+                      {(() => {
+                        const jobTitle = extractJobTitle(cl.job_description)
+                        return jobTitle ? (
+                          <p className="mt-1 text-xs text-muted-foreground truncate">{jobTitle}</p>
+                        ) : null
+                      })()}
                       {/* Based on resume */}
                       {resumeTitle && (
                         <span className="text-[11px] text-muted-foreground mt-1.5 block">
@@ -725,6 +739,17 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0 space-y-1">
                       {/* Resume title */}
                       <p className="font-semibold text-foreground text-sm truncate">{r.title}</p>
+                      {/* Company name */}
+                      {r.ats_company_name && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 truncate">
+                          <Building2 className="size-3 shrink-0" />
+                          {r.ats_company_name}
+                        </p>
+                      )}
+                      {/* Job title */}
+                      {r.ats_job_title && (
+                        <p className="text-xs text-muted-foreground truncate">{r.ats_job_title}</p>
+                      )}
                       {/* Score row */}
                       <div className="flex items-center gap-2 pt-1">
                         <span className="text-sm font-bold text-primary">{r.ats_score}/100</span>
@@ -1161,6 +1186,34 @@ export default function Dashboard() {
 
             {!atsResult && !atsViewMode ? (
               <>
+                {/* Company Name */}
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-1.5">
+                    Company Name
+                  </label>
+                  <input
+                    placeholder="e.g. Google, Apple, Stripe"
+                    value={atsCompanyName}
+                    onChange={(e) => setAtsCompanyName(e.target.value)}
+                    disabled={atsLoading}
+                    className="w-full px-3 py-2.5 border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors disabled:opacity-50"
+                  />
+                </div>
+
+                {/* Job Title */}
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-1.5">
+                    Job Title
+                  </label>
+                  <input
+                    placeholder="e.g. Software Engineer, Product Manager"
+                    value={atsJobTitle}
+                    onChange={(e) => setAtsJobTitle(e.target.value)}
+                    disabled={atsLoading}
+                    className="w-full px-3 py-2.5 border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors disabled:opacity-50"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-foreground uppercase tracking-wider mb-1.5">
                     Job Description <span className="text-red-400">*</span>
@@ -1201,6 +1254,14 @@ export default function Dashboard() {
               </>
             ) : (
               <>
+                {/* Company / Job title info in view mode */}
+                {atsViewMode && (atsCompanyName || atsJobTitle) && (
+                  <div className="mb-3 space-y-0.5">
+                    {atsCompanyName && <p className="text-sm font-semibold text-foreground">{atsCompanyName}</p>}
+                    {atsJobTitle && <p className="text-xs text-muted-foreground">{atsJobTitle}</p>}
+                  </div>
+                )}
+
                 {/* Saved JD (read-only, shown in view mode) */}
                 {atsViewMode && atsJobDesc && (
                   <details className="mb-4">
@@ -1291,6 +1352,8 @@ export default function Dashboard() {
                         setAtsResult(null)
                         setAtsJobDesc('')
                         setAtsViewMode(false)
+                        setAtsCompanyName('')
+                        setAtsJobTitle('')
                       }}
                       className="px-4 py-2 border border-primary/40 text-xs font-bold text-primary hover:bg-primary/10 uppercase tracking-wide transition-colors"
                     >
@@ -1308,6 +1371,33 @@ export default function Dashboard() {
               </>
             )}
       </Modal>
+      {/* ── Resume Preview modal ────────────────────────────────────────────────── */}
+      <Modal open={!!previewResume} overlayClassName="bg-black/60 backdrop-blur-sm px-4" className="max-w-4xl rounded-xl relative flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Header — fixed, never scrolls */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card rounded-t-xl shrink-0">
+              <h2 className="text-base font-bold text-foreground uppercase tracking-wide truncate pr-4">
+                {previewResume?.title ?? 'Preview'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setPreviewResume(null)}
+                className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors shrink-0"
+                aria-label="Close preview"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            {/* Scrollable body */}
+            {previewResume && (
+              <div className="overflow-y-auto flex-1 p-6">
+                <ResumePreview
+                  resume={previewResume.resume_data}
+                  industry={previewResume.detected_industry}
+                />
+              </div>
+            )}
+      </Modal>
+
       {/* ── New ATS Check — resume picker ─────────────────────────────────────────── */}
       <Modal open={atsNewCheckStep === 'resume-pick'} overlayClassName="bg-black/60 backdrop-blur-sm px-4" className="max-w-md rounded-xl relative">
             <button
