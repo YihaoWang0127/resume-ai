@@ -62,12 +62,18 @@ export async function updateCoverLetter(
   id: string,
   content: string,
   title?: string,
+  jobDescription?: string,
+  tone?: string,
+  resumeId?: string,
 ): Promise<CoverLetter> {
   const update: Record<string, unknown> = {
     content,
     updated_at: new Date().toISOString(),
   }
   if (title !== undefined) update.title = title
+  if (jobDescription !== undefined) update.job_description = jobDescription
+  if (tone !== undefined) update.tone = tone
+  if (resumeId !== undefined) update.resume_id = resumeId
 
   const { data, error } = await supabase
     .from('cover_letters')

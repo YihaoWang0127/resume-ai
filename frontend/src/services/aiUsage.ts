@@ -12,6 +12,7 @@ function emptyStats(): AiUsageStats {
       enrich: 0,
       tailor: 0,
       cover_letter: 0,
+      cover_letter_improve: 0,
       ats_score: 0,
     },
     recent: [],

@@ -1,4 +1,4 @@
-export type AiUsageAction = 'parse' | 'enrich' | 'tailor' | 'cover_letter' | 'ats_score'
+export type AiUsageAction = 'parse' | 'enrich' | 'tailor' | 'cover_letter' | 'cover_letter_improve' | 'ats_score'
 
 export interface AiUsageEntry {
   id: string

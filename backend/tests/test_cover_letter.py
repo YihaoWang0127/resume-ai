@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from app.prompts.resume import build_improve_cover_letter_prompt
+
 FAKE_PDF  = b"%PDF-1.7 fake-cover-letter-pdf"
 FAKE_DOCX = b"PK\x03\x04fake-cover-letter-docx"
 SAMPLE_CONTENT = "I am excited to apply for this role.\n\nMy experience aligns well with your needs."
@@ -36,10 +38,16 @@ def test_generate_cover_letter_returns_stream(
     assert "excited to apply" in resp.text
 
 
-def test_missing_job_description_returns_400(
+def test_whitespace_job_description_returns_200(
     client: TestClient,
     sample_resume: dict,
+    mocker,
 ) -> None:
+    async def fake_stream(system: str, user: str):
+        yield "Cover letter content."
+
+    mocker.patch("app.routes.cover_letter.stream_text", new=fake_stream)
+
     resp = client.post(
         "/api/cover-letter",
         json={
@@ -48,8 +56,7 @@ def test_missing_job_description_returns_400(
             "company_name": SAMPLE_COMPANY,
         },
     )
-    assert resp.status_code == 400
-    assert "job description" in resp.json()["detail"].lower()
+    assert resp.status_code == 200
 
 
 def test_missing_company_name_returns_400(
@@ -221,3 +228,140 @@ def test_export_invalid_format_returns_422(client: TestClient) -> None:
         json={"content": SAMPLE_CONTENT, "company_name": SAMPLE_COMPANY, "format": "xml"},
     )
     assert resp.status_code == 422
+
+
+# ── /api/cover-letter/improve (streaming improvement) ────────────────────────
+
+SAMPLE_COVER_LETTER = (
+    "I am excited to apply for the Software Engineer role at Acme Corp.\n\n"
+    "My experience at Google and Stripe has prepared me well for this position."
+)
+SAMPLE_SELECTION = "My experience at Google and Stripe has prepared me well for this position."
+
+
+def test_improve_full_text(client: TestClient, mocker) -> None:
+    """POST with text only (no selection) returns 200 streaming plain text."""
+    async def fake_stream(system: str, user: str):
+        yield "Improved cover letter text."
+
+    mocker.patch("app.routes.cover_letter.stream_text", new=fake_stream)
+
+    resp = client.post(
+        "/api/cover-letter/improve",
+        json={"text": SAMPLE_COVER_LETTER},
+    )
+
+    assert resp.status_code == 200
+    assert "text/plain" in resp.headers["content-type"]
+    assert "Improved" in resp.text
+
+
+def test_improve_with_selection(client: TestClient, mocker) -> None:
+    """POST with text + non-empty selection returns 200 streaming plain text."""
+    async def fake_stream(system: str, user: str):
+        yield "My background at Google and Stripe uniquely qualifies me."
+
+    mocker.patch("app.routes.cover_letter.stream_text", new=fake_stream)
+
+    resp = client.post(
+        "/api/cover-letter/improve",
+        json={"text": SAMPLE_COVER_LETTER, "selection": SAMPLE_SELECTION},
+    )
+
+    assert resp.status_code == 200
+    assert "text/plain" in resp.headers["content-type"]
+    assert resp.text.strip() != ""
+
+
+def test_improve_with_job_description(client: TestClient, mocker) -> None:
+    """POST with text + job_description returns 200 streaming plain text."""
+    async def fake_stream(system: str, user: str):
+        yield "Tailored improvement with JD context."
+
+    mocker.patch("app.routes.cover_letter.stream_text", new=fake_stream)
+
+    resp = client.post(
+        "/api/cover-letter/improve",
+        json={
+            "text": SAMPLE_COVER_LETTER,
+            "job_description": "Senior engineer with Python and distributed systems experience.",
+        },
+    )
+
+    assert resp.status_code == 200
+    assert "text/plain" in resp.headers["content-type"]
+    assert resp.text.strip() != ""
+
+
+def test_improve_missing_text_returns_422(client: TestClient) -> None:
+    """POST with missing text field returns 422 (Pydantic validation failure)."""
+    resp = client.post(
+        "/api/cover-letter/improve",
+        json={"selection": SAMPLE_SELECTION},
+    )
+    assert resp.status_code == 422
+
+
+# ── build_improve_cover_letter_prompt unit tests ──────────────────────────────
+
+
+def test_improve_prompt_with_selection_contains_excerpt() -> None:
+    """User message references the selection text and describes it as an excerpt."""
+    _, user = build_improve_cover_letter_prompt(
+        text=SAMPLE_COVER_LETTER,
+        selection=SAMPLE_SELECTION,
+        job_description=None,
+        tone="professional",
+        resume_json=None,
+    )
+    assert SAMPLE_SELECTION in user
+    assert "excerpt" in user.lower()
+
+
+def test_improve_prompt_without_selection_contains_full_text() -> None:
+    """User message contains the full cover letter when no selection is given."""
+    _, user = build_improve_cover_letter_prompt(
+        text=SAMPLE_COVER_LETTER,
+        selection=None,
+        job_description=None,
+        tone="professional",
+        resume_json=None,
+    )
+    assert SAMPLE_COVER_LETTER in user
+
+
+def test_improve_prompt_with_job_description_includes_jd() -> None:
+    """Job description text appears in the user message when provided."""
+    jd = "Looking for a senior engineer with Python and Kubernetes skills."
+    _, user = build_improve_cover_letter_prompt(
+        text=SAMPLE_COVER_LETTER,
+        selection=None,
+        job_description=jd,
+        tone="professional",
+        resume_json=None,
+    )
+    assert jd in user
+
+
+def test_improve_prompt_without_job_description_excludes_jd() -> None:
+    """No job description section appears in the user message when JD is absent."""
+    _, user = build_improve_cover_letter_prompt(
+        text=SAMPLE_COVER_LETTER,
+        selection=None,
+        job_description=None,
+        tone="professional",
+        resume_json=None,
+    )
+    assert "JOB DESCRIPTION" not in user
+
+
+def test_improve_prompt_whitespace_only_jd_excluded() -> None:
+    """Whitespace-only job description is treated as absent — not included in prompt."""
+    _, user = build_improve_cover_letter_prompt(
+        text=SAMPLE_COVER_LETTER,
+        selection=None,
+        job_description="   ",
+        tone="professional",
+        resume_json=None,
+    )
+    assert "JOB DESCRIPTION" not in user

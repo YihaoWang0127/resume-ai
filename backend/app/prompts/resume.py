@@ -150,7 +150,8 @@ Tone guidelines:
 
 Return ONLY the cover letter body text. No "Dear Hiring Manager", no signature, no markdown. Just the body paragraphs separated by blank lines."""
 
-    user = f"""Write a cover letter using:
+    if job_description and job_description.strip():
+        user = f"""Write a cover letter using:
 
 CANDIDATE RESUME (JSON):
 {resume_json}
@@ -160,6 +161,46 @@ JOB DESCRIPTION:
 
 COMPANY: {company_name}
 TONE: {tone}"""
+    else:
+        user = f"""Write a cover letter using:
+
+CANDIDATE RESUME (JSON):
+{resume_json}
+
+COMPANY: {company_name}
+TONE: {tone}
+
+Generate a strong general cover letter for this company and role based entirely on the candidate's resume. Focus on strongest achievements and skills."""
+
+    return system, user
+
+
+def build_improve_cover_letter_prompt(
+    text: str,
+    selection: str | None,
+    job_description: str | None,
+    tone: str,
+    resume_json: str | None,
+) -> tuple[str, str]:
+    system = "You are an expert cover letter editor. Improve text for clarity, impact, and the requested tone. Return only the improved text with no surrounding commentary or metadata."
+
+    if selection and selection.strip():
+        user = (
+            f"Improve only this excerpt from a cover letter. Return ONLY the improved version of this excerpt"
+            f" — same approximate length, same {tone} tone. No intro, no labels, no context. Just the improved text:"
+            f"\n\n{selection}\n\n(Context — do not include in output)\nFull cover letter:\n{text[:600]}"
+        )
+    else:
+        user = (
+            f"Improve this cover letter for {tone} tone, clarity, and impact. Return ONLY the body paragraphs"
+            f" — no date, no heading, no signature. Paragraphs separated by blank lines.\n\nCOVER LETTER:\n{text}"
+        )
+
+    if job_description and job_description.strip():
+        user += f"\n\nJOB DESCRIPTION (tailor the improvement to this role):\n{job_description[:1500]}"
+
+    if resume_json:
+        user += f"\n\nCANDIDATE RESUME (use for context only):\n{resume_json[:1200]}"
 
     return system, user
 
