@@ -1077,97 +1077,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         </button>
       </div>
 
-      {/* ── STAGE TOOLBAR ─────────────────────────────────────────────────────── */}
-      <div className="shrink-0 h-14 border-b border-border bg-background flex items-center justify-between px-4 lg:px-6">
-        {currentStep === 1 && (
-          <>
-            <span className="text-sm font-semibold text-foreground">Edit Resume</span>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
-              <span className="hidden sm:block">Auto-saved just now</span>
-            </div>
-          </>
-        )}
-        {currentStep === 2 && (
-          <span className="text-sm font-semibold text-foreground">AI Enhance</span>
-        )}
-        {currentStep === 3 && (
-          <>
-            <span className="text-sm font-semibold text-foreground">Review &amp; Export</span>
-            {/* Primary export dropdown */}
-            <div ref={primaryExportRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setPrimaryExportOpen((o) => !o)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors min-h-[36px]"
-              >
-                <Download className="size-3.5" />
-                Export
-                <ChevronDown className={cn('size-3.5 transition-transform', primaryExportOpen && 'rotate-180')} />
-              </button>
-              {primaryExportOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-border rounded-lg py-1 min-w-[200px] shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => { setPrimaryExportOpen(false); handleExport('pdf') }}
-                    disabled={isExporting}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left disabled:opacity-50"
-                  >
-                    <FileText className="size-3.5 shrink-0" />
-                    Resume PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setPrimaryExportOpen(false); handleExport('docx') }}
-                    disabled={isExporting}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left disabled:opacity-50"
-                  >
-                    <FileText className="size-3.5 shrink-0" />
-                    Resume DOCX
-                  </button>
-                  <div className="h-px bg-border mx-2 my-1" />
-                  <button
-                    type="button"
-                    onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Cover Letter PDF export coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
-                  >
-                    <Mail className="size-3.5 shrink-0" />
-                    Cover Letter PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Cover Letter DOCX export coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
-                  >
-                    <Mail className="size-3.5 shrink-0" />
-                    Cover Letter DOCX
-                  </button>
-                  <div className="h-px bg-border mx-2 my-1" />
-                  <button
-                    type="button"
-                    onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'ATS Report PDF coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary/40 transition-colors text-left"
-                  >
-                    <Target className="size-3.5 shrink-0" />
-                    ATS Report PDF
-                    <span className="ml-auto text-[10px] text-muted-foreground/60">Soon</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Application Package ZIP coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary/40 transition-colors text-left"
-                  >
-                    <Download className="size-3.5 shrink-0" />
-                    Application Package ZIP
-                    <span className="ml-auto text-[10px] text-muted-foreground/60">Soon</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
       {/* ── MAIN ──────────────────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
 
@@ -2336,6 +2245,77 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
                 Save
               </Button>
+
+              {/* Export dropdown */}
+              <div ref={primaryExportRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPrimaryExportOpen((o) => !o)}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors min-h-[44px]"
+                >
+                  <Download className="size-3.5" />
+                  Export
+                  <ChevronDown className={cn('size-3.5 transition-transform', primaryExportOpen && 'rotate-180')} />
+                </button>
+                {primaryExportOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-border rounded-lg py-1 min-w-[200px] shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => { setPrimaryExportOpen(false); handleExport('pdf') }}
+                      disabled={isExporting}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left disabled:opacity-50"
+                    >
+                      <FileText className="size-3.5 shrink-0" />
+                      Resume PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPrimaryExportOpen(false); handleExport('docx') }}
+                      disabled={isExporting}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left disabled:opacity-50"
+                    >
+                      <FileText className="size-3.5 shrink-0" />
+                      Resume DOCX
+                    </button>
+                    <div className="h-px bg-border mx-2 my-1" />
+                    <button
+                      type="button"
+                      onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Cover Letter PDF export coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                    >
+                      <Mail className="size-3.5 shrink-0" />
+                      Cover Letter PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Cover Letter DOCX export coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                    >
+                      <Mail className="size-3.5 shrink-0" />
+                      Cover Letter DOCX
+                    </button>
+                    <div className="h-px bg-border mx-2 my-1" />
+                    <button
+                      type="button"
+                      onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'ATS Report PDF coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary/40 transition-colors text-left"
+                    >
+                      <Target className="size-3.5 shrink-0" />
+                      ATS Report PDF
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">Soon</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Application Package ZIP coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary/40 transition-colors text-left"
+                    >
+                      <Download className="size-3.5 shrink-0" />
+                      Application Package ZIP
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">Soon</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Step 3 Preview Area */}
@@ -2499,10 +2479,6 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
       {/* ── BOTTOM STATUS BAR ─────────────────────────────────────────────────── */}
       <div className="shrink-0 h-12 flex items-center justify-between px-4 lg:px-6 bg-background border-t border-border">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
-          <span className="hidden sm:block">Last saved just now</span>
-        </div>
         <div className="flex items-center gap-0.5">
           <button type="button" title="Undo" className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary/60 transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center">
             <RotateCcw className="size-3.5" />
