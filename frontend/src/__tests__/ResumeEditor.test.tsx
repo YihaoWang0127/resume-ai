@@ -311,7 +311,7 @@ describe('ResumeEditor — desktop layout', () => {
     for (const label of ['Contact', 'Summary', 'Experience', 'Education', 'Skills', 'ATS Score']) {
       expect(screen.getAllByRole('button', { name: new RegExp(`^${label}$`, 'i') }).length).toBeGreaterThan(0)
     }
-    expect(screen.getByText('100%')).toBeInTheDocument()
+    expect(screen.getByTestId('zoom-display')).toBeInTheDocument()
     // Step 1 bottom bar shows "Continue to AI Enhance" instead of "Next Step"
     expect(screen.getByRole('button', { name: /continue to ai enhance/i })).toBeInTheDocument()
     // Template dropdown only appears in Stage 3 toolbar — tested separately
@@ -586,7 +586,7 @@ describe('ResumeEditor — bottom bar contextual navigation', () => {
 describe('ResumeEditor — zoom controls', () => {
   it('starts at 100% zoom', () => {
     renderEditor()
-    expect(screen.getByText('100%')).toBeInTheDocument()
+    expect(screen.getByTestId('zoom-display')).toBeInTheDocument()
   })
 
   it('decreases zoom when the minus button is clicked', async () => {
@@ -595,33 +595,33 @@ describe('ResumeEditor — zoom controls', () => {
 
     // The zoom display is a <span> with the "100%" text; its siblings inside
     // the same container are the minus (left) and plus (right) buttons.
-    const zoomDisplay = screen.getByText('100%')
+    const zoomDisplay = screen.getByTestId('zoom-display')
     const zoomContainer = zoomDisplay.closest('div')!
     const minusBtn = zoomContainer.previousElementSibling as HTMLButtonElement
     await user.click(minusBtn)
 
     // Should now show 90% (next ZOOM_LEVEL step down from 100)
-    expect(screen.getByText('90%')).toBeInTheDocument()
+    expect(screen.getByTestId('zoom-display')).toHaveTextContent('90%')
   })
 
   it('increases zoom when the plus button is clicked', async () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const zoomDisplay = screen.getByText('100%')
+    const zoomDisplay = screen.getByTestId('zoom-display')
     const zoomContainer = zoomDisplay.closest('div')!
     const plusBtn = zoomContainer.nextElementSibling as HTMLButtonElement
     await user.click(plusBtn)
 
     // Should now show 110% (next ZOOM_LEVEL step up from 100)
-    expect(screen.getByText('110%')).toBeInTheDocument()
+    expect(screen.getByTestId('zoom-display')).toHaveTextContent('110%')
   })
 
   it('does not go below 75% zoom', async () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const zoomDisplay = screen.getByText('100%')
+    const zoomDisplay = screen.getByTestId('zoom-display')
     const zoomContainer = zoomDisplay.closest('div')!
     const minusBtn = zoomContainer.previousElementSibling as HTMLButtonElement
 
@@ -630,14 +630,14 @@ describe('ResumeEditor — zoom controls', () => {
       await user.click(minusBtn)
     }
 
-    expect(screen.getByText('75%')).toBeInTheDocument()
+    expect(screen.getByTestId('zoom-display')).toHaveTextContent('75%')
   })
 
   it('does not go above 125% zoom', async () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const zoomDisplay = screen.getByText('100%')
+    const zoomDisplay = screen.getByTestId('zoom-display')
     const zoomContainer = zoomDisplay.closest('div')!
     const plusBtn = zoomContainer.nextElementSibling as HTMLButtonElement
 
@@ -645,7 +645,7 @@ describe('ResumeEditor — zoom controls', () => {
       await user.click(plusBtn)
     }
 
-    expect(screen.getByText('125%')).toBeInTheDocument()
+    expect(screen.getByTestId('zoom-display')).toHaveTextContent('125%')
   })
 })
 

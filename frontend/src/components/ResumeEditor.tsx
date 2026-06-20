@@ -2524,7 +2524,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             >
               <Minus className="size-3" />
             </button>
-            <div><span className="px-2 text-xs text-foreground font-medium min-w-[44px] text-center border-x border-border">{zoomLevel}%</span></div>
+            <div><span data-testid="zoom-display" className="px-2 text-xs text-foreground font-medium min-w-[44px] text-center border-x border-border">{zoomLevel}%</span></div>
             <button
               type="button"
               onClick={() => {
