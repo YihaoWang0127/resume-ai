@@ -48,7 +48,7 @@ beforeEach(() => {
 
 describe('AccountSidebar — nav links', () => {
   it('renders all 4 nav links', () => {
-    renderSidebar('/dashboard')
+    renderSidebar('/profile')
 
     for (const { label } of NAV_ITEMS) {
       // Mobile pill bar + desktop sidebar both render every link
@@ -58,7 +58,7 @@ describe('AccountSidebar — nav links', () => {
 
   it('navigates to the correct path when a link is clicked', async () => {
     const user = userEvent.setup()
-    renderSidebar('/dashboard')
+    renderSidebar('/profile')
 
     for (const { label, path } of NAV_ITEMS) {
       const buttons = screen.getAllByText(label).map((el) => el.closest('button')!)
@@ -67,14 +67,33 @@ describe('AccountSidebar — nav links', () => {
     }
   })
 
-  it('renders nav links in Profile, Dashboard, AI, Settings order', () => {
-    const { container } = renderSidebar('/dashboard')
+  it('renders nav links in Profile, Dashboard, AI, Settings order on desktop when not on /dashboard', () => {
+    const { container } = renderSidebar('/profile')
 
     // Desktop sidebar is the second nav group in the DOM (mobile pill bar is first)
     const desktopNav = container.querySelectorAll('nav > div')[1]
-    const labels = Array.from(desktopNav.querySelectorAll('button')).map((btn) => btn.textContent)
+    const labels = Array.from(desktopNav.querySelectorAll('button')).map((btn) => btn.textContent?.trim())
 
+    // Expect the four top-level items to appear in order (no sub-items when not on /dashboard)
     expect(labels).toEqual(['Profile', 'Dashboard', 'AI', 'Settings'])
+  })
+
+  it('renders Profile, Dashboard, AI, Settings top-level items on /dashboard (sub-items follow Dashboard)', () => {
+    const { container } = renderSidebar('/dashboard')
+
+    const desktopNav = container.querySelectorAll('nav > div')[1]
+    const buttons = Array.from(desktopNav.querySelectorAll('button')).map((btn) => btn.textContent?.trim())
+
+    // Top-level items must all be present
+    expect(buttons).toContain('Profile')
+    expect(buttons).toContain('Dashboard')
+    expect(buttons).toContain('AI')
+    expect(buttons).toContain('Settings')
+    // Sub-items are also present when on /dashboard
+    expect(buttons).toContain('Overview')
+    expect(buttons).toContain('Resumes')
+    expect(buttons).toContain('Cover Letters')
+    expect(buttons).toContain('ATS Scores')
   })
 })
 
@@ -199,5 +218,84 @@ describe('AccountSidebar — guest and signed-out users', () => {
     const settingsButtons = screen.getAllByText('Settings').map((el) => el.closest('button')!)
     await user.click(settingsButtons[0])
     expect(mockNavigate).toHaveBeenCalledWith('/settings')
+  })
+})
+
+describe('AccountSidebar — Dashboard sub-items', () => {
+  it('shows sub-items when on /dashboard', () => {
+    renderSidebar('/dashboard')
+
+    expect(screen.getAllByText('Overview').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Resumes').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Cover Letters').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('ATS Scores').length).toBeGreaterThan(0)
+  })
+
+  it('hides sub-items when not on /dashboard', () => {
+    renderSidebar('/profile')
+
+    expect(screen.queryByText('Overview')).not.toBeInTheDocument()
+    expect(screen.queryByText('Resumes')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cover Letters')).not.toBeInTheDocument()
+    expect(screen.queryByText('ATS Scores')).not.toBeInTheDocument()
+  })
+
+  it('navigates to /dashboard when clicking the Overview sub-item', async () => {
+    const user = userEvent.setup()
+    renderSidebar('/dashboard')
+
+    const overviewButtons = screen.getAllByText('Overview').map((el) => el.closest('button')!)
+    await user.click(overviewButtons[0])
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('navigates to /dashboard?tab=resumes when clicking the Resumes sub-item', async () => {
+    const user = userEvent.setup()
+    renderSidebar('/dashboard')
+
+    const resumeButtons = screen.getAllByText('Resumes').map((el) => el.closest('button')!)
+    await user.click(resumeButtons[0])
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=resumes')
+  })
+
+  it('navigates to /dashboard?tab=cover-letters when clicking the Cover Letters sub-item', async () => {
+    const user = userEvent.setup()
+    renderSidebar('/dashboard')
+
+    const clButtons = screen.getAllByText('Cover Letters').map((el) => el.closest('button')!)
+    await user.click(clButtons[0])
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=cover-letters')
+  })
+
+  it('navigates to /dashboard?tab=ats-scores when clicking the ATS Scores sub-item', async () => {
+    const user = userEvent.setup()
+    renderSidebar('/dashboard')
+
+    const atsButtons = screen.getAllByText('ATS Scores').map((el) => el.closest('button')!)
+    await user.click(atsButtons[0])
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=ats-scores')
+  })
+
+  it('clicking Dashboard parent button still navigates to /dashboard', async () => {
+    const user = userEvent.setup()
+    renderSidebar('/profile')
+
+    const dashboardButtons = screen.getAllByText('Dashboard').map((el) => el.closest('button')!)
+    await user.click(dashboardButtons[0])
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('mobile pill bar replaces Dashboard pill with sub-item pills when on /dashboard', () => {
+    const { container } = renderSidebar('/dashboard')
+
+    const mobileNav = container.querySelectorAll('nav > div')[0]
+    const mobileLabels = Array.from(mobileNav.querySelectorAll('button')).map((b) => b.textContent?.trim())
+
+    // Dashboard pill is gone; sub-items appear instead
+    expect(mobileLabels).not.toContain('Dashboard')
+    expect(mobileLabels).toContain('Overview')
+    expect(mobileLabels).toContain('Resumes')
+    expect(mobileLabels).toContain('Cover Letters')
+    expect(mobileLabels).toContain('ATS Scores')
   })
 })

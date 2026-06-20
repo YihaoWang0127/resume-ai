@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Navigate, useLocation } from 'react-router-dom'
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom'
 import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target, MoreHorizontal, Building2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { listResumes, deleteResume, updateAtsScore, clearAtsScore, type SavedResume } from '@/services/resumes'
@@ -14,6 +14,14 @@ import ExportMenu from '@/components/ExportMenu'
 import EmptyState from '@/components/EmptyState'
 import ResumePreview from '@/components/ResumePreview'
 import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
+
+type RelationshipRow = {
+  resume: SavedResume
+  coverLetter: CoverLetter | null
+  company: string | null
+  jobTitle: string | null
+  lastUpdated: string
+}
 
 function extractJobTitle(jobDescription: string | null): string | null {
   if (!jobDescription) return null
@@ -49,21 +57,59 @@ function SkeletonCards() {
   )
 }
 
+function SkeletonOverview() {
+  return (
+    <>
+      {/* Stat card skeletons */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse">
+            <div className="h-7 w-10 bg-muted rounded mb-2" />
+            <div className="h-3 w-20 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
+      {/* Table skeleton rows */}
+      <div className="h-7 w-48 bg-muted rounded animate-pulse mb-6" />
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-border">
+              {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
+                <th key={col} className="py-3 px-4 text-left">
+                  <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[0, 1, 2].map((i) => (
+              <tr key={i} className="border-b border-border">
+                {[0, 1, 2, 3, 4, 5, 6].map((j) => (
+                  <td key={j} className="py-3 px-4">
+                    <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
+
 export default function Dashboard() {
   const { user, loading, isGuest } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const activeView = (searchParams.get('tab') ?? 'overview') as 'overview' | 'resumes' | 'cover-letters' | 'ats-scores'
 
   // ── resumes ──────────────────────────────────────────────────────────────────
   const [resumes, setResumes] = useState<SavedResume[]>([])
   const [coverLetters, setCoverLetters] = useState<CoverLetter[]>([])
   const [fetching, setFetching] = useState(true)
   const [aiCallsThisMonth, setAiCallsThisMonth] = useState<number | null>(null)
-
-  type DashboardTab = 'resumes' | 'cover-letters' | 'ats-score'
-  const [activeTab, setActiveTab] = useState<DashboardTab>(
-    (location.state as { activeTab?: DashboardTab } | null)?.activeTab ?? 'resumes'
-  )
 
   // ── ATS score check ──────────────────────────────────────────────────────────
   const [atsTarget, setAtsTarget] = useState<SavedResume | null>(null)
@@ -287,6 +333,41 @@ export default function Dashboard() {
     return Math.round(sum / scored.length)
   })()
 
+  // ── Overview relationship rows ────────────────────────────────────────────────
+  const relationshipRows = (() => {
+    const resumeMap = new Map(resumes.map(r => [r.id, r]))
+    const coveredResumeIds = new Set<string>()
+    const rows: RelationshipRow[] = []
+
+    for (const cl of coverLetters) {
+      const resume = cl.resume_id ? resumeMap.get(cl.resume_id) : undefined
+      if (!resume) continue
+      coveredResumeIds.add(resume.id)
+      const lastUpdated = cl.updated_at > resume.updated_at ? cl.updated_at : resume.updated_at
+      rows.push({
+        resume,
+        coverLetter: cl,
+        company: cl.company_name ?? null,
+        jobTitle: extractJobTitle(cl.job_description),
+        lastUpdated,
+      })
+    }
+
+    for (const r of resumes) {
+      if (!coveredResumeIds.has(r.id)) {
+        rows.push({
+          resume: r,
+          coverLetter: null,
+          company: r.ats_company_name ?? null,
+          jobTitle: r.ats_job_title ?? null,
+          lastUpdated: r.updated_at,
+        })
+      }
+    }
+
+    return rows
+  })()
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar onBack={() => navigate('/')} />
@@ -296,109 +377,155 @@ export default function Dashboard() {
 
         <div className="flex-1 min-w-0">
 
-        {/* ── STATS BAR ────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-2xl font-bold text-foreground">
-              {fetching ? <span className="inline-block h-7 w-10 bg-muted rounded animate-pulse" /> : resumes.length}
-            </p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Resumes</p>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-2xl font-bold text-foreground">
-              {fetching ? <span className="inline-block h-7 w-10 bg-muted rounded animate-pulse" /> : coverLetters.length}
-            </p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cover Letters</p>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-2xl font-bold text-foreground">
-              {fetching ? <span className="inline-block h-7 w-10 bg-muted rounded animate-pulse" /> : (avgAtsScore ?? '—')}
-            </p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Avg ATS Score</p>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-2xl font-bold text-foreground">
-              {fetching ? <span className="inline-block h-7 w-10 bg-muted rounded animate-pulse" /> : (aiCallsThisMonth ?? 0)}
-            </p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">AI Calls This Month</p>
-          </div>
-        </div>
-
-        {/* ── TABS ─────────────────────────────────────────────────────────── */}
-        <div className="overflow-x-auto mb-8">
-          <div className="flex gap-2 min-w-max">
-            <button
-              type="button"
-              onClick={() => setActiveTab('resumes')}
-              className={`flex items-center gap-2 px-4 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${
-                activeTab === 'resumes'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-              }`}
-            >
-              Resumes
-              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                activeTab === 'resumes'
-                  ? 'bg-primary-foreground/20 text-primary-foreground'
-                  : 'bg-primary/10 text-primary border border-primary/30'
-              }`}>
-                {resumes.length}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('cover-letters')}
-              className={`flex items-center gap-2 px-4 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${
-                activeTab === 'cover-letters'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-              }`}
-            >
-              Cover Letters
-              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                activeTab === 'cover-letters'
-                  ? 'bg-primary-foreground/20 text-primary-foreground'
-                  : 'bg-primary/10 text-primary border border-primary/30'
-              }`}>
-                {coverLetters.length}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('ats-score')}
-              className={`flex items-center gap-2 px-4 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-lg transition-colors ${
-                activeTab === 'ats-score'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-              }`}
-            >
-              ATS Score
-              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                activeTab === 'ats-score'
-                  ? 'bg-primary-foreground/20 text-primary-foreground'
-                  : 'bg-primary/10 text-primary border border-primary/30'
-              }`}>
-                {resumes.filter((r) => r.ats_score != null).length}
-              </span>
-            </button>
-          </div>
-        </div>
-
         {(loading || fetching) ? (
-          <>
-            <section className="mb-12">
-              <div className="h-7 w-40 bg-muted rounded animate-pulse mb-6" />
-              <SkeletonCards />
-            </section>
-            <section>
-              <div className="h-7 w-48 bg-muted rounded animate-pulse mb-6" />
-              <SkeletonCards />
-            </section>
-          </>
+          activeView === 'overview' ? (
+            <SkeletonOverview />
+          ) : (
+            <>
+              <section className="mb-12">
+                <div className="h-7 w-40 bg-muted rounded animate-pulse mb-6" />
+                <SkeletonCards />
+              </section>
+              <section>
+                <div className="h-7 w-48 bg-muted rounded animate-pulse mb-6" />
+                <SkeletonCards />
+              </section>
+            </>
+          )
         ) : (
           <>
+            {/* ── OVERVIEW ──────────────────────────────────────────────────── */}
+            {activeView === 'overview' && (
+              <>
+                {/* Stats bar */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <p className="text-2xl font-bold text-foreground">{resumes.length}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Resumes</p>
+                  </div>
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <p className="text-2xl font-bold text-foreground">{coverLetters.length}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Cover Letters</p>
+                  </div>
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <p className="text-2xl font-bold text-foreground">{avgAtsScore ?? '—'}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Avg ATS Score</p>
+                  </div>
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <p className="text-2xl font-bold text-foreground">{aiCallsThisMonth ?? 0}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">AI Actions Used This Month</p>
+                  </div>
+                </div>
+
+                {/* Application Overview table */}
+                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground mb-6">
+                  Application Overview
+                </h2>
+
+                {relationshipRows.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No documents yet. Upload a resume to get started.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse" style={{ minWidth: '640px' }}>
+                      <thead>
+                        <tr className="border-b border-border">
+                          {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
+                            <th
+                              key={col}
+                              className="py-3 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
+                            >
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relationshipRows.map((row, idx) => {
+                          const scoreInfo = row.resume.ats_score != null ? atsScoreLabel(row.resume.ats_score) : null
+                          return (
+                            <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
+                              {/* Resume */}
+                              <td className="py-3 px-4 text-sm font-medium text-foreground max-w-[160px]">
+                                <span className="truncate block">{row.resume.title}</span>
+                              </td>
+                              {/* Company */}
+                              <td className="py-3 px-4 text-sm text-foreground whitespace-nowrap">
+                                {row.company ?? <span className="text-muted-foreground">—</span>}
+                              </td>
+                              {/* Job Title */}
+                              <td className="py-3 px-4 text-sm text-foreground max-w-[160px]">
+                                {row.jobTitle ? (
+                                  <span className="truncate block">{row.jobTitle}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </td>
+                              {/* Cover Letter */}
+                              <td className="py-3 px-4 whitespace-nowrap">
+                                {row.coverLetter ? (
+                                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border bg-green-500/10 text-green-600 border-green-500/30">
+                                    Generated
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">Not generated</span>
+                                )}
+                              </td>
+                              {/* ATS Score */}
+                              <td className="py-3 px-4 whitespace-nowrap">
+                                {row.resume.ats_score != null && scoreInfo ? (
+                                  <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${scoreInfo.className}`}>
+                                    {row.resume.ats_score} {scoreInfo.label}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">Not checked</span>
+                                )}
+                              </td>
+                              {/* Last Updated */}
+                              <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">
+                                {formatDate(row.lastUpdated)}
+                              </td>
+                              {/* Actions */}
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2 flex-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewResume(row.resume)}
+                                    className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
+                                  >
+                                    View Resume
+                                  </button>
+                                  {row.coverLetter && (
+                                    <button
+                                      type="button"
+                                      onClick={() => navigate(`/cover-letter/${row.coverLetter!.id}`, { state: { from: '/dashboard' } })}
+                                      className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
+                                    >
+                                      View Cover Letter
+                                    </button>
+                                  )}
+                                  {row.resume.ats_score != null && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openAtsDetail(row.resume)}
+                                      className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
+                                    >
+                                      View ATS
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+
             {/* ── MY RESUMES ─────────────────────────────────────────────────── */}
-            {activeTab === 'resumes' && (
+            {activeView === 'resumes' && (
             <section className="mb-12">
               <div className="flex items-center gap-3 mb-6">
                 <h2
@@ -553,7 +680,7 @@ export default function Dashboard() {
             )}
 
             {/* ── MY COVER LETTERS ────────────────────────────────────────────── */}
-            {activeTab === 'cover-letters' && (
+            {activeView === 'cover-letters' && (
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <h2
@@ -706,7 +833,7 @@ export default function Dashboard() {
             )}
 
             {/* ── ATS SCORE ───────────────────────────────────────────────────── */}
-            {activeTab === 'ats-score' && (
+            {activeView === 'ats-scores' && (
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <h2
