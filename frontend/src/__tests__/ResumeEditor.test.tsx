@@ -22,6 +22,8 @@ vi.mock('@/services/resumes', () => ({
 }))
 vi.mock('@/services/coverLetters', () => ({
   saveCoverLetter: vi.fn(),
+  updateCoverLetter: vi.fn(),
+  deleteCoverLetter: vi.fn(),
 }))
 vi.mock('@/components/ResumePreview', () => ({
   default: (props: { onIndustryChange?: (industry: string) => void }) => (
@@ -45,7 +47,7 @@ vi.mock('@/components/StreamingOutput', () => ({
 import { useAuth } from '@/contexts/AuthContext'
 import { saveResume, updateResume } from '@/services/resumes'
 import { enrichResume, generateCoverLetter, validateJobDescription } from '@/services/api'
-import { saveCoverLetter } from '@/services/coverLetters'
+import { saveCoverLetter, updateCoverLetter, deleteCoverLetter } from '@/services/coverLetters'
 import ResumeEditor from '@/components/ResumeEditor'
 
 const mockUseAuth = vi.mocked(useAuth)
@@ -55,6 +57,8 @@ const mockEnrichResume = vi.mocked(enrichResume)
 const mockGenerateCoverLetter = vi.mocked(generateCoverLetter)
 const mockValidateJobDescription = vi.mocked(validateJobDescription)
 const mockSaveCoverLetter = vi.mocked(saveCoverLetter)
+const mockUpdateCoverLetter = vi.mocked(updateCoverLetter)
+const mockDeleteCoverLetter = vi.mocked(deleteCoverLetter)
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -1108,11 +1112,11 @@ describe('ResumeEditor — ATS Score input validation', () => {
 })
 
 // ── ATS dismiss button ────────────────────────────────────────────────────────
-// An X button on the ATS results card clears the result, job description,
-// and errors when clicked.
+// After ATS analysis, a "Dismiss" button (State A of the save state machine)
+// clears the result. The score appears in the right panel (not center panel).
 
 describe('ResumeEditor — ATS dismiss button', () => {
-  it('dismiss button clears ATS results when clicked', async () => {
+  it('Dismiss button clears ATS results when clicked', async () => {
     const { scoreATS: mockScoreATS } = await import('@/services/api')
     vi.mocked(mockScoreATS).mockResolvedValue({
       overallScore: 80,
@@ -1141,11 +1145,12 @@ describe('ResumeEditor — ATS dismiss button', () => {
     )
     await user.click(screen.getByRole('button', { name: /analyze ats score/i }))
 
-    // Wait for score to appear
+    // Wait for score to appear in the right panel
     await waitFor(() => expect(screen.getByText('80')).toBeInTheDocument())
 
-    // Click the dismiss X button (title="Dismiss results")
-    const dismissBtn = screen.getByTitle('Dismiss results')
+    // State A: "Save ATS Report" and "Dismiss" buttons should be visible
+    expect(screen.getByRole('button', { name: /save ats report/i })).toBeInTheDocument()
+    const dismissBtn = screen.getByRole('button', { name: /^dismiss$/i })
     await user.click(dismissBtn)
 
     // Score should no longer be visible
@@ -1181,7 +1186,7 @@ describe('ResumeEditor — Cover Letter inline streaming', () => {
 
     await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
     await user.type(
-      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
       'We are looking for a talented Software Engineer with JavaScript and Python skills to join our engineering team today.',
     )
 
@@ -1218,7 +1223,7 @@ describe('ResumeEditor — Cover Letter inline streaming', () => {
 
     await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Stripe')
     await user.type(
-      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
       'We are looking for a Senior Engineer with strong backend skills in Python and distributed systems at our payments company.',
     )
 
@@ -1326,7 +1331,7 @@ describe('ResumeEditor — Cover Letter inline actions', () => {
     await navigateToCoverLetter(user)
     await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
     await user.type(
-      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
       'We are looking for a talented Software Engineer with JavaScript and Python skills to join our engineering team today.',
     )
     await waitFor(
@@ -1396,8 +1401,8 @@ describe('ResumeEditor — Cover Letter inline actions', () => {
     )
   })
 
-  it('"Save Cover Letter" button shows "Saved!" after a successful save', async () => {
-    mockSaveCoverLetter.mockResolvedValue(undefined as any)
+  it('"Save Cover Letter" button shows "Saved ✓" after a successful save', async () => {
+    mockSaveCoverLetter.mockResolvedValue({ id: 'mock-cl-saved-id' } as any)
 
     const user = userEvent.setup()
     renderEditor()
@@ -1407,7 +1412,7 @@ describe('ResumeEditor — Cover Letter inline actions', () => {
     await user.click(screen.getByRole('button', { name: /save cover letter/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /saved!/i })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: /saved/i })).toBeInTheDocument(),
       { timeout: 8000 },
     )
   })
@@ -1749,6 +1754,806 @@ describe('ResumeEditor — Review & Export ATS Report empty state', () => {
 
     expect(
       screen.getByText(/no ats report yet.*run ats score in the ai enhance step/i),
+    ).toBeInTheDocument()
+  })
+})
+
+// ── Resume Polish inline message (replaces toast) ─────────────────────────────
+// After accepting enrichment changes, polishInlineMsg is shown as an inline
+// banner below the "Generate Improvements" button — not as a global toast.
+
+describe('ResumeEditor — Resume Polish inline message after accepting changes', () => {
+  function createEnrichStream(resumeJson: unknown): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder()
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(JSON.stringify(resumeJson)))
+        controller.close()
+      },
+    })
+  }
+
+  async function reachComparingState(user: ReturnType<typeof userEvent.setup>) {
+    const enrichedPayload = { ...mockResume, summary: 'An AI-enhanced summary.' }
+    mockEnrichResume.mockResolvedValue(createEnrichStream(enrichedPayload))
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /generate improvements/i }))
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /accept changes/i })).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+  }
+
+  it('shows inline success message below "Generate Improvements" after clicking Accept Changes', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+    await user.click(screen.getByRole('button', { name: /accept changes/i }))
+
+    // After accept, the component returns to 'idle' and shows the Generate Improvements button
+    // alongside an inline success banner
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /generate improvements/i })).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+    expect(screen.getByText(/resume improved/i)).toBeInTheDocument()
+  })
+
+  it('does NOT show the global bottom toast after accepting enrichment changes', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await reachComparingState(user)
+    await user.click(screen.getByRole('button', { name: /accept changes/i }))
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /generate improvements/i })).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+    // Global toast is a fixed bottom-right element — it should NOT appear
+    // (the inline banner replaces it)
+    const toastEl = document.querySelector('.fixed.bottom-6.right-6')
+    expect(toastEl).toBeNull()
+  })
+})
+
+// ── Cover Letter — JD required, button disabled without JD, valid hint ────────
+// 1. Job Description field label shows "(required)"
+// 2. Generate Cover Letter button is disabled when JD is empty
+// 3. "valid job description" hint appears when JD passes validation
+
+describe('ResumeEditor — Cover Letter JD required field', () => {
+  async function navigateToCoverLetter(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /cover letter/i }))
+  }
+
+  it('shows "(required)" on the Job Description label', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    expect(screen.getByText(/\(required\)/i)).toBeInTheDocument()
+  })
+
+  it('"Generate Cover Letter" button is disabled when job description is empty', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    // Type a company name but leave JD empty
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
+
+    expect(screen.getByRole('button', { name: /generate cover letter/i })).toBeDisabled()
+  })
+
+  it('shows "A job description is required" hint text when JD is empty', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    expect(screen.getByText(/a job description is required/i)).toBeInTheDocument()
+  })
+
+  it('"Generate Cover Letter" button is disabled when JD is invalid (too short)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    await user.type(screen.getByPlaceholderText(/paste the job description for a targeted/i), 'too short')
+
+    expect(screen.getByRole('button', { name: /generate cover letter/i })).toBeDisabled()
+  })
+
+  it('shows "valid job description" hint when JD passes validation', async () => {
+    // API mock already returns { valid: true, reason: '' } by default
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    await user.type(
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
+      'We are looking for a talented Software Engineer with JavaScript Python and cloud skills to join our platform engineering team.',
+    )
+
+    await waitFor(
+      () => expect(screen.getByText(/valid job description/i)).toBeInTheDocument(),
+      { timeout: 3000 },
+    )
+  })
+})
+
+// ── Cover Letter — progress bar during streaming ──────────────────────────────
+// When clIsStreaming is true the right panel shows a progress bar with stage
+// labels (Analyzing JD / Tailoring / Polishing / Finalizing) and a % counter.
+
+describe('ResumeEditor — Cover Letter progress bar during streaming', () => {
+  async function navigateToCoverLetter(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /cover letter/i }))
+  }
+
+  function createPendingCoverLetterStream(): ReadableStream<Uint8Array> {
+    return new ReadableStream<Uint8Array>({
+      start() {
+        // intentionally never enqueues — keeps clIsStreaming true
+      },
+    })
+  }
+
+  it('shows "Analyzing job description..." stage message and a progress bar while streaming', async () => {
+    mockGenerateCoverLetter.mockResolvedValue(createPendingCoverLetterStream())
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
+    const jdTextarea = screen.getByPlaceholderText(/paste the job description for a targeted/i)
+    await user.type(
+      jdTextarea,
+      'We are hiring a Software Engineer with JavaScript Python and strong communication skills for our platform team today.',
+    )
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /generate cover letter/i })).not.toBeDisabled(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Progress bar section renders with the first stage message
+    expect(screen.getByText(/analyzing job description/i)).toBeInTheDocument()
+  })
+
+  it('shows stage labels "Analyzing JD", "Tailoring", "Polishing", "Finalizing" in progress bar footer', async () => {
+    mockGenerateCoverLetter.mockResolvedValue(createPendingCoverLetterStream())
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Stripe')
+    const jdTextarea = screen.getByPlaceholderText(/paste the job description for a targeted/i)
+    await user.type(
+      jdTextarea,
+      'We are seeking a backend engineer with Python and distributed systems experience to join our payments platform team.',
+    )
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /generate cover letter/i })).not.toBeDisabled(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('Analyzing JD')).toBeInTheDocument()
+    expect(screen.getByText('Tailoring')).toBeInTheDocument()
+    expect(screen.getByText('Polishing')).toBeInTheDocument()
+    expect(screen.getByText('Finalizing')).toBeInTheDocument()
+  })
+})
+
+// ── Cover Letter — Save/Dismiss/Delete state machine ─────────────────────────
+// State A (draft): Save Cover Letter + Dismiss buttons
+// State B (saved, unmodified): Saved ✓ (disabled) + Delete Cover Letter buttons
+// State C (saved, edited): Save Changes + Delete Cover Letter buttons
+
+describe('ResumeEditor — Cover Letter state machine (draft / saved / edited)', () => {
+  async function navigateToCoverLetter(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /cover letter/i }))
+  }
+
+  function createCoverLetterStream(content: string): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder()
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(content))
+        controller.close()
+      },
+    })
+  }
+
+  async function generateCL(user: ReturnType<typeof userEvent.setup>, content = 'Dear Hiring Manager, I am excited to apply.') {
+    mockGenerateCoverLetter.mockResolvedValue(createCoverLetterStream(content))
+    await navigateToCoverLetter(user)
+    await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
+    await user.type(
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
+      'We need a Software Engineer with TypeScript React and strong problem solving skills to join our growing team.',
+    )
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /generate cover letter/i })).not.toBeDisabled(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /generate cover letter/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument())
+  }
+
+  // State A ──────────────────────────────────────────────────────────────────
+
+  it('State A: shows "Save Cover Letter" and "Dismiss" buttons after generation (not yet saved)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCL(user)
+
+    expect(screen.getByRole('button', { name: /save cover letter/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
+    // "Delete Cover Letter" should NOT appear in draft state
+    expect(screen.queryByRole('button', { name: /delete cover letter/i })).not.toBeInTheDocument()
+  })
+
+  it('State A → dismiss: clears content and hides action buttons', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCL(user)
+
+    await user.click(screen.getByRole('button', { name: /dismiss/i }))
+
+    expect(screen.queryByRole('button', { name: /save cover letter/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /dismiss/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /delete cover letter/i })).not.toBeInTheDocument()
+  })
+
+  // State B ──────────────────────────────────────────────────────────────────
+
+  it('State B: shows "Saved ✓" (disabled) and "Delete Cover Letter" after saving', async () => {
+    mockSaveCoverLetter.mockResolvedValue({ id: 'cl-1' } as any)
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCL(user)
+    await user.click(screen.getByRole('button', { name: /save cover letter/i }))
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /saved/i })).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+
+    const savedBtn = screen.getByRole('button', { name: /saved/i })
+    expect(savedBtn).toBeDisabled()
+    expect(screen.getByRole('button', { name: /delete cover letter/i })).toBeInTheDocument()
+    // "Dismiss" should no longer appear in saved state
+    expect(screen.queryByRole('button', { name: /^dismiss$/i })).not.toBeInTheDocument()
+  })
+
+  // State C ──────────────────────────────────────────────────────────────────
+
+  it('State C: shows "Save Changes" and "Delete Cover Letter" after editing saved content', async () => {
+    mockSaveCoverLetter.mockResolvedValue({ id: 'cl-1' } as any)
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCL(user)
+    await user.click(screen.getByRole('button', { name: /save cover letter/i }))
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /saved/i })).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+
+    // Edit the textarea to make content differ from saved content
+    const textarea = screen.getByPlaceholderText(/your cover letter will appear here/i)
+    await user.type(textarea, ' Additional text.')
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument(),
+      { timeout: 3000 },
+    )
+    expect(screen.getByRole('button', { name: /delete cover letter/i })).toBeInTheDocument()
+    // "Saved ✓" button should be gone (replaced by "Save Changes")
+    expect(screen.queryByRole('button', { name: /^saved/i })).not.toBeInTheDocument()
+  })
+
+  it('State C → Save Changes: calls updateCoverLetter with the edited content', async () => {
+    mockSaveCoverLetter.mockResolvedValue({ id: 'cl-1' } as any)
+    mockUpdateCoverLetter.mockResolvedValue(undefined as any)
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCL(user)
+    await user.click(screen.getByRole('button', { name: /save cover letter/i }))
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /saved/i })).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+
+    const textarea = screen.getByPlaceholderText(/your cover letter will appear here/i)
+    await user.type(textarea, ' Edited.')
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() => expect(mockUpdateCoverLetter).toHaveBeenCalledTimes(1))
+    expect(mockUpdateCoverLetter).toHaveBeenCalledWith(
+      'cl-1',
+      expect.any(String),
+      expect.any(String),
+    )
+  })
+
+  it('Delete Cover Letter: calls deleteCoverLetter and resets to empty state', async () => {
+    mockSaveCoverLetter.mockResolvedValue({ id: 'cl-1' } as any)
+    mockDeleteCoverLetter.mockResolvedValue(undefined as any)
+    const user = userEvent.setup()
+    renderEditor()
+
+    await generateCL(user)
+    await user.click(screen.getByRole('button', { name: /save cover letter/i }))
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /delete cover letter/i })).toBeInTheDocument(),
+      { timeout: 8000 },
+    )
+    await user.click(screen.getByRole('button', { name: /delete cover letter/i }))
+
+    await waitFor(() => expect(mockDeleteCoverLetter).toHaveBeenCalledWith('cl-1'))
+    // After delete all state machine buttons disappear
+    expect(screen.queryByRole('button', { name: /save cover letter/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /delete cover letter/i })).not.toBeInTheDocument()
+  })
+})
+
+// ── Save/Export disabled when no content (Cover Letter & ATS tabs) ────────────
+// The toolbar Save and Export buttons are disabled when the active tab has no
+// content — cover letter tab with no clStreamContent, ATS tab with no atsResult.
+
+describe('ResumeEditor — Save/Export button disabled when no content in tab', () => {
+  async function navigateToStep3(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /continue to review & export/i }))
+  }
+
+  it('Save button is disabled on the Cover Letter tab when no cover letter has been generated', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+    await user.click(screen.getByRole('button', { name: /^cover letter$/i }))
+
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled()
+  })
+
+  it('Export button is disabled on the Cover Letter tab when no cover letter has been generated', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+    await user.click(screen.getByRole('button', { name: /^cover letter$/i }))
+
+    expect(screen.getByRole('button', { name: /^export$/i })).toBeDisabled()
+  })
+
+  it('Save button is disabled on the ATS Report tab when no ATS has been run', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+    await user.click(screen.getByRole('button', { name: /^ats report$/i }))
+
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled()
+  })
+
+  it('Save button is enabled on the Resume tab (resume content always present)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToStep3(user)
+    // Resume tab is default; Save should be enabled
+    expect(screen.getByRole('button', { name: /^save$/i })).not.toBeDisabled()
+  })
+})
+
+// ── Cover Letter right panel placeholder (no content yet) ─────────────────────
+// When no cover letter has been generated, the right panel in the 'coverletter'
+// tool workspace shows a placeholder message instead of ResumePreview.
+
+describe('ResumeEditor — Cover Letter right panel placeholder', () => {
+  async function navigateToCoverLetter(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    await user.click(screen.getByRole('button', { name: /cover letter/i }))
+  }
+
+  it('shows placeholder text in the right panel when no cover letter has been generated', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    expect(
+      screen.getByText('Your cover letter will appear here after generation.'),
+    ).toBeInTheDocument()
+  })
+
+  it('does NOT show a resume-preview in the right panel while on the cover letter tool with no content', async () => {
+    const user = userEvent.setup()
+    const { container } = renderEditor()
+
+    await navigateToCoverLetter(user)
+
+    // The right panel placeholder should be shown — not the resume-preview mock
+    // Filter to visible previews (not inside a hidden ancestor)
+    const allPreviews = container.querySelectorAll('[data-testid="resume-preview"]')
+    const visiblePreviews = Array.from(allPreviews).filter(
+      (el) => !el.closest('.hidden'),
+    )
+    // With no cover letter content the right panel placeholder renders, not a live preview
+    // The cover letter placeholder panel does not contain a resume-preview
+    const coverLetterPlaceholder = screen.getByText('Your cover letter will appear here after generation.')
+    expect(coverLetterPlaceholder).toBeInTheDocument()
+    // No visible resume-preview inside the right cover-letter placeholder panel
+    const placeholder = coverLetterPlaceholder.closest('div.flex-1') as HTMLElement | null
+    const previewInsidePlaceholder = placeholder?.querySelector('[data-testid="resume-preview"]')
+    expect(previewInsidePlaceholder).toBeNull()
+    void visiblePreviews // suppress unused variable warning
+  })
+})
+
+// ── ATS right panel placeholder and result ────────────────────────────────────
+// When no ATS has been run, the right panel shows a placeholder.
+// When atsResult exists, the right panel shows the score and keywords read-only.
+
+describe('ResumeEditor — ATS right panel placeholder and result', () => {
+  async function navigateToATS(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
+  }
+
+  it('shows placeholder text in the right ATS panel before any analysis is run', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    expect(
+      screen.getByText('Your ATS report will appear here after generation.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows score in the right ATS panel after analysis completes', async () => {
+    const { scoreATS: mockScoreATS } = await import('@/services/api')
+    vi.mocked(mockScoreATS).mockResolvedValue({
+      overallScore: 72,
+      summary: 'Decent match',
+      matchedKeywords: ['React'],
+      missingKeywords: ['Python'],
+      suggestions: ['Add more Python experience.'],
+    })
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(
+      textarea,
+      'We are looking for a React developer with Python experience and strong communication skills on our distributed team.',
+    )
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeEnabled(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /analyze ats score/i }))
+
+    // Score should appear in the right panel
+    await waitFor(() => expect(screen.getByText('72')).toBeInTheDocument())
+    // The placeholder text should no longer be visible
+    expect(
+      screen.queryByText('Your ATS report will appear here after generation.'),
+    ).not.toBeInTheDocument()
+    // Keywords rendered as chips
+    expect(screen.getByText('React')).toBeInTheDocument()
+    expect(screen.getByText('Python')).toBeInTheDocument()
+  })
+
+  it('right ATS panel shows "ATS Report" header label', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    expect(screen.getByText('ATS Report')).toBeInTheDocument()
+  })
+})
+
+// ── ATS tab — JD required label, hint text, and valid hint ───────────────────
+// The JD label shows "(required)", a hint "A job description is required to
+// analyze your resume." shows when JD is empty, and "valid job description"
+// appears when JD passes validation.
+
+describe('ResumeEditor — ATS JD required label and hints', () => {
+  async function navigateToATS(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
+  }
+
+  it('shows "(required)" on the Job Description label in the ATS tab', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    // The ATS JD label contains "(required)"
+    const requiredLabels = screen.getAllByText(/\(required\)/i)
+    expect(requiredLabels.length).toBeGreaterThan(0)
+  })
+
+  it('shows "A job description is required to analyze your resume." hint when JD is empty', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    expect(
+      screen.getByText(/a job description is required to analyze your resume/i),
+    ).toBeInTheDocument()
+  })
+
+  it('hides the required hint and shows "valid job description" after JD passes validation', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(
+      textarea,
+      'We are hiring a Software Engineer with TypeScript React Node and strong communication skills for our platform team.',
+    )
+
+    await waitFor(
+      () => expect(screen.getByText(/valid job description/i)).toBeInTheDocument(),
+      { timeout: 3000 },
+    )
+    // The empty-state hint should be gone once JD is filled in
+    expect(
+      screen.queryByText(/a job description is required to analyze your resume/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it('"Analyze ATS Score" button is disabled when JD is empty (before any typing)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await navigateToATS(user)
+
+    expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeDisabled()
+  })
+})
+
+// ── ATS progress bar during analysis ─────────────────────────────────────────
+// When atsLoading is true the right panel shows a frosted progress bar overlay
+// with stage labels: Parsing / Matching / Scoring / Building.
+
+describe('ResumeEditor — ATS progress bar during analysis', () => {
+  function createPendingAtsScore() {
+    return new Promise<never>(() => {})
+  }
+
+  it('shows stage labels Parsing / Matching / Scoring / Building while ATS is loading', async () => {
+    const { scoreATS: mockScoreATS } = await import('@/services/api')
+    vi.mocked(mockScoreATS).mockReturnValue(createPendingAtsScore())
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(
+      textarea,
+      'We are seeking a talented engineer with Python TypeScript and cloud infrastructure skills for our growing platform team.',
+    )
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeEnabled(),
+      { timeout: 4000 },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze ats score/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('Parsing')).toBeInTheDocument()
+    expect(screen.getByText('Matching')).toBeInTheDocument()
+    expect(screen.getByText('Scoring')).toBeInTheDocument()
+    expect(screen.getByText('Building')).toBeInTheDocument()
+  })
+
+  it('shows the first ATS progress message "Parsing your resume..." while loading', async () => {
+    const { scoreATS: mockScoreATS } = await import('@/services/api')
+    vi.mocked(mockScoreATS).mockReturnValue(createPendingAtsScore())
+
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(
+      textarea,
+      'We are seeking a talented engineer with Python TypeScript and cloud infrastructure skills for our growing platform team.',
+    )
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeEnabled(),
+      { timeout: 4000 },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /analyze ats score/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('Parsing your resume...')).toBeInTheDocument()
+  })
+})
+
+// ── ATS save/dismiss state machine ────────────────────────────────────────────
+// State A (draft): "Save ATS Report" + "Dismiss" buttons (both w-40 justify-center)
+// State B (saved): "Saved ✓" (disabled, green) + "Delete ATS Report" button
+
+describe('ResumeEditor — ATS save/dismiss state machine', () => {
+  async function navigateToATS(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /continue to ai enhance/i }))
+    const atsToolBtn = screen.getByRole('button', { name: /ats score check resume match/i })
+    await user.click(atsToolBtn)
+  }
+
+  async function runATSAnalysis(user: ReturnType<typeof userEvent.setup>) {
+    const { scoreATS: mockScoreATS } = await import('@/services/api')
+    vi.mocked(mockScoreATS).mockResolvedValue({
+      overallScore: 85,
+      summary: 'Strong match',
+      matchedKeywords: ['TypeScript', 'React'],
+      missingKeywords: [],
+      suggestions: [],
+    })
+
+    await navigateToATS(user)
+
+    const textarea = screen.getByPlaceholderText(/paste the job description here/i)
+    await user.type(
+      textarea,
+      'We are hiring a Software Engineer with TypeScript React Node and strong communication skills for our platform team.',
+    )
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /analyze ats score/i })).toBeEnabled(),
+      { timeout: 3000 },
+    )
+    await user.click(screen.getByRole('button', { name: /analyze ats score/i }))
+    // Wait for result to appear (State A)
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /save ats report/i })).toBeInTheDocument(),
+    )
+  }
+
+  // State A ──────────────────────────────────────────────────────────────────
+
+  it('State A: shows "Save ATS Report" and "Dismiss" buttons after analysis (not yet saved)', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await runATSAnalysis(user)
+
+    expect(screen.getByRole('button', { name: /save ats report/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^dismiss$/i })).toBeInTheDocument()
+    // "Delete ATS Report" should NOT appear in State A
+    expect(screen.queryByRole('button', { name: /delete ats report/i })).not.toBeInTheDocument()
+  })
+
+  it('State A → Dismiss: clears ATS result and hides state machine buttons', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await runATSAnalysis(user)
+
+    await user.click(screen.getByRole('button', { name: /^dismiss$/i }))
+
+    // After dismiss, the result (score=85) is gone
+    expect(screen.queryByText('85')).not.toBeInTheDocument()
+    // Both state machine buttons disappear
+    expect(screen.queryByRole('button', { name: /save ats report/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^dismiss$/i })).not.toBeInTheDocument()
+    // Placeholder is restored
+    expect(
+      screen.getByText('Your ATS report will appear here after generation.'),
+    ).toBeInTheDocument()
+  })
+
+  // State B ──────────────────────────────────────────────────────────────────
+
+  it('State B: shows "Saved ✓" (disabled) and "Delete ATS Report" after saving', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await runATSAnalysis(user)
+
+    await user.click(screen.getByRole('button', { name: /save ats report/i }))
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /saved/i })).toBeInTheDocument(),
+    )
+
+    const savedBtn = screen.getByRole('button', { name: /saved/i })
+    expect(savedBtn).toBeDisabled()
+    expect(screen.getByRole('button', { name: /delete ats report/i })).toBeInTheDocument()
+    // "Save ATS Report" and "Dismiss" should not appear in State B
+    expect(screen.queryByRole('button', { name: /save ats report/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^dismiss$/i })).not.toBeInTheDocument()
+  })
+
+  it('State B → Delete ATS Report: clears result and resets to placeholder', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await runATSAnalysis(user)
+
+    await user.click(screen.getByRole('button', { name: /save ats report/i }))
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /delete ats report/i })).toBeInTheDocument(),
+    )
+
+    await user.click(screen.getByRole('button', { name: /delete ats report/i }))
+
+    // Score should be gone after delete
+    expect(screen.queryByText('85')).not.toBeInTheDocument()
+    // State machine buttons are gone
+    expect(screen.queryByRole('button', { name: /save ats report/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /delete ats report/i })).not.toBeInTheDocument()
+    // Placeholder is restored
+    expect(
+      screen.getByText('Your ATS report will appear here after generation.'),
     ).toBeInTheDocument()
   })
 })
