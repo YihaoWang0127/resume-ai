@@ -426,7 +426,7 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">No documents yet. Upload a resume to get started.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm border-collapse" style={{ minWidth: '640px' }}>
+                    <table className="w-full text-sm border-collapse" style={{ minWidth: '860px' }}>
                       <thead>
                         <tr className="border-b border-border">
                           {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
@@ -445,20 +445,16 @@ export default function Dashboard() {
                           return (
                             <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
                               {/* Resume */}
-                              <td className="py-3 px-4 text-sm font-medium text-foreground max-w-[160px]">
-                                <span className="truncate block">{row.resume.title}</span>
+                              <td className="py-3 px-4 text-sm font-medium text-foreground min-w-[200px]">
+                                {row.resume.title}
                               </td>
                               {/* Company */}
-                              <td className="py-3 px-4 text-sm text-foreground whitespace-nowrap">
+                              <td className="py-3 px-4 text-sm text-foreground min-w-[120px] whitespace-nowrap">
                                 {row.company ?? <span className="text-muted-foreground">—</span>}
                               </td>
                               {/* Job Title */}
-                              <td className="py-3 px-4 text-sm text-foreground max-w-[160px]">
-                                {row.jobTitle ? (
-                                  <span className="truncate block">{row.jobTitle}</span>
-                                ) : (
-                                  <span className="text-muted-foreground">—</span>
-                                )}
+                              <td className="py-3 px-4 text-sm text-foreground min-w-[160px]">
+                                {row.jobTitle ?? <span className="text-muted-foreground">—</span>}
                               </td>
                               {/* Cover Letter */}
                               <td className="py-3 px-4 whitespace-nowrap">
