@@ -1185,7 +1185,7 @@ describe('ResumeEditor — Cover Letter inline streaming', () => {
 
     await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
     await user.type(
-      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
       'We are looking for a talented Software Engineer with JavaScript and Python skills to join our engineering team today.',
     )
 
@@ -1222,7 +1222,7 @@ describe('ResumeEditor — Cover Letter inline streaming', () => {
 
     await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Stripe')
     await user.type(
-      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
       'We are looking for a Senior Engineer with strong backend skills in Python and distributed systems at our payments company.',
     )
 
@@ -1330,7 +1330,7 @@ describe('ResumeEditor — Cover Letter inline actions', () => {
     await navigateToCoverLetter(user)
     await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
     await user.type(
-      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
       'We are looking for a talented Software Engineer with JavaScript and Python skills to join our engineering team today.',
     )
     await waitFor(
@@ -1400,8 +1400,8 @@ describe('ResumeEditor — Cover Letter inline actions', () => {
     )
   })
 
-  it('"Save Cover Letter" button shows "Saved!" after a successful save', async () => {
-    mockSaveCoverLetter.mockResolvedValue(undefined as any)
+  it('"Save Cover Letter" button shows "Saved ✓" after a successful save', async () => {
+    mockSaveCoverLetter.mockResolvedValue({ id: 'mock-cl-saved-id' } as any)
 
     const user = userEvent.setup()
     renderEditor()
@@ -1411,7 +1411,7 @@ describe('ResumeEditor — Cover Letter inline actions', () => {
     await user.click(screen.getByRole('button', { name: /save cover letter/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /saved!/i })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: /saved/i })).toBeInTheDocument(),
       { timeout: 8000 },
     )
   })
@@ -1865,7 +1865,7 @@ describe('ResumeEditor — Cover Letter JD required field', () => {
 
     await navigateToCoverLetter(user)
 
-    await user.type(screen.getByPlaceholderText(/paste the job description for a more targeted/i), 'too short')
+    await user.type(screen.getByPlaceholderText(/paste the job description for a targeted/i), 'too short')
 
     expect(screen.getByRole('button', { name: /generate cover letter/i })).toBeDisabled()
   })
@@ -1878,7 +1878,7 @@ describe('ResumeEditor — Cover Letter JD required field', () => {
     await navigateToCoverLetter(user)
 
     await user.type(
-      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
       'We are looking for a talented Software Engineer with JavaScript Python and cloud skills to join our platform engineering team.',
     )
 
@@ -1915,7 +1915,7 @@ describe('ResumeEditor — Cover Letter progress bar during streaming', () => {
     await navigateToCoverLetter(user)
 
     await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
-    const jdTextarea = screen.getByPlaceholderText(/paste the job description for a more targeted/i)
+    const jdTextarea = screen.getByPlaceholderText(/paste the job description for a targeted/i)
     await user.type(
       jdTextarea,
       'We are hiring a Software Engineer with JavaScript Python and strong communication skills for our platform team today.',
@@ -1943,7 +1943,7 @@ describe('ResumeEditor — Cover Letter progress bar during streaming', () => {
     await navigateToCoverLetter(user)
 
     await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Stripe')
-    const jdTextarea = screen.getByPlaceholderText(/paste the job description for a more targeted/i)
+    const jdTextarea = screen.getByPlaceholderText(/paste the job description for a targeted/i)
     await user.type(
       jdTextarea,
       'We are seeking a backend engineer with Python and distributed systems experience to join our payments platform team.',
@@ -1992,7 +1992,7 @@ describe('ResumeEditor — Cover Letter state machine (draft / saved / edited)',
     await navigateToCoverLetter(user)
     await user.type(screen.getByPlaceholderText(/e\.g\. google/i), 'Acme Corp')
     await user.type(
-      screen.getByPlaceholderText(/paste the job description for a more targeted/i),
+      screen.getByPlaceholderText(/paste the job description for a targeted/i),
       'We need a Software Engineer with TypeScript React and strong problem solving skills to join our growing team.',
     )
     await waitFor(
