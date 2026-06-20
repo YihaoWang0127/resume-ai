@@ -681,7 +681,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       setCurrentResumeId(saved.id)
       setSaveDialogOpen(false)
       if (atsPayload) setAtsResultSaved(true)
-      showToast('Resume saved!', true)
+      const tabLabel = reviewDocTab === 'coverletter' ? 'CV' : reviewDocTab === 'ats' ? 'ATS report' : 'Resume'
+      showToast(`${tabLabel} saved!`, true)
     } catch (err) {
       console.error(err)
       showToast('Save failed. Please try again.', false)
@@ -704,7 +705,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     try {
       await updateResume(currentResumeId, { ...resume, detectedIndustry: selectedIndustry }, undefined, atsPayload)
       if (atsPayload) setAtsResultSaved(true)
-      showToast('Resume updated!', true)
+      const tabLabel = reviewDocTab === 'coverletter' ? 'CV' : reviewDocTab === 'ats' ? 'ATS report' : 'Resume'
+      showToast(`${tabLabel} updated!`, true)
     } catch (err) {
       console.error(err)
       showToast('Update failed. Please try again.', false)
@@ -2104,188 +2106,204 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           <div className="flex flex-col flex-1 overflow-hidden">
 
             {/* Step 3 Toolbar */}
-            <div className="shrink-0 h-12 border-b border-border bg-background flex items-center px-4 gap-3 overflow-x-auto">
-              {/* Formatting controls — shown for resume and cover letter tabs */}
-              {reviewDocTab === 'resume' && (
-                <>
-                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap shrink-0">Template</span>
-                  <select
-                    data-testid="template-select"
-                    value={selectedIndustry}
-                    onChange={(e) => setSelectedIndustry(e.target.value)}
-                    className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
-                  >
-                    <option value="general">Modern</option>
-                    <option value="tech">Tech</option>
-                    <option value="finance">Finance</option>
-                    <option value="creative">Creative</option>
-                    <option value="healthcare">Healthcare</option>
-                  </select>
-                </>
-              )}
-              {(reviewDocTab === 'resume' || reviewDocTab === 'coverletter') && (
-                <>
-                  <select
-                    value={reviewFont}
-                    onChange={(e) => setReviewFont(e.target.value)}
-                    className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-28"
-                  >
-                    <option>Inter</option>
-                    <option>Georgia</option>
-                    <option>Times New Roman</option>
-                    <option>Roboto</option>
-                  </select>
-                  <select
-                    value={reviewFontSize}
-                    onChange={(e) => setReviewFontSize(e.target.value)}
-                    className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-20"
-                  >
-                    <option>10pt</option>
-                    <option>11pt</option>
-                    <option>12pt</option>
-                  </select>
-                  {/* Bold */}
-                  <button
-                    type="button"
-                    onClick={() => setReviewBold(b => !b)}
-                    title="Bold"
-                    className={cn(
-                      'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs font-bold transition-colors shrink-0',
-                      reviewBold
-                        ? 'bg-primary/10 text-primary border-primary/50'
-                        : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
-                    )}
-                  >
-                    <Bold className="size-3.5" />
-                  </button>
-                  {/* Italic */}
-                  <button
-                    type="button"
-                    onClick={() => setReviewItalic(i => !i)}
-                    title="Italic"
-                    className={cn(
-                      'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs transition-colors shrink-0',
-                      reviewItalic
-                        ? 'bg-primary/10 text-primary border-primary/50'
-                        : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
-                    )}
-                  >
-                    <Italic className="size-3.5" />
-                  </button>
-                  {/* Underline */}
-                  <button
-                    type="button"
-                    onClick={() => setReviewUnderline(u => !u)}
-                    title="Underline"
-                    className={cn(
-                      'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs transition-colors shrink-0',
-                      reviewUnderline
-                        ? 'bg-primary/10 text-primary border-primary/50'
-                        : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
-                    )}
-                  >
-                    <Underline className="size-3.5" />
-                  </button>
-                  {/* Color picker */}
-                  <label
-                    title="Text color"
-                    className="relative min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border border-border bg-background hover:bg-secondary/60 cursor-pointer shrink-0"
-                  >
-                    <input
-                      type="color"
-                      value={reviewColor}
-                      onChange={(e) => setReviewColor(e.target.value)}
-                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                    />
-                    <span className="text-xs font-bold leading-none" style={{ color: reviewColor, textDecoration: 'underline', textDecorationColor: reviewColor }}>A</span>
-                  </label>
-                </>
-              )}
-
-              {/* Separator */}
-              <div className="h-5 w-px bg-border shrink-0 mx-1" />
-
-              {/* Review mode toggles */}
-              {reviewDocTab === 'resume' && (
-                <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
-                  {(['final', 'split', 'unified'] as const).map((mode) => (
+            <div className="shrink-0 h-12 border-b border-border bg-background flex items-center px-4 gap-2">
+              {/* Inner scrollable section — all formatting controls */}
+              <div className="flex items-center gap-2 overflow-x-auto min-w-0 flex-1 pr-2">
+                {/* Formatting controls — shown for resume and cover letter tabs */}
+                {reviewDocTab === 'resume' && (
+                  <>
+                    <span className="text-xs font-medium text-muted-foreground whitespace-nowrap shrink-0">Template</span>
+                    <select
+                      data-testid="template-select"
+                      value={selectedIndustry}
+                      onChange={(e) => setSelectedIndustry(e.target.value)}
+                      className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                    >
+                      <option value="general">Modern</option>
+                      <option value="tech">Tech</option>
+                      <option value="finance">Finance</option>
+                      <option value="creative">Creative</option>
+                      <option value="healthcare">Healthcare</option>
+                    </select>
+                  </>
+                )}
+                {(reviewDocTab === 'resume' || reviewDocTab === 'coverletter') && (
+                  <>
+                    <select
+                      value={reviewFont}
+                      onChange={(e) => setReviewFont(e.target.value)}
+                      className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-28"
+                    >
+                      <option>Inter</option>
+                      <option>Georgia</option>
+                      <option>Times New Roman</option>
+                      <option>Roboto</option>
+                    </select>
+                    <select
+                      value={reviewFontSize}
+                      onChange={(e) => setReviewFontSize(e.target.value)}
+                      className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-20"
+                    >
+                      <option>10pt</option>
+                      <option>11pt</option>
+                      <option>12pt</option>
+                    </select>
+                    {/* Bold */}
                     <button
-                      key={mode}
                       type="button"
-                      onClick={() => setReviewResumeMode(mode)}
+                      onClick={() => setReviewBold(b => !b)}
+                      title="Bold"
                       className={cn(
-                        'px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap min-h-[28px]',
-                        reviewResumeMode === mode
-                          ? 'bg-background shadow text-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
+                        'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs font-bold transition-colors shrink-0',
+                        reviewBold
+                          ? 'bg-primary/10 text-primary border-primary/50'
+                          : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
                       )}
                     >
-                      {mode === 'final' ? 'Final' : mode === 'split' ? 'Split Compare' : 'Unified Review'}
+                      <Bold className="size-3.5" />
                     </button>
-                  ))}
-                </div>
-              )}
-              {reviewDocTab === 'coverletter' && (
-                <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
-                  {(['final', 'compare'] as const).map((mode) => (
+                    {/* Italic */}
                     <button
-                      key={mode}
                       type="button"
-                      onClick={() => setReviewClMode(mode)}
-                      disabled={mode === 'compare'}
+                      onClick={() => setReviewItalic(i => !i)}
+                      title="Italic"
                       className={cn(
-                        'px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap min-h-[28px]',
-                        reviewClMode === mode
-                          ? 'bg-background shadow text-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                        mode === 'compare' && 'opacity-40 cursor-not-allowed',
+                        'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs transition-colors shrink-0',
+                        reviewItalic
+                          ? 'bg-primary/10 text-primary border-primary/50'
+                          : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
                       )}
                     >
-                      {mode === 'final' ? 'Final' : 'Compare Drafts'}
+                      <Italic className="size-3.5" />
                     </button>
-                  ))}
-                </div>
-              )}
-              {reviewDocTab === 'ats' && (
-                <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
-                  {(['overview', 'keywords', 'suggestions'] as const).map((view) => (
+                    {/* Underline */}
                     <button
-                      key={view}
                       type="button"
-                      onClick={() => setReviewAtsView(view)}
+                      onClick={() => setReviewUnderline(u => !u)}
+                      title="Underline"
                       className={cn(
-                        'px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap min-h-[28px]',
-                        reviewAtsView === view
-                          ? 'bg-background shadow text-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
+                        'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs transition-colors shrink-0',
+                        reviewUnderline
+                          ? 'bg-primary/10 text-primary border-primary/50'
+                          : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
                       )}
                     >
-                      {view.charAt(0).toUpperCase() + view.slice(1)}
+                      <Underline className="size-3.5" />
                     </button>
-                  ))}
-                </div>
-              )}
+                    {/* Color picker */}
+                    <label
+                      title="Text color"
+                      className="relative min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border border-border bg-background hover:bg-secondary/60 cursor-pointer shrink-0"
+                    >
+                      <input
+                        type="color"
+                        value={reviewColor}
+                        onChange={(e) => setReviewColor(e.target.value)}
+                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      />
+                      <span className="text-xs font-bold leading-none" style={{ color: reviewColor, textDecoration: 'underline', textDecorationColor: reviewColor }}>A</span>
+                    </label>
+                  </>
+                )}
 
-              {/* Spacer */}
-              <div className="flex-1" />
+                {/* Separator */}
+                <div className="h-5 w-px bg-border shrink-0 mx-1" />
 
-              {/* Save button — right side, all tabs */}
-              <Button
-                size="sm"
-                onClick={currentResumeId ? handleUpdate : handleSaveClick}
-                disabled={isSaving}
-                className="flex items-center justify-center gap-1.5 text-xs rounded-lg bg-primary text-white hover:bg-primary/90 h-8 w-24 shrink-0"
-              >
-                {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-                Save
-              </Button>
+                {/* Review mode toggles */}
+                {reviewDocTab === 'resume' && (
+                  <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
+                    {(['final', 'split', 'unified'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setReviewResumeMode(mode)}
+                        className={cn(
+                          'px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap min-h-[28px]',
+                          reviewResumeMode === mode
+                            ? 'bg-background shadow text-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {mode === 'final' ? 'Final' : mode === 'split' ? 'Split Compare' : 'Unified Review'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {reviewDocTab === 'coverletter' && (
+                  <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
+                    {(['final', 'compare'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setReviewClMode(mode)}
+                        disabled={mode === 'compare'}
+                        className={cn(
+                          'px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap min-h-[28px]',
+                          reviewClMode === mode
+                            ? 'bg-background shadow text-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                          mode === 'compare' && 'opacity-40 cursor-not-allowed',
+                        )}
+                      >
+                        {mode === 'final' ? 'Final' : 'Compare Drafts'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {reviewDocTab === 'ats' && (
+                  <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
+                    {(['overview', 'keywords', 'suggestions'] as const).map((view) => (
+                      <button
+                        key={view}
+                        type="button"
+                        onClick={() => setReviewAtsView(view)}
+                        className={cn(
+                          'px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap min-h-[28px]',
+                          reviewAtsView === view
+                            ? 'bg-background shadow text-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {view.charAt(0).toUpperCase() + view.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-              {/* Export dropdown */}
-              <div ref={primaryExportRef} className="relative shrink-0">
+              {/* Fixed right section — Save button + Export dropdown (no overflow-x-auto so dropdown is not clipped) */}
+              <div ref={primaryExportRef} className="relative flex items-center gap-2 shrink-0">
+                {/* Save toast anchored below this section when in step 3 */}
+                {saveToast && currentStep === 3 && (
+                  <div className={cn(
+                    'absolute top-full right-0 mt-2 z-[100] flex items-center gap-2 px-3 py-2 shadow-lg text-xs font-bold rounded-lg whitespace-nowrap',
+                    saveToast.ok ? 'bg-primary text-primary-foreground' : 'bg-destructive text-destructive-foreground',
+                  )}>
+                    {saveToast.ok ? '✓' : '✗'} {saveToast.text}
+                  </div>
+                )}
+
+                {/* Save button — right side, all tabs */}
+                <Button
+                  size="sm"
+                  onClick={currentResumeId ? handleUpdate : handleSaveClick}
+                  disabled={
+                    isSaving ||
+                    (reviewDocTab === 'coverletter' && !clStreamContent) ||
+                    (reviewDocTab === 'ats' && !atsResult)
+                  }
+                  className="flex items-center justify-center gap-1.5 text-xs rounded-lg bg-primary text-white hover:bg-primary/90 h-8 w-24 shrink-0"
+                >
+                  {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+                  Save
+                </Button>
+
+                {/* Export dropdown */}
                 <button
                   type="button"
                   onClick={() => setPrimaryExportOpen((o) => !o)}
-                  className="flex items-center justify-center gap-1.5 px-3 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors h-8 w-24"
+                  disabled={(reviewDocTab === 'coverletter' && !clStreamContent) || (reviewDocTab === 'ats' && !atsResult)}
+                  className="flex items-center justify-center gap-1.5 px-3 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors h-8 w-24 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="size-3.5" />
                   Export
@@ -2711,8 +2729,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             </div>
       </Modal>
 
-      {/* ── Save toast ───────────────────────────────────────────────────────── */}
-      {saveToast && (
+      {/* ── Save toast (global, for steps 1 and 2 only) ─────────────────────── */}
+      {saveToast && currentStep !== 3 && (
         <div
           className={cn(
             'fixed bottom-6 right-6 z-[100] flex items-center gap-2 px-4 py-3 shadow-lg text-xs font-bold uppercase tracking-wide transition-all',
