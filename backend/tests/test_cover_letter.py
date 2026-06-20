@@ -38,10 +38,16 @@ def test_generate_cover_letter_returns_stream(
     assert "excited to apply" in resp.text
 
 
-def test_missing_job_description_returns_400(
+def test_whitespace_job_description_returns_200(
     client: TestClient,
     sample_resume: dict,
+    mocker,
 ) -> None:
+    async def fake_stream(system: str, user: str):
+        yield "Cover letter content."
+
+    mocker.patch("app.routes.cover_letter.stream_text", new=fake_stream)
+
     resp = client.post(
         "/api/cover-letter",
         json={
@@ -50,8 +56,7 @@ def test_missing_job_description_returns_400(
             "company_name": SAMPLE_COMPANY,
         },
     )
-    assert resp.status_code == 400
-    assert "job description" in resp.json()["detail"].lower()
+    assert resp.status_code == 200
 
 
 def test_missing_company_name_returns_400(

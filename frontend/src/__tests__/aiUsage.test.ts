@@ -131,7 +131,7 @@ describe('getAiUsageStats', () => {
 
     expect(result.totalCalls).toBe(4)
     expect(result.callsThisMonth).toBe(2)
-    expect(result.callsByAction).toEqual({ parse: 1, enrich: 2, tailor: 0, cover_letter: 0, ats_score: 1 })
+    expect(result.callsByAction).toEqual({ parse: 1, enrich: 2, tailor: 0, cover_letter: 0, cover_letter_improve: 0, ats_score: 1 })
     expect(result.recent).toEqual(rows)
   })
 
