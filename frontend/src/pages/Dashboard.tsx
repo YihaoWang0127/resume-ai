@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Navigate, useLocation } from 'react-router-dom'
-import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target } from 'lucide-react'
+import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target, MoreHorizontal } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { listResumes, deleteResume, updateAtsScore, clearAtsScore, type SavedResume } from '@/services/resumes'
 import { listCoverLetters, deleteCoverLetter, type CoverLetter } from '@/services/coverLetters'
@@ -13,6 +13,19 @@ import Modal from '@/components/Modal'
 import ExportMenu from '@/components/ExportMenu'
 import EmptyState from '@/components/EmptyState'
 import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
+
+function extractJobTitle(jobDescription: string | null): string | null {
+  if (!jobDescription) return null
+  const firstLine = jobDescription.trim().split('\n')[0].trim()
+  return firstLine.length > 0 && firstLine.length < 100 ? firstLine : null
+}
+
+function atsScoreLabel(score: number): { label: string; className: string } {
+  if (score >= 85) return { label: 'Excellent', className: 'bg-green-500/10 text-green-600 border-green-500/30' }
+  if (score >= 70) return { label: 'Good', className: 'bg-primary/10 text-primary border-primary/30' }
+  if (score >= 55) return { label: 'Fair', className: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30' }
+  return { label: 'Needs Work', className: 'bg-red-500/10 text-red-500 border-red-500/30' }
+}
 
 function SkeletonCards() {
   return (
@@ -70,6 +83,11 @@ export default function Dashboard() {
   const [clExportOpenId, setClExportOpenId] = useState<string | null>(null)
 
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
+
+  // ── More menu state ──────────────────────────────────────────────────────────
+  const [moreOpenId, setMoreOpenId] = useState<string | null>(null)
+  const [clMoreOpenId, setClMoreOpenId] = useState<string | null>(null)
+  const [atsMoreOpenId, setAtsMoreOpenId] = useState<string | null>(null)
 
   type NewClStep = 'closed' | 'options' | 'resume-pick' | 'generate-form'
   type NewClTone = 'professional' | 'enthusiastic' | 'concise'
@@ -381,7 +399,7 @@ export default function Dashboard() {
                 <EmptyState
                   icon={FileText}
                   title="No resumes yet"
-                  description="Upload your existing resume and let Claude rewrite it with stronger bullet points, quantified impact, and ATS-friendly keywords."
+                  description="Import PDF, DOCX, or TXT — Claude rewrites it with stronger bullet points and ATS-friendly keywords."
                   actionLabel="Upload Resume"
                   onAction={() => setUploadModalOpen(true)}
                 />
@@ -390,12 +408,12 @@ export default function Dashboard() {
                 {resumes.map((r) => (
                   <div
                     key={r.id}
-                    className="bg-card border border-primary/40 rounded-xl p-6 flex flex-col min-h-[240px] hover:border-primary/70 transition-colors"
+                    className="bg-card border border-border rounded-xl p-6 flex flex-col min-h-[240px] hover:border-primary/30 hover:shadow-sm transition-all"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground text-base truncate">{r.title}</p>
+                      <p className="font-semibold text-foreground text-base truncate">{r.title}</p>
                       <div className="mt-2.5">
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-bold uppercase tracking-wider truncate max-w-full">
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground text-[10px] font-bold uppercase tracking-wider truncate max-w-full">
                           {r.detected_industry}
                         </span>
                       </div>
@@ -414,12 +432,22 @@ export default function Dashboard() {
                       <p className="mt-2.5 text-xs text-muted-foreground">
                         Updated {formatDate(r.updated_at)}
                       </p>
+                      <span className="text-[11px] text-muted-foreground mt-1 block">
+                        {coverLetters.filter(cl => cl.resume_id === r.id).length} cover letter · {r.ats_score != null ? 1 : 0} ATS check
+                      </span>
                     </div>
 
-                    <div className="flex gap-2 mt-5 pt-4 border-t border-border w-full">
+                    <div className="flex gap-1.5 mt-5 pt-4 border-t border-border w-full">
                       <button
                         onClick={() => handleEdit(r)}
-                        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] px-3 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded transition-colors"
+                      >
+                        Preview
+                      </button>
+
+                      <button
+                        onClick={() => handleEdit(r)}
+                        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] px-3 text-xs font-medium text-muted-foreground border border-border hover:border-primary/20 hover:text-foreground rounded transition-colors"
                       >
                         <Edit className="size-3.5" />
                         Edit
@@ -428,7 +456,7 @@ export default function Dashboard() {
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setExportOpenId(exportOpenId === r.id ? null : r.id)}
-                          className="w-full flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                          className="w-full flex items-center justify-center gap-1.5 min-h-[44px] px-3 text-xs font-medium text-muted-foreground border border-border hover:border-primary/20 hover:text-foreground rounded transition-colors"
                         >
                           <Download className="size-3.5" />
                           Export
@@ -457,12 +485,33 @@ export default function Dashboard() {
                         )}
                       </div>
 
-                      <button
-                        onClick={() => setDeleteTarget(r)}
-                        className="w-11 min-h-[44px] flex items-center justify-center text-red-500 border border-red-500/40 hover:bg-red-500/10 rounded transition-colors shrink-0"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
+                      {/* More menu */}
+                      <div className="relative">
+                        <button
+                          aria-label="More options"
+                          onClick={() => {
+                            setMoreOpenId(moreOpenId === r.id ? null : r.id)
+                            setClMoreOpenId(null)
+                            setAtsMoreOpenId(null)
+                          }}
+                          className="w-9 min-h-[44px] flex items-center justify-center text-muted-foreground border border-border hover:border-primary/20 hover:text-foreground rounded transition-colors shrink-0"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
+                        {moreOpenId === r.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setMoreOpenId(null)} />
+                            <div className="absolute right-0 bottom-full mb-1 z-50 bg-card border border-border rounded-lg shadow-md py-1 min-w-[120px]">
+                              <button
+                                onClick={() => { setMoreOpenId(null); setDeleteTarget(r) }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 text-left"
+                              >
+                                <Trash2 className="size-3.5" /> Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -470,14 +519,19 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setUploadModalOpen(true)}
-                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-3 min-h-[240px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
+                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 min-h-[240px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
                 >
-                  <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center transition-colors">
-                    <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center">
+                    <Plus className="size-5 text-muted-foreground group-hover:text-primary" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">
-                    New Resume
-                  </span>
+                  <div className="text-center">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-primary">
+                      Upload Resume
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70 group-hover:text-primary/70 mt-0.5">
+                      Import PDF, DOCX, or TXT
+                    </p>
+                  </div>
                 </button>
               </div>
               )}
@@ -502,36 +556,55 @@ export default function Dashboard() {
                 <EmptyState
                   icon={Mail}
                   title="No cover letters yet"
-                  description="Generate a cover letter from one of your resumes, tailored to a specific job in seconds."
+                  description="Choose a resume and paste a job description — Claude writes a tailored cover letter in seconds."
                   actionLabel="New Cover Letter"
                   onAction={() => setNewClStep('options')}
                 />
               ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {coverLetters.map((cl) => (
+                {coverLetters.map((cl) => {
+                  const resumeTitle = cl.resume_id ? resumes.find(r => r.id === cl.resume_id)?.title : null
+                  return (
                   <div
                     key={cl.id}
-                    className="bg-card border border-primary/40 rounded-xl p-5 flex flex-col min-h-[200px] hover:border-primary/70 transition-colors"
+                    className="bg-card border border-border rounded-xl p-5 flex flex-col min-h-[200px] hover:border-primary/30 hover:shadow-sm transition-all"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground text-sm truncate">{cl.title}</p>
+                      {/* Primary heading: company name */}
+                      <p className="font-semibold text-foreground text-sm truncate">
+                        {cl.company_name || cl.title}
+                      </p>
+                      {/* Job title (extracted from job_description first line) */}
+                      {(() => {
+                        const jobTitle = extractJobTitle(cl.job_description)
+                        return jobTitle ? (
+                          <p className="mt-0.5 text-xs text-muted-foreground truncate">{jobTitle}</p>
+                        ) : null
+                      })()}
+                      {/* Company badge */}
                       {cl.company_name && (
                         <div className="mt-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary text-[10px] font-bold uppercase tracking-wider truncate max-w-full">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground text-[10px] font-semibold uppercase tracking-wider truncate max-w-full">
                             <Mail className="size-2.5 shrink-0" />
                             {cl.company_name}
                           </span>
                         </div>
                       )}
-                      <p className="mt-2 text-[11px] text-muted-foreground">
+                      {/* Based on resume */}
+                      {resumeTitle && (
+                        <span className="text-[11px] text-muted-foreground mt-1.5 block">
+                          Based on: {resumeTitle}
+                        </span>
+                      )}
+                      <p className="mt-1 text-[11px] text-muted-foreground">
                         Updated {formatDate(cl.updated_at)}
                       </p>
                     </div>
 
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-border w-full">
+                    <div className="flex gap-1.5 mt-4 pt-3 border-t border-border w-full">
                       <button
                         onClick={() => handleClEdit(cl)}
-                        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] px-3 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded transition-colors"
                       >
                         <Edit className="size-3.5" />
                         Edit
@@ -540,7 +613,7 @@ export default function Dashboard() {
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setClExportOpenId(clExportOpenId === cl.id ? null : cl.id)}
-                          className="w-full flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                          className="w-full flex items-center justify-center gap-1.5 min-h-[44px] px-3 text-xs font-medium text-muted-foreground border border-border hover:border-primary/20 hover:text-foreground rounded transition-colors"
                         >
                           <Download className="size-3.5" />
                           Export
@@ -564,27 +637,54 @@ export default function Dashboard() {
                         )}
                       </div>
 
-                      <button
-                        onClick={() => setClDeleteTarget(cl)}
-                        className="w-11 min-h-[44px] flex items-center justify-center text-red-500 border border-red-500/40 hover:bg-red-500/10 rounded transition-colors shrink-0"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
+                      {/* More menu */}
+                      <div className="relative">
+                        <button
+                          aria-label="More options"
+                          onClick={() => {
+                            setClMoreOpenId(clMoreOpenId === cl.id ? null : cl.id)
+                            setMoreOpenId(null)
+                            setAtsMoreOpenId(null)
+                          }}
+                          className="w-9 min-h-[44px] flex items-center justify-center text-muted-foreground border border-border hover:border-primary/20 hover:text-foreground rounded transition-colors shrink-0"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
+                        {clMoreOpenId === cl.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setClMoreOpenId(null)} />
+                            <div className="absolute right-0 bottom-full mb-1 z-50 bg-card border border-border rounded-lg shadow-md py-1 min-w-[120px]">
+                              <button
+                                onClick={() => { setClMoreOpenId(null); setClDeleteTarget(cl) }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 text-left"
+                              >
+                                <Trash2 className="size-3.5" /> Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
 
                 <button
                   type="button"
                   onClick={() => setNewClStep('options')}
-                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-3 min-h-[200px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
+                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 min-h-[200px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
                 >
-                  <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center transition-colors">
-                    <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center">
+                    <Plus className="size-5 text-muted-foreground group-hover:text-primary" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors text-center px-2">
-                    New Cover Letter
-                  </span>
+                  <div className="text-center">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-primary">
+                      Generate Cover Letter
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70 group-hover:text-primary/70 mt-0.5">
+                      Choose resume and job description
+                    </p>
+                  </div>
                 </button>
               </div>
               )}
@@ -615,52 +715,96 @@ export default function Dashboard() {
                 />
               ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {resumes.filter((r) => r.ats_score != null).map((r) => (
+                {resumes.filter((r) => r.ats_score != null).map((r) => {
+                  const scoreInfo = r.ats_score != null ? atsScoreLabel(r.ats_score) : null
+                  return (
                   <div
                     key={r.id}
-                    className="bg-card border border-primary/40 rounded-xl p-5 flex flex-col min-h-[160px] hover:border-primary/70 transition-colors"
+                    className="bg-card border border-border rounded-xl p-5 flex flex-col min-h-[160px] hover:border-primary/30 hover:shadow-sm transition-all"
                   >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground text-sm truncate">{r.title}</p>
-                      <p className="mt-2 text-sm font-bold text-primary">
-                        Score: {r.ats_score}/100
-                      </p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      {/* Resume title */}
+                      <p className="font-semibold text-foreground text-sm truncate">{r.title}</p>
+                      {/* Score row */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-sm font-bold text-primary">{r.ats_score}/100</span>
+                        {scoreInfo && (
+                          <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${scoreInfo.className}`}>
+                            {scoreInfo.label}
+                          </span>
+                        )}
+                      </div>
+                      {/* Checked date */}
+                      <p className="text-[11px] text-muted-foreground">
                         Checked {r.ats_score_updated_at ? formatDate(r.ats_score_updated_at) : '—'}
                       </p>
                     </div>
 
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+                    <div className="flex gap-1.5 mt-4 pt-3 border-t border-border">
                       <button
                         onClick={() => openAtsDetail(r)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 min-h-[44px] text-xs font-bold uppercase tracking-wider text-primary border border-primary/40 hover:bg-primary/10 rounded transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] px-3 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded transition-colors"
                       >
                         <Target className="size-3.5" />
-                        Detail
+                        View Report
                       </button>
                       <button
-                        onClick={() => handleClearAts(r)}
-                        disabled={atsClearingId === r.id}
-                        className="w-11 min-h-[44px] flex items-center justify-center text-red-500 border border-red-500/40 hover:bg-red-500/10 rounded transition-colors shrink-0 disabled:opacity-50"
+                        onClick={() => openAtsCheck(r)}
+                        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] px-3 text-xs font-medium text-muted-foreground border border-border hover:border-primary/20 hover:text-foreground rounded transition-colors"
                       >
-                        {atsClearingId === r.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                        Re-check
                       </button>
+
+                      {/* More menu */}
+                      <div className="relative">
+                        <button
+                          aria-label="More options"
+                          onClick={() => {
+                            setAtsMoreOpenId(atsMoreOpenId === r.id ? null : r.id)
+                            setMoreOpenId(null)
+                            setClMoreOpenId(null)
+                          }}
+                          className="w-9 min-h-[44px] flex items-center justify-center text-muted-foreground border border-border hover:border-primary/20 hover:text-foreground rounded transition-colors shrink-0"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
+                        {atsMoreOpenId === r.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setAtsMoreOpenId(null)} />
+                            <div className="absolute right-0 bottom-full mb-1 z-50 bg-card border border-border rounded-lg shadow-md py-1 min-w-[120px]">
+                              <button
+                                onClick={() => { setAtsMoreOpenId(null); handleClearAts(r) }}
+                                disabled={atsClearingId === r.id}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 text-left disabled:opacity-50"
+                              >
+                                <Trash2 className="size-3.5" /> Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
 
                 {/* ADD NEW ATS CHECK card */}
                 <button
                   type="button"
                   onClick={() => setAtsNewCheckStep('resume-pick')}
-                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-3 min-h-[160px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
+                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 min-h-[160px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
                 >
-                  <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center transition-colors">
-                    <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center">
+                    <Plus className="size-5 text-muted-foreground group-hover:text-primary" />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors text-center px-2">
-                    New ATS Check
-                  </span>
+                  <div className="text-center">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-primary">
+                      New ATS Check
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70 group-hover:text-primary/70 mt-0.5">
+                      Compare resume with job description
+                    </p>
+                  </div>
                 </button>
               </div>
               )}

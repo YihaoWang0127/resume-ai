@@ -164,10 +164,10 @@ describe('Dashboard — rendering', () => {
 
   it('shows the New Resume card at the end of the grid', async () => {
     renderDashboard()
-    await waitFor(() => expect(screen.getByText('New Resume')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Upload Resume')).toBeInTheDocument())
 
     const cards = screen.getAllByRole('button').filter(b => b.tagName === 'BUTTON')
-    const newResumeCard = cards.find(b => b.textContent?.includes('New Resume'))
+    const newResumeCard = cards.find(b => b.textContent?.includes('Upload Resume'))
     expect(newResumeCard).toBeInTheDocument()
   })
 
@@ -191,10 +191,11 @@ describe('Dashboard — rendering', () => {
     const user = userEvent.setup()
     renderDashboard()
     await goToCoverLettersTab(user)
+    // Card heading shows company_name; title field is no longer displayed
     await waitFor(() =>
-      expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument()
+      expect(screen.getAllByText('Stripe').length).toBeGreaterThan(0)
     )
-    expect(screen.getByText('Stripe')).toBeInTheDocument()
+    expect(screen.getAllByText('Stripe').length).toBeGreaterThan(0)
   })
 
   it('shows the New Cover Letter card', async () => {
@@ -202,7 +203,7 @@ describe('Dashboard — rendering', () => {
     renderDashboard()
     await goToCoverLettersTab(user)
     await waitFor(() =>
-      expect(screen.getByText('New Cover Letter')).toBeInTheDocument()
+      expect(screen.getByText('Generate Cover Letter')).toBeInTheDocument()
     )
   })
 
@@ -313,7 +314,8 @@ describe('Dashboard — tab switching', () => {
     await goToAtsScoreTab(user)
 
     await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
-    expect(screen.getByText('Score: 85/100')).toBeInTheDocument()
+    // Score is displayed as "85/100" without the "Score:" prefix
+    expect(screen.getByText('85/100')).toBeInTheDocument()
     // The un-scored resume must not appear
     expect(screen.queryByText('Product Manager Resume')).not.toBeInTheDocument()
   })
@@ -362,7 +364,8 @@ describe('Dashboard — ATS check modal', () => {
     await user.type(screen.getByPlaceholderText(/paste the job description here/i), 'We need a React engineer')
     await user.click(screen.getByRole('button', { name: /run check/i }))
 
-    await waitFor(() => expect(screen.getByText('78/100')).toBeInTheDocument())
+    // Score appears in modal and may also appear on the ATS tab card after save
+    await waitFor(() => expect(screen.getAllByText('78/100').length).toBeGreaterThan(0))
     expect(screen.getByText('Solid match overall.')).toBeInTheDocument()
     expect(screen.getByText('React')).toBeInTheDocument()
     expect(screen.getByText('GraphQL')).toBeInTheDocument()
@@ -438,7 +441,8 @@ describe('Dashboard — navigation', () => {
     const user = userEvent.setup()
     renderDashboard()
     await goToCoverLettersTab(user)
-    await waitFor(() => expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument())
+    // Card now shows company_name as heading, not the title
+    await waitFor(() => expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: /edit/i }))
 
@@ -460,8 +464,13 @@ describe('Dashboard — navigation', () => {
 
 // ── delete flow (resumes) ─────────────────────────────────────────────────────
 
-const getCardDeleteButtons = () =>
-  Array.from(document.querySelectorAll<HTMLElement>('button[class*="red-500"]'))
+// Delete is now inside the ⋯ More menu — open it first, then click Delete
+async function openMoreMenuAndDelete(user: ReturnType<typeof userEvent.setup>, index = 0) {
+  const moreButtons = screen.getAllByRole('button', { name: /more options/i })
+  await user.click(moreButtons[index])
+  await user.click(screen.getByRole('button', { name: /^delete$/i }))
+}
+
 const getModalConfirmButton = () =>
   document.querySelector<HTMLElement>('button[class*="bg-red-600"]')!
 
@@ -469,9 +478,9 @@ describe('Dashboard — delete flow', () => {
   it('clicking Delete shows the confirmation modal', async () => {
     const user = userEvent.setup()
     renderDashboard()
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /edit/i }).length).toBeGreaterThan(0))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
 
-    await user.click(getCardDeleteButtons()[0])
+    await openMoreMenuAndDelete(user, 0)
 
     expect(screen.getByRole('heading', { name: /delete resume/i })).toBeInTheDocument()
     expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument()
@@ -480,9 +489,9 @@ describe('Dashboard — delete flow', () => {
   it('confirms deletion and removes card from the list', async () => {
     const user = userEvent.setup()
     renderDashboard()
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /edit/i }).length).toBeGreaterThan(0))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
 
-    await user.click(getCardDeleteButtons()[0])
+    await openMoreMenuAndDelete(user, 0)
     await user.click(getModalConfirmButton())
 
     await waitFor(() => expect(mockDeleteResume).toHaveBeenCalledWith(savedResume1.id))
@@ -494,9 +503,9 @@ describe('Dashboard — delete flow', () => {
   it('Cancel button hides the confirmation modal without deleting', async () => {
     const user = userEvent.setup()
     renderDashboard()
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /edit/i }).length).toBeGreaterThan(0))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
 
-    await user.click(getCardDeleteButtons()[0])
+    await openMoreMenuAndDelete(user, 0)
     await user.click(screen.getByRole('button', { name: /cancel/i }))
 
     expect(screen.queryByRole('heading', { name: /delete resume/i })).not.toBeInTheDocument()
@@ -511,9 +520,10 @@ describe('Dashboard — cover letter delete flow', () => {
     const user = userEvent.setup()
     renderDashboard()
     await goToCoverLettersTab(user)
-    await waitFor(() => expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument())
+    // Card now shows company_name as heading; wait for the More button to be ready
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
 
-    await user.click(getCardDeleteButtons()[0])
+    await openMoreMenuAndDelete(user, 0)
 
     expect(screen.getByRole('heading', { name: /delete cover letter/i })).toBeInTheDocument()
     expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument()
@@ -523,14 +533,15 @@ describe('Dashboard — cover letter delete flow', () => {
     const user = userEvent.setup()
     renderDashboard()
     await goToCoverLettersTab(user)
-    await waitFor(() => expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
 
-    await user.click(getCardDeleteButtons()[0])
+    await openMoreMenuAndDelete(user, 0)
     await user.click(getModalConfirmButton())
 
     await waitFor(() => expect(mockDeleteCoverLetter).toHaveBeenCalledWith(savedCoverLetter1.id))
+    // After deletion, the company name 'Stripe' should no longer appear in the card list
     await waitFor(() =>
-      expect(screen.queryByText('Cover Letter for Stripe')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /more options/i })).not.toBeInTheDocument()
     )
   })
 })
@@ -629,11 +640,13 @@ describe('Dashboard — ATS Score tab Detail and trash buttons', () => {
     renderDashboard()
     await goToAtsScoreTab(user)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /detail/i })).toBeInTheDocument())
-    await user.click(screen.getByRole('button', { name: /detail/i }))
+    // Button was renamed from "Detail" to "View Report"
+    await waitFor(() => expect(screen.getByRole('button', { name: /view report/i })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /view report/i }))
 
     // View mode — score shown immediately, no JD entry textarea
-    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument())
+    // 80/100 appears on the card and in the modal (both show the same score)
+    await waitFor(() => expect(screen.getAllByText('80/100').length).toBeGreaterThan(0))
     expect(screen.queryByPlaceholderText(/paste the job description here/i)).not.toBeInTheDocument()
     expect(screen.getByText('Strong match.')).toBeInTheDocument()
     expect(screen.getByText('React')).toBeInTheDocument()
@@ -645,15 +658,12 @@ describe('Dashboard — ATS Score tab Detail and trash buttons', () => {
     renderDashboard()
     await goToAtsScoreTab(user)
 
-    // There should be one trash button for the scored resume
     await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
 
-    // The red trash buttons are scoped to the ATS tab; select the one in the card (not in a modal)
-    const trashButtons = Array.from(
-      document.querySelectorAll<HTMLElement>('button[class*="red-500"]')
-    )
-    expect(trashButtons.length).toBeGreaterThan(0)
-    await user.click(trashButtons[0])
+    // Delete is now inside the ⋯ More menu — open it then click Delete
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
+    await user.click(screen.getAllByRole('button', { name: /more options/i })[0])
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
 
     await waitFor(() => expect(mockClearAtsScore).toHaveBeenCalledWith(resumeWithAts.id))
     // After clearing, the resume disappears from the ATS tab list
@@ -738,7 +748,8 @@ describe('Dashboard — export dropdown', () => {
     const user = userEvent.setup()
     renderDashboard()
     await goToCoverLettersTab(user)
-    await waitFor(() => expect(screen.getByText('Cover Letter for Stripe')).toBeInTheDocument())
+    // Wait for the Export button (card now shows company_name as heading, not title)
+    await waitFor(() => expect(screen.getByRole('button', { name: /export/i })).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: /export/i }))
 
