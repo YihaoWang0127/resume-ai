@@ -1549,16 +1549,14 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           <Button
                             onClick={handleSaveCoverLetter}
                             disabled={clSaving}
-                            className="w-40 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 justify-center"
                           >
-                            {clSaving ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Save className="size-4 mr-2" />}
-                            Save Cover Letter
+                            {clSaving ? 'Saving...' : 'Save Cover Letter'}
                           </Button>
                           <Button
                             onClick={() => { setClStreamContent(''); setClStreamError(null); setClSaved(false); setClSavedId(null); setClSavedContent(null) }}
-                            className="w-40 min-h-[44px] rounded-lg text-sm bg-secondary text-foreground hover:bg-secondary/80 border border-border"
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-secondary text-foreground hover:bg-secondary/80 border border-border justify-center"
                           >
-                            <X className="size-4 mr-2" />
                             Dismiss
                           </Button>
                         </div>
@@ -1570,18 +1568,16 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                         <div className="flex gap-2 justify-center">
                           <Button
                             disabled
-                            className="w-40 min-h-[44px] rounded-lg text-sm bg-green-600 text-white opacity-100 cursor-default"
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-green-600 text-white opacity-100 cursor-default justify-center"
                           >
-                            <CheckCircle2 className="size-4 mr-2" />
                             Saved ✓
                           </Button>
                           <Button
                             onClick={handleDeleteCoverLetter}
                             disabled={clDeleting}
-                            className="w-40 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 justify-center"
                           >
-                            {clDeleting ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Trash2 className="size-4 mr-2" />}
-                            Delete Cover Letter
+                            {clDeleting ? 'Deleting...' : 'Delete Cover Letter'}
                           </Button>
                         </div>
                       )
@@ -1593,18 +1589,16 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           <Button
                             onClick={handleSaveCoverLetter}
                             disabled={clSaving}
-                            className="w-40 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 justify-center"
                           >
-                            {clSaving ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Save className="size-4 mr-2" />}
-                            Save Changes
+                            {clSaving ? 'Saving...' : 'Save Changes'}
                           </Button>
                           <Button
                             onClick={handleDeleteCoverLetter}
                             disabled={clDeleting}
-                            className="w-40 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 justify-center"
                           >
-                            {clDeleting ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Trash2 className="size-4 mr-2" />}
-                            Delete Cover Letter
+                            {clDeleting ? 'Deleting...' : 'Delete Cover Letter'}
                           </Button>
                         </div>
                       )
