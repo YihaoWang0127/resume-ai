@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -44,6 +45,13 @@ export default function AccountSidebar() {
   const isDashboard = location.pathname === '/dashboard'
   const currentTab = searchParams.get('tab')
 
+  const [dashExpanded, setDashExpanded] = useState(isDashboard)
+
+  // Auto-expand when navigating to /dashboard from another route
+  useEffect(() => {
+    if (isDashboard) setDashExpanded(true)
+  }, [isDashboard])
+
   // Dashboard requires a persisted (non-guest) account — Dashboard.tsx
   // redirects guests/signed-out users to "/", so don't show a tab that bounces them out.
   const navItems = !user || isGuest
@@ -71,7 +79,7 @@ export default function AccountSidebar() {
       <div className="flex lg:hidden gap-2 overflow-x-auto scrollbar-none -mx-6 px-6 pb-4 mb-2 border-b border-border">
         {navItems.map(({ path, label, icon: Icon }) => {
           if (path === '/dashboard') {
-            if (isDashboard) {
+            if (isDashboard && dashExpanded) {
               // Replace Dashboard pill with 4 sub-item pills
               return DASHBOARD_SUB_ITEMS.map((sub) => (
                 <button
@@ -130,13 +138,20 @@ export default function AccountSidebar() {
       <div className="hidden lg:flex lg:flex-col lg:gap-1 lg:sticky lg:top-20">
         {navItems.map(({ path, label, icon: Icon }) => {
           if (path === '/dashboard') {
-            const ChevronIcon = isDashboard ? ChevronDown : ChevronRight
+            const isOpen = isDashboard && dashExpanded
+            const ChevronIcon = isOpen ? ChevronDown : ChevronRight
             return (
               <div key={path}>
                 {/* Dashboard parent row */}
                 <button
                   type="button"
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => {
+                    if (isDashboard) {
+                      setDashExpanded((prev) => !prev)
+                    } else {
+                      navigate('/dashboard')
+                    }
+                  }}
                   className={cn(
                     'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-colors w-full',
                     isDashboard
@@ -149,8 +164,8 @@ export default function AccountSidebar() {
                   <ChevronIcon className="size-4 shrink-0" />
                 </button>
 
-                {/* Sub-items — only visible when on /dashboard */}
-                {isDashboard && (
+                {/* Sub-items — visible when on /dashboard and expanded */}
+                {isOpen && (
                   <div className="flex flex-col gap-0.5 mt-0.5 pl-4">
                     {DASHBOARD_SUB_ITEMS.map((sub) => (
                       <button
