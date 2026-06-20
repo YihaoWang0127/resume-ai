@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Sparkles,
@@ -51,6 +51,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import ComparisonView from './ComparisonView'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
+import { resumeToLines, computeLineDiff } from '@/lib/resumeDiff'
 
 interface Props {
   initialResume: ResumeSchema
@@ -70,6 +71,10 @@ interface StreamState {
 const field =
   'w-full px-3 py-2 border border-border bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow placeholder:text-muted-foreground rounded-lg'
 const fieldSm = cn(field, 'text-xs')
+
+// ── Edit Zone helpers (resumeToLines, computeLineDiff) live in @/lib/resumeDiff ──
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function newExp(): ExperienceItem {
   return { company: '', title: '', startDate: '', current: true, bullets: [''] }
@@ -194,6 +199,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [centerCollapsed, setCenterCollapsed] = useState(false)
   const [centerWidth, setCenterWidth] = useState(380)
   const [sidebarWidth, setSidebarWidth] = useState(240)
+  const [diffBaseline, setDiffBaseline] = useState<ResumeSchema>(initialResume)
   const [autosaveOn] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [enrichProgress, setEnrichProgress] = useState(0)
@@ -219,6 +225,16 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const sectionRefs = useRef<Record<Tab, HTMLDivElement | null>>({
     contact: null, summary: null, experience: null, education: null, skills: null, ats: null,
   })
+
+  // ── Edit Zone diff ───────────────────────────────────────────────────────
+  const diffLines = useMemo(() => {
+    const originalLines = resumeToLines(diffBaseline)
+    const currentLines = resumeToLines(resume)
+    return computeLineDiff(originalLines, currentLines)
+  }, [diffBaseline, resume])
+
+  const hasDiff = useMemo(() => diffLines.some(l => l.type !== 'same'), [diffLines])
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!exportMenuOpen) return
@@ -1992,9 +2008,93 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </div>
               </div>
             </div>
-          ) : (
+          ) : currentStep === 1 ? (
+            /* ── STEP 1 EDIT ZONE — diff view ─────────────────────────────── */
             <>
-              {/* Preview panel header — only shown when NOT in cover letter editor mode */}
+              {/* Edit Zone header */}
+              <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
+                <button
+                  onClick={() => setCenterCollapsed(prev => !prev)}
+                  title={centerCollapsed ? "Show editor" : "Minimize editor"}
+                  className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  {centerCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+                </button>
+                <FileText className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs font-semibold text-foreground hidden sm:block">Edit Zone</span>
+                {hasDiff && (
+                  <button
+                    onClick={() => setDiffBaseline({ ...resume })}
+                    className="ml-auto text-[11px] font-semibold uppercase tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 transition-colors px-3 py-1.5 rounded-md min-h-[28px]"
+                  >
+                    Accept all
+                  </button>
+                )}
+                {/* Zoom controls */}
+                <div className={cn('flex items-center gap-1 shrink-0 text-muted-foreground', hasDiff ? '' : 'ml-auto')}>
+                  <button
+                    onClick={() => setZoomLevel(z => ZOOM_LEVELS[Math.max(0, ZOOM_LEVELS.indexOf(z) - 1)] ?? z)}
+                    className="p-1 hover:bg-secondary/70 rounded transition-colors"
+                    disabled={zoomLevel === ZOOM_LEVELS[0]}
+                  >
+                    <Minus className="size-3.5" />
+                  </button>
+                  <span className="text-xs tabular-nums w-10 text-center">{zoomLevel}%</span>
+                  <button
+                    onClick={() => setZoomLevel(z => ZOOM_LEVELS[ZOOM_LEVELS.indexOf(z) + 1] ?? z)}
+                    className="p-1 hover:bg-secondary/70 rounded transition-colors"
+                    disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+              {/* Diff content area */}
+              <div className="flex-1 overflow-auto bg-muted/60 p-4">
+                <div
+                  style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
+                  className="transition-all duration-300"
+                >
+                  <div
+                    className="bg-white shadow-paper mx-auto rounded-sm font-mono text-[10pt] leading-relaxed"
+                    style={{ width: '100%', maxWidth: '816px', minHeight: '1056px', padding: '48px 56px' }}
+                  >
+                    {diffLines.map((line, idx) => (
+                      <div
+                        key={idx}
+                        className={cn(
+                          'flex gap-2 px-1 rounded-sm',
+                          line.type === 'added' && 'bg-green-50',
+                          line.type === 'removed' && 'bg-red-50',
+                        )}
+                      >
+                        <span className={cn(
+                          'select-none shrink-0 w-4 text-right text-[9pt]',
+                          line.type === 'added' && 'text-green-600',
+                          line.type === 'removed' && 'text-red-500',
+                          line.type === 'same' && 'text-transparent',
+                        )}>
+                          {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
+                        </span>
+                        <span className={cn(
+                          'flex-1 whitespace-pre-wrap break-words',
+                          line.type === 'removed' && 'line-through text-red-700',
+                          line.type === 'added' && 'text-green-800',
+                          line.type === 'same' && 'text-gray-800',
+                          line.text === '' && 'h-4',
+                        )}>
+                          {line.text || ' '}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* ── STEP 2 LIVE PREVIEW ───────────────────────────────────────── */
+            <>
+              {/* Preview panel header */}
               <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
                 {/* Single toggle — always rendered, same position, icon changes */}
                 <button
