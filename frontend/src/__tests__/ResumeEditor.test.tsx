@@ -592,11 +592,7 @@ describe('ResumeEditor — zoom controls', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    // The zoom display is a <span> with the "100%" text; its siblings inside
-    // the same container are the minus (left) and plus (right) buttons.
-    const zoomDisplay = screen.getByTestId('zoom-display')
-    const zoomContainer = zoomDisplay.closest('div')!
-    const minusBtn = zoomContainer.previousElementSibling as HTMLButtonElement
+    const minusBtn = screen.getByTestId('zoom-out-btn')
     await user.click(minusBtn)
 
     // Should now show 90% (next ZOOM_LEVEL step down from 100)
@@ -607,9 +603,7 @@ describe('ResumeEditor — zoom controls', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const zoomDisplay = screen.getByTestId('zoom-display')
-    const zoomContainer = zoomDisplay.closest('div')!
-    const plusBtn = zoomContainer.nextElementSibling as HTMLButtonElement
+    const plusBtn = screen.getByTestId('zoom-in-btn')
     await user.click(plusBtn)
 
     // Should now show 110% (next ZOOM_LEVEL step up from 100)
@@ -620,9 +614,7 @@ describe('ResumeEditor — zoom controls', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const zoomDisplay = screen.getByTestId('zoom-display')
-    const zoomContainer = zoomDisplay.closest('div')!
-    const minusBtn = zoomContainer.previousElementSibling as HTMLButtonElement
+    const minusBtn = screen.getByTestId('zoom-out-btn')
 
     // ZOOM_LEVELS = [75, 90, 100, 110, 125] — click minus 5 times
     for (let i = 0; i < 5; i++) {
@@ -636,9 +628,7 @@ describe('ResumeEditor — zoom controls', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const zoomDisplay = screen.getByTestId('zoom-display')
-    const zoomContainer = zoomDisplay.closest('div')!
-    const plusBtn = zoomContainer.nextElementSibling as HTMLButtonElement
+    const plusBtn = screen.getByTestId('zoom-in-btn')
 
     for (let i = 0; i < 5; i++) {
       await user.click(plusBtn)

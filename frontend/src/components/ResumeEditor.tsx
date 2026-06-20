@@ -21,10 +21,7 @@ import {
   Zap,
   Target,
   CheckCircle2,
-  RotateCcw,
-  RotateCw,
   Minus,
-  Clock,
   Settings,
   ArrowRight,
   Bold,
@@ -33,7 +30,6 @@ import {
   List,
   ListOrdered,
   ArrowLeft,
-  Upload,
   LayoutDashboard,
   LogOut,
   RefreshCw,
@@ -210,8 +206,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [reviewAtsView, setReviewAtsView] = useState<'overview' | 'keywords' | 'suggestions'>('overview')
   const [reviewFont, setReviewFont] = useState('Inter')
   const [reviewFontSize, setReviewFontSize] = useState('11pt')
-  const [reviewSpacing, setReviewSpacing] = useState('Normal')
-  const [reviewMargins, setReviewMargins] = useState('Normal')
+  const [reviewBold, setReviewBold] = useState(false)
+  const [reviewItalic, setReviewItalic] = useState(false)
+  const [reviewUnderline, setReviewUnderline] = useState(false)
+  const [reviewColor, setReviewColor] = useState('#000000')
   const [primaryExportOpen, setPrimaryExportOpen] = useState(false)
   const primaryExportRef = useRef<HTMLDivElement>(null)
   const accountMenuRef = useRef<HTMLDivElement>(null)
@@ -1942,14 +1940,16 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 {/* Zoom controls */}
                 <div className={cn('flex items-center gap-1 shrink-0 text-muted-foreground', hasDiff ? '' : 'ml-auto')}>
                   <button
+                    data-testid="zoom-out-btn"
                     onClick={() => setZoomLevel(z => ZOOM_LEVELS[Math.max(0, ZOOM_LEVELS.indexOf(z) - 1)] ?? z)}
                     className="p-1 hover:bg-secondary/70 rounded transition-colors"
                     disabled={zoomLevel === ZOOM_LEVELS[0]}
                   >
                     <Minus className="size-3.5" />
                   </button>
-                  <span className="text-xs tabular-nums w-10 text-center">{zoomLevel}%</span>
+                  <span data-testid="zoom-display" className="text-xs tabular-nums w-10 text-center">{zoomLevel}%</span>
                   <button
+                    data-testid="zoom-in-btn"
                     onClick={() => setZoomLevel(z => ZOOM_LEVELS[ZOOM_LEVELS.indexOf(z) + 1] ?? z)}
                     className="p-1 hover:bg-secondary/70 rounded transition-colors"
                     disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
@@ -2125,11 +2125,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               )}
               {(reviewDocTab === 'resume' || reviewDocTab === 'coverletter') && (
                 <>
-                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap shrink-0">Font</span>
                   <select
                     value={reviewFont}
                     onChange={(e) => setReviewFont(e.target.value)}
-                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-28"
                   >
                     <option>Inter</option>
                     <option>Georgia</option>
@@ -2139,32 +2138,67 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   <select
                     value={reviewFontSize}
                     onChange={(e) => setReviewFontSize(e.target.value)}
-                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-20"
                   >
                     <option>10pt</option>
                     <option>11pt</option>
                     <option>12pt</option>
                   </select>
-                  <select
-                    value={reviewSpacing}
-                    onChange={(e) => setReviewSpacing(e.target.value)}
-                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                  {/* Bold */}
+                  <button
+                    type="button"
+                    onClick={() => setReviewBold(b => !b)}
+                    title="Bold"
+                    className={cn(
+                      'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs font-bold transition-colors shrink-0',
+                      reviewBold
+                        ? 'bg-primary/10 text-primary border-primary/50'
+                        : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
+                    )}
                   >
-                    <option>Compact</option>
-                    <option>Normal</option>
-                    <option>Relaxed</option>
-                  </select>
-                  {reviewDocTab === 'resume' && (
-                    <select
-                      value={reviewMargins}
-                      onChange={(e) => setReviewMargins(e.target.value)}
-                      className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
-                    >
-                      <option>Narrow</option>
-                      <option>Normal</option>
-                      <option>Wide</option>
-                    </select>
-                  )}
+                    <Bold className="size-3.5" />
+                  </button>
+                  {/* Italic */}
+                  <button
+                    type="button"
+                    onClick={() => setReviewItalic(i => !i)}
+                    title="Italic"
+                    className={cn(
+                      'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs transition-colors shrink-0',
+                      reviewItalic
+                        ? 'bg-primary/10 text-primary border-primary/50'
+                        : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
+                    )}
+                  >
+                    <Italic className="size-3.5" />
+                  </button>
+                  {/* Underline */}
+                  <button
+                    type="button"
+                    onClick={() => setReviewUnderline(u => !u)}
+                    title="Underline"
+                    className={cn(
+                      'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs transition-colors shrink-0',
+                      reviewUnderline
+                        ? 'bg-primary/10 text-primary border-primary/50'
+                        : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
+                    )}
+                  >
+                    <Underline className="size-3.5" />
+                  </button>
+                  {/* Color picker */}
+                  <label
+                    title="Text color"
+                    className="relative min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border border-border bg-background hover:bg-secondary/60 cursor-pointer shrink-0"
+                  >
+                    <input
+                      type="color"
+                      value={reviewColor}
+                      onChange={(e) => setReviewColor(e.target.value)}
+                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    />
+                    <span className="text-xs font-bold leading-none" style={{ color: reviewColor, textDecoration: 'underline', textDecorationColor: reviewColor }}>A</span>
+                  </label>
                 </>
               )}
 
@@ -2332,6 +2366,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           flashSections={flashSections}
                           industry={selectedIndustry}
                           detectedIndustry={resume.detectedIndustry}
+                          fontFamily={reviewFont}
+                          fontSize={reviewFontSize}
+                          bold={reviewBold}
+                          italic={reviewItalic}
+                          underline={reviewUnderline}
+                          textColor={reviewColor}
                         />
                       </div>
                     </div>
@@ -2345,6 +2385,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                             resume={originalResume ?? resume}
                             industry={selectedIndustry}
                             detectedIndustry={resume.detectedIndustry}
+                            fontFamily={reviewFont}
+                            fontSize={reviewFontSize}
+                            bold={reviewBold}
+                            italic={reviewItalic}
+                            underline={reviewUnderline}
+                            textColor={reviewColor}
                           />
                         </div>
                       </div>
@@ -2356,6 +2402,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                             flashSections={flashSections}
                             industry={selectedIndustry}
                             detectedIndustry={resume.detectedIndustry}
+                            fontFamily={reviewFont}
+                            fontSize={reviewFontSize}
+                            bold={reviewBold}
+                            italic={reviewItalic}
+                            underline={reviewUnderline}
+                            textColor={reviewColor}
                           />
                         </div>
                       </div>
@@ -2369,6 +2421,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           flashSections={flashSections}
                           industry={selectedIndustry}
                           detectedIndustry={resume.detectedIndustry}
+                          fontFamily={reviewFont}
+                          fontSize={reviewFontSize}
+                          bold={reviewBold}
+                          italic={reviewItalic}
+                          underline={reviewUnderline}
+                          textColor={reviewColor}
                           diffHighlight={
                             originalResume && enrichedResume
                               ? {
@@ -2390,7 +2448,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               {reviewDocTab === 'coverletter' && (
                 <div className="flex justify-center">
                   {clStreamContent ? (
-                    <div className="bg-white text-black shadow-md rounded-sm p-10 leading-relaxed" style={{ width: '816px', maxWidth: '100%', fontFamily: reviewFont, fontSize: reviewFontSize }}>
+                    <div className="bg-white text-black shadow-md rounded-sm p-10 leading-relaxed" style={{ width: '816px', maxWidth: '100%', fontFamily: reviewFont, fontSize: reviewFontSize, fontWeight: reviewBold ? 'bold' : undefined, fontStyle: reviewItalic ? 'italic' : undefined, textDecoration: reviewUnderline ? 'underline' : undefined, color: reviewColor }}>
                       <pre className="whitespace-pre-wrap font-inherit text-sm text-black leading-relaxed" style={{ fontFamily: 'inherit' }}>
                         {clStreamContent}
                       </pre>
@@ -2478,44 +2536,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       </div>
 
       {/* ── BOTTOM STATUS BAR ─────────────────────────────────────────────────── */}
-      <div className="shrink-0 h-12 flex items-center justify-between px-4 lg:px-6 bg-background border-t border-border">
-        <div className="flex items-center gap-0.5">
-          <button type="button" title="Undo" className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary/60 transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center">
-            <RotateCcw className="size-3.5" />
-          </button>
-          <button type="button" title="Redo" className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary/60 transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center">
-            <RotateCw className="size-3.5" />
-          </button>
-          <button type="button" title="Upload" className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary/60 transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center">
-            <Upload className="size-3.5" />
-          </button>
-          <div className="flex items-center mx-1 border border-border rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => {
-                const idx = ZOOM_LEVELS.indexOf(zoomLevel)
-                setZoomLevel(ZOOM_LEVELS[Math.max(0, idx - 1)])
-              }}
-              className="px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors min-h-[30px]"
-            >
-              <Minus className="size-3" />
-            </button>
-            <div><span data-testid="zoom-display" className="px-2 text-xs text-foreground font-medium min-w-[44px] text-center border-x border-border">{zoomLevel}%</span></div>
-            <button
-              type="button"
-              onClick={() => {
-                const idx = ZOOM_LEVELS.indexOf(zoomLevel)
-                setZoomLevel(ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, idx + 1)])
-              }}
-              className="px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors min-h-[30px]"
-            >
-              <Plus className="size-3" />
-            </button>
-          </div>
-          <button type="button" title="History" className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary/60 transition-colors min-h-[32px] min-w-[32px] flex items-center justify-center">
-            <Clock className="size-3.5" />
-          </button>
-        </div>
+      <div className="shrink-0 h-12 flex items-center justify-end px-4 lg:px-6 bg-background border-t border-border">
         <div className="flex items-center gap-2">
           {/* Back button — shown in stages 2 and 3 */}
           {currentStep > 1 && (

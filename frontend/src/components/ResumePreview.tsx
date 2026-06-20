@@ -15,6 +15,12 @@ interface Props {
   detectedIndustry?: string
   onIndustryChange?: (id: string) => void
   diffHighlight?: DiffHighlight
+  fontFamily?: string
+  fontSize?: string
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  textColor?: string
 }
 
 const PRESETS: Record<string, { font: string; accent: string; h1Size: string }> = {
@@ -51,6 +57,12 @@ export default function ResumePreview({
   detectedIndustry,
   onIndustryChange,
   diffHighlight,
+  fontFamily,
+  fontSize,
+  bold,
+  italic,
+  underline,
+  textColor,
 }: Props) {
   const preset = PRESETS[industry] ?? PRESETS.general
 
@@ -116,9 +128,13 @@ export default function ResumePreview({
           maxWidth: '816px',
           minHeight: '1056px',
           padding: '48px 56px',
-          fontSize: '10.5pt',
+          fontSize: fontSize ?? '10.5pt',
           lineHeight: '1.45',
-          fontFamily: preset.font,
+          fontFamily: fontFamily ?? preset.font,
+          fontWeight: bold ? 'bold' : undefined,
+          fontStyle: italic ? 'italic' : undefined,
+          textDecoration: underline ? 'underline' : undefined,
+          color: textColor ?? undefined,
         } as React.CSSProperties}
       >
         {/* Header */}
