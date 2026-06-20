@@ -506,16 +506,15 @@ describe('ResumeEditor — step indicator', () => {
 })
 
 // ── stage toolbar ─────────────────────────────────────────────────────────────
-// A new toolbar appears below the header and renders stage-specific content
-// based on currentStep (1=Edit Resume, 2=AI Enhance, 3=Review & Export).
+// The stage sub-header row and auto-save status were removed from the UI.
+// Step 1 no longer shows an "Edit Resume" title or "Auto-saved just now" text.
 
 describe('ResumeEditor — stage toolbar', () => {
-  it('shows "Edit Resume" title and auto-save status at step 1', () => {
+  it('does not show "Edit Resume" title or auto-save status at step 1 (removed)', () => {
     renderEditor()
 
-    expect(screen.getByText('Edit Resume')).toBeInTheDocument()
-    // Auto-saved status text (hidden on narrow viewports but in DOM)
-    expect(screen.getByText('Auto-saved just now')).toBeInTheDocument()
+    expect(screen.queryByText('Edit Resume')).not.toBeInTheDocument()
+    expect(screen.queryByText('Auto-saved just now')).not.toBeInTheDocument()
   })
 
   it('shows "AI Enhance" title at step 2 (no toolbar action buttons)', async () => {
@@ -593,11 +592,7 @@ describe('ResumeEditor — zoom controls', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    // The zoom display is a <span> with the "100%" text; its siblings inside
-    // the same container are the minus (left) and plus (right) buttons.
-    const zoomDisplay = screen.getByTestId('zoom-display')
-    const zoomContainer = zoomDisplay.closest('div')!
-    const minusBtn = zoomContainer.previousElementSibling as HTMLButtonElement
+    const minusBtn = screen.getByTestId('zoom-out-btn')
     await user.click(minusBtn)
 
     // Should now show 90% (next ZOOM_LEVEL step down from 100)
@@ -608,9 +603,7 @@ describe('ResumeEditor — zoom controls', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const zoomDisplay = screen.getByTestId('zoom-display')
-    const zoomContainer = zoomDisplay.closest('div')!
-    const plusBtn = zoomContainer.nextElementSibling as HTMLButtonElement
+    const plusBtn = screen.getByTestId('zoom-in-btn')
     await user.click(plusBtn)
 
     // Should now show 110% (next ZOOM_LEVEL step up from 100)
@@ -621,9 +614,7 @@ describe('ResumeEditor — zoom controls', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const zoomDisplay = screen.getByTestId('zoom-display')
-    const zoomContainer = zoomDisplay.closest('div')!
-    const minusBtn = zoomContainer.previousElementSibling as HTMLButtonElement
+    const minusBtn = screen.getByTestId('zoom-out-btn')
 
     // ZOOM_LEVELS = [75, 90, 100, 110, 125] — click minus 5 times
     for (let i = 0; i < 5; i++) {
@@ -637,9 +628,7 @@ describe('ResumeEditor — zoom controls', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    const zoomDisplay = screen.getByTestId('zoom-display')
-    const zoomContainer = zoomDisplay.closest('div')!
-    const plusBtn = zoomContainer.nextElementSibling as HTMLButtonElement
+    const plusBtn = screen.getByTestId('zoom-in-btn')
 
     for (let i = 0; i < 5; i++) {
       await user.click(plusBtn)
