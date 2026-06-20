@@ -42,7 +42,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
 import { enrichResume, exportResume, fromBackend, generateCoverLetter, scoreATS, tailorResume, validateJobDescription } from '@/services/api'
 import { saveResume, updateResume, type AtsMetadata } from '@/services/resumes'
-import { saveCoverLetter } from '@/services/coverLetters'
+import { saveCoverLetter, updateCoverLetter, deleteCoverLetter } from '@/services/coverLetters'
 import { useAuth } from '@/contexts/AuthContext'
 import ComparisonView from './ComparisonView'
 import ResumePreview from './ResumePreview'
@@ -98,6 +98,13 @@ const ENRICHMENT_LOADING_MESSAGES = [
   'Quantifying achievements...',
   'Optimizing for ATS keywords...',
   'Finalizing improvements...',
+]
+
+const CL_PROGRESS_MESSAGES: Array<{ label: string; pct: number }> = [
+  { label: 'Analyzing job description...', pct: 15 },
+  { label: 'Tailoring to your experience...', pct: 45 },
+  { label: 'Polishing tone and format...', pct: 75 },
+  { label: 'Finalizing cover letter...', pct: 92 },
 ]
 
 type EnrichmentState = 'idle' | 'loading' | 'comparing'
@@ -166,6 +173,13 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [clCompanyError, setClCompanyError] = useState<string | null>(null)
   const [clSaving, setClSaving] = useState(false)
   const [clSaved, setClSaved] = useState(false)
+  const [clSavedId, setClSavedId] = useState<string | null>(null)
+  const [clSavedContent, setClSavedContent] = useState<string | null>(null)
+  const [clDeleting, setClDeleting] = useState(false)
+  const [clProgressMsg, setClProgressMsg] = useState(0)
+  // 0-indexed into CL_PROGRESS_MESSAGES; -1 means not running
+  const [clProgress, setClProgress] = useState(-1)
+  const [polishInlineMsg, setPolishInlineMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [enrichTone, setEnrichTone] = useState<'professional' | 'concise' | 'assertive'>('professional')
   // Job tailoring validation
   const [jobDescValState, setJobDescValState] = useState<JdValState>('idle')
@@ -325,6 +339,32 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     const id = setInterval(() => setEnrichProgress((p) => p + (82 - p) * 0.12), 300)
     return () => clearInterval(id)
   }, [enrichmentState])
+
+  // Cover letter progress bar animation
+  useEffect(() => {
+    if (!clIsStreaming) {
+      setClProgress(-1)
+      setClProgressMsg(0)
+      return
+    }
+    setClProgress(0)
+    setClProgressMsg(0)
+    const intervals: ReturnType<typeof setInterval>[] = []
+    // Advance message index every ~2.5s, cycling through stages
+    const msgId = setInterval(() => {
+      setClProgressMsg((i) => Math.min(i + 1, CL_PROGRESS_MESSAGES.length - 1))
+    }, 2500)
+    intervals.push(msgId)
+    // Smooth progress: ramp up to ~92% while streaming
+    const progId = setInterval(() => {
+      setClProgress((p) => {
+        const target = CL_PROGRESS_MESSAGES[Math.min(Math.floor(p / 25), CL_PROGRESS_MESSAGES.length - 1)]?.pct ?? 92
+        return Math.min(p + (target - p) * 0.08, 92)
+      })
+    }, 250)
+    intervals.push(progId)
+    return () => intervals.forEach(clearInterval)
+  }, [clIsStreaming])
 
   // Watch for streaming completion while an enrichment is in flight
   useEffect(() => {
@@ -507,8 +547,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     setEnrichmentState('idle')
     setEnrichedResume(null)
     setOriginalResume(null)
-    setSaveToast({ text: 'Resume enriched successfully', ok: true })
-    setTimeout(() => setSaveToast(null), 3000)
+    setPolishInlineMsg({ text: 'Resume improved! Changes applied successfully.', ok: true })
+    setTimeout(() => setPolishInlineMsg(null), 4000)
   }
 
   const handleDiscardEnrichment = () => {
@@ -529,6 +569,9 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
     setClStreamContent('')
     setClStreamError(null)
+    setClSaved(false)
+    setClSavedId(null)
+    setClSavedContent(null)
     setClIsStreaming(true)
     try {
       const stream = await generateCoverLetter(resume, clJobDesc, clCompany, clTone)
@@ -555,13 +598,36 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     setClSaving(true)
     try {
       const title = `Cover Letter — ${clCompany || 'Company'} · ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-      await saveCoverLetter(clStreamContent, title, clCompany || undefined, clJobDesc || undefined, clTone, currentResumeId ?? undefined)
+      if (clSavedId) {
+        // Already saved — update in place
+        await updateCoverLetter(clSavedId, clStreamContent, title)
+      } else {
+        const saved = await saveCoverLetter(clStreamContent, title, clCompany || undefined, clJobDesc || undefined, clTone, currentResumeId ?? undefined)
+        setClSavedId(saved.id)
+      }
       setClSaved(true)
-      setTimeout(() => setClSaved(false), 2500)
+      setClSavedContent(clStreamContent)
     } catch (err) {
       console.error('[ResumeEditor] save cover letter failed:', err)
     } finally {
       setClSaving(false)
+    }
+  }
+
+  const handleDeleteCoverLetter = async () => {
+    if (!clSavedId || clDeleting) return
+    setClDeleting(true)
+    try {
+      await deleteCoverLetter(clSavedId)
+      setClStreamContent('')
+      setClStreamError(null)
+      setClSaved(false)
+      setClSavedId(null)
+      setClSavedContent(null)
+    } catch (err) {
+      console.error('[ResumeEditor] delete cover letter failed:', err)
+    } finally {
+      setClDeleting(false)
     }
   }
 
@@ -1294,14 +1360,27 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       </Button>
                     </div>
                   ) : (
-                    <Button
-                      onClick={handleEnrich}
-                      disabled={streamLoading}
-                      className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
-                    >
-                      <Sparkles className="size-4 mr-2" />
-                      Generate Improvements
-                    </Button>
+                    <>
+                      <Button
+                        onClick={handleEnrich}
+                        disabled={streamLoading}
+                        className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
+                      >
+                        <Sparkles className="size-4 mr-2" />
+                        Generate Improvements
+                      </Button>
+                      {polishInlineMsg && (
+                        <div className={cn(
+                          'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium',
+                          polishInlineMsg.ok
+                            ? 'bg-green-50 border border-green-200 text-green-800'
+                            : 'bg-destructive/10 border border-destructive/30 text-destructive',
+                        )}>
+                          <CheckCircle2 className="size-4 shrink-0" />
+                          {polishInlineMsg.text}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -1388,12 +1467,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-foreground uppercase tracking-wider">
-                      Job Description <span className="text-muted-foreground font-normal normal-case">(optional)</span>
+                      Job Description <span className="text-destructive font-normal normal-case">(required)</span>
                     </label>
                     <textarea
                       rows={7}
                       className={cn(field, 'resize-none', clJobDescValState === 'invalid' ? 'border-destructive' : '')}
-                      placeholder="Paste the job description for a more targeted cover letter…"
+                      placeholder="Paste the job description for a targeted cover letter…"
                       value={clJobDesc}
                       onChange={(e) => {
                         setClJobDesc(e.target.value)
@@ -1412,6 +1491,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     )}
                     {clJobDescValState === 'invalid' && clJobDescValError && (
                       <p className="text-xs text-destructive px-1">{clJobDescValError}</p>
+                    )}
+                    {clJobDescValState === 'valid' && (
+                      <p className="text-xs text-muted-foreground px-1 flex items-center gap-1.5">
+                        <CheckCircle2 className="size-3 text-green-500 shrink-0" /> valid job description
+                      </p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -1434,7 +1518,13 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   </div>
                   <Button
                     onClick={handleGenerateCoverLetterInline}
-                    disabled={clIsStreaming || !clCompany.trim() || (clJobDesc.trim() !== '' && (clJobDescValState === 'invalid' || clJobDescValState === 'validating'))}
+                    disabled={
+                      clIsStreaming ||
+                      !clCompany.trim() ||
+                      !clJobDesc.trim() ||
+                      clJobDescValState === 'invalid' ||
+                      clJobDescValState === 'validating'
+                    }
                     className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-semibold"
                   >
                     {clIsStreaming
@@ -1444,30 +1534,84 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                         : <Mail className="size-4 mr-2" />}
                     {clIsStreaming ? 'Generating…' : clStreamContent ? 'Regenerate Cover Letter' : 'Generate Cover Letter'}
                   </Button>
-                  {(clStreamContent || clIsStreaming) && (
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleSaveCoverLetter}
-                        disabled={clIsStreaming || clSaving || !clStreamContent.trim()}
-                        className="flex-1 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90"
-                      >
-                        {clSaving ? (
-                          <Loader2 className="size-4 mr-2 animate-spin" />
-                        ) : (
-                          <Save className="size-4 mr-2" />
-                        )}
-                        {clSaved ? 'Saved!' : 'Save Cover Letter'}
-                      </Button>
-                      <Button
-                        onClick={() => { setClStreamContent(''); setClStreamError(null); setClSaved(false) }}
-                        disabled={clIsStreaming}
-                        className="flex-1 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        <X className="size-4 mr-2" />
-                        Dismiss
-                      </Button>
-                    </div>
+                  {!clJobDesc.trim() && !clIsStreaming && (
+                    <p className="text-xs text-muted-foreground px-1">A job description is required to generate a cover letter.</p>
                   )}
+                  {/* State machine buttons: only shown when draft exists or is streaming */}
+                  {(clStreamContent || clIsStreaming) && (() => {
+                    const isDraft = !clSaved && !!clStreamContent && !clIsStreaming
+                    const isSavedState = clSaved && clSavedContent === clStreamContent && !clIsStreaming
+                    const isEdited = clSaved && clSavedContent !== null && clSavedContent !== clStreamContent && !clIsStreaming
+                    if (isDraft) {
+                      // State A: draft generated, not yet saved
+                      return (
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            onClick={handleSaveCoverLetter}
+                            disabled={clSaving}
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                          >
+                            {clSaving ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Save className="size-4 mr-2" />}
+                            Save Cover Letter
+                          </Button>
+                          <Button
+                            onClick={() => { setClStreamContent(''); setClStreamError(null); setClSaved(false); setClSavedId(null); setClSavedContent(null) }}
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-secondary text-foreground hover:bg-secondary/80 border border-border"
+                          >
+                            <X className="size-4 mr-2" />
+                            Dismiss
+                          </Button>
+                        </div>
+                      )
+                    }
+                    if (isSavedState) {
+                      // State B: saved, unmodified
+                      return (
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            disabled
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-green-600 text-white opacity-100 cursor-default"
+                          >
+                            <CheckCircle2 className="size-4 mr-2" />
+                            Saved ✓
+                          </Button>
+                          <Button
+                            onClick={handleDeleteCoverLetter}
+                            disabled={clDeleting}
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {clDeleting ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Trash2 className="size-4 mr-2" />}
+                            Delete Cover Letter
+                          </Button>
+                        </div>
+                      )
+                    }
+                    if (isEdited) {
+                      // State C: saved but content edited since save
+                      return (
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            onClick={handleSaveCoverLetter}
+                            disabled={clSaving}
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                          >
+                            {clSaving ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Save className="size-4 mr-2" />}
+                            Save Changes
+                          </Button>
+                          <Button
+                            onClick={handleDeleteCoverLetter}
+                            disabled={clDeleting}
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {clDeleting ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Trash2 className="size-4 mr-2" />}
+                            Delete Cover Letter
+                          </Button>
+                        </div>
+                      )
+                    }
+                    // Streaming in progress — no action buttons yet
+                    return null
+                  })()}
                   {clStreamError && <p className="text-xs text-destructive px-1">{clStreamError}</p>}
                 </div>
               )}
@@ -1882,7 +2026,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             </div>
           ) : aiTool === 'coverletter' && (clStreamContent || clIsStreaming) ? (
             /* Cover Letter Editor — occupies the entire right panel, no Live Preview header */
-            <div className="flex flex-col h-full">
+            <div className="relative flex flex-col h-full">
               {/* Header: chevron toggle + Mail icon + label + streaming spinner */}
               <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
                 <button
@@ -1896,6 +2040,32 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <span className="text-xs font-semibold text-foreground">Cover Letter Editor</span>
                 {clIsStreaming && <Loader2 className="size-3.5 animate-spin text-primary ml-auto" />}
               </div>
+              {/* Progress bar overlay during streaming — centered over the panel, does not push content */}
+              {clIsStreaming && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" style={{ top: '52px' }}>
+                  <div className="bg-background/80 backdrop-blur-sm rounded-xl shadow-lg p-8 w-80 flex flex-col items-center gap-4 text-center pointer-events-auto">
+                    <Loader2 className="size-6 animate-spin text-primary shrink-0" />
+                    <p className="text-sm font-semibold text-foreground">
+                      {CL_PROGRESS_MESSAGES[clProgressMsg]?.label ?? 'Generating…'}
+                    </p>
+                    <div className="w-full space-y-1.5">
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300"
+                          style={{ width: `${clProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground tabular-nums">{Math.round(clProgress)}%</p>
+                    </div>
+                    <div className="flex justify-between w-full text-[10px] text-muted-foreground/70">
+                      <span>Analyzing JD</span>
+                      <span>Tailoring</span>
+                      <span>Polishing</span>
+                      <span>Finalizing</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* Editable textarea */}
               <div className="flex-1 overflow-hidden flex flex-col p-4 gap-2 bg-muted/30">
                 <textarea
