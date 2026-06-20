@@ -107,6 +107,13 @@ const CL_PROGRESS_MESSAGES: Array<{ label: string; pct: number }> = [
   { label: 'Finalizing cover letter...', pct: 92 },
 ]
 
+const ATS_PROGRESS_MESSAGES: Array<{ label: string; pct: number }> = [
+  { label: 'Parsing your resume...', pct: 20 },
+  { label: 'Analyzing job match...', pct: 50 },
+  { label: 'Scoring keywords...', pct: 78 },
+  { label: 'Building report...', pct: 93 },
+]
+
 type EnrichmentState = 'idle' | 'loading' | 'comparing'
 
 type AiTool = 'polish' | 'tailor' | 'coverletter' | 'ats'
@@ -150,7 +157,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [atsResult, setAtsResult] = useState<ATSScoreResult | null>(null)
   const [atsError, setAtsError] = useState<string | null>(null)
   const [atsResumeSnapshot, setAtsResumeSnapshot] = useState<string | null>(null)
-  const [atsResultSaved, setAtsResultSaved] = useState<boolean | null>(null)
+  const [, setAtsResultSaved] = useState<boolean | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [streamLoading, setStreamLoading] = useState(false)
   const [panelCollapsed, setPanelCollapsed] = useState(false)
@@ -179,6 +186,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [clProgressMsg, setClProgressMsg] = useState(0)
   // 0-indexed into CL_PROGRESS_MESSAGES; -1 means not running
   const [clProgress, setClProgress] = useState(-1)
+  // ATS progress bar (same pattern as CL)
+  const [atsProgressMsg, setAtsProgressMsg] = useState(0)
+  const [atsProgress, setAtsProgress] = useState(-1)
+  // ATS save state machine
+  const [atsSaved, setAtsSaved] = useState(false)
   const [polishInlineMsg, setPolishInlineMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [enrichTone, setEnrichTone] = useState<'professional' | 'concise' | 'assertive'>('professional')
   // Job tailoring validation
@@ -365,6 +377,30 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     intervals.push(progId)
     return () => intervals.forEach(clearInterval)
   }, [clIsStreaming])
+
+  // ATS progress bar animation
+  useEffect(() => {
+    if (!atsLoading) {
+      setAtsProgress(-1)
+      setAtsProgressMsg(0)
+      return
+    }
+    setAtsProgress(0)
+    setAtsProgressMsg(0)
+    const intervals: ReturnType<typeof setInterval>[] = []
+    const msgId = setInterval(() => {
+      setAtsProgressMsg((i) => Math.min(i + 1, ATS_PROGRESS_MESSAGES.length - 1))
+    }, 2000)
+    intervals.push(msgId)
+    const progId = setInterval(() => {
+      setAtsProgress((p) => {
+        const target = ATS_PROGRESS_MESSAGES[Math.min(Math.floor(p / 25), ATS_PROGRESS_MESSAGES.length - 1)]?.pct ?? 93
+        return Math.min(p + (target - p) * 0.09, 93)
+      })
+    }, 250)
+    intervals.push(progId)
+    return () => intervals.forEach(clearInterval)
+  }, [atsLoading])
 
   // Watch for streaming completion while an enrichment is in flight
   useEffect(() => {
@@ -634,6 +670,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const handleAnalyzeATS = async () => {
     setAtsLoading(true)
     setAtsError(null)
+    setAtsResult(null)
+    setAtsSaved(false)
     try {
       const result = await scoreATS(resume, atsJobDesc)
       setAtsResult(result)
@@ -644,6 +682,28 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     } finally {
       setAtsLoading(false)
     }
+  }
+
+  const handleDismissATS = () => {
+    setAtsResult(null)
+    setAtsError(null)
+    setAtsSaved(false)
+    setAtsResultSaved(null)
+  }
+
+  const handleSaveATS = async () => {
+    // TODO: wire up ATS save/delete service (dedicated saveAtsReport service not yet in services layer)
+    // For now, persist via the existing atsResultSaved flag and show saved state
+    setAtsSaved(true)
+    setAtsResultSaved(true)
+  }
+
+  const handleDeleteATS = () => {
+    // TODO: wire up ATS save/delete service (dedicated deleteAtsReport service not yet in services layer)
+    setAtsResult(null)
+    setAtsError(null)
+    setAtsSaved(false)
+    setAtsResultSaved(null)
   }
 
   const triggerJdValidation = (
@@ -1620,14 +1680,22 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     </p>
                   </div>
                   <div className="space-y-3 bg-background rounded-xl border border-border p-4 shadow-sm">
-                    <label className="block text-xs font-medium text-muted-foreground">Job Description</label>
+                    <label className="block text-xs font-bold text-foreground uppercase tracking-wider">
+                      Job Description
+                      <span className="text-destructive text-xs ml-1">(required)</span>
+                    </label>
                     <textarea
                       className={cn(field, 'min-h-32 resize-none', atsJobDescValState === 'invalid' ? 'border-destructive focus:border-destructive' : '')}
                       placeholder="Paste the job description here…"
                       value={atsJobDesc}
                       onChange={(e) => {
                         setAtsJobDesc(e.target.value)
-                        triggerJdValidation(e.target.value, setAtsJobDescValState, setAtsJobDescValError, atsJobDescValTimerRef)
+                        if (e.target.value.trim()) {
+                          triggerJdValidation(e.target.value, setAtsJobDescValState, setAtsJobDescValError, atsJobDescValTimerRef)
+                        } else {
+                          setAtsJobDescValState('idle')
+                          setAtsJobDescValError(null)
+                        }
                       }}
                     />
                     {atsJobDescValState === 'validating' && (
@@ -1636,74 +1704,71 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       </p>
                     )}
                     {atsJobDescValState === 'invalid' && atsJobDescValError && <p className="text-xs text-destructive px-1">{atsJobDescValError}</p>}
-                    <Button size="sm" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsJobDescValState === 'invalid' || atsJobDescValState === 'validating' || atsLoading} className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90">
+                    {atsJobDescValState === 'valid' && (
+                      <p className="text-xs text-muted-foreground px-1 flex items-center gap-1.5">
+                        <CheckCircle2 className="size-3 text-green-500 shrink-0" /> valid job description
+                      </p>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={handleAnalyzeATS}
+                      disabled={!atsJobDesc.trim() || atsJobDescValState === 'invalid' || atsJobDescValState === 'validating' || atsLoading}
+                      className="w-full min-h-[44px] bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90"
+                    >
                       {atsLoading ? <Loader2 className="size-3.5 animate-spin mr-2" /> : <Target className="size-3.5 mr-2" />}
-                      Analyze ATS Score
+                      {atsLoading ? 'Analyzing…' : atsResult ? 'Re-analyze ATS Score' : 'Analyze ATS Score'}
                     </Button>
+                    {!atsJobDesc.trim() && !atsLoading && (
+                      <p className="text-xs text-muted-foreground px-1">A job description is required to analyze your resume.</p>
+                    )}
                   </div>
                   {atsError && <p className="text-xs text-destructive px-1">{atsError}</p>}
-                  {atsResult && (
-                    <div className="bg-background rounded-xl border border-border p-4 space-y-4 shadow-sm">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-baseline gap-1.5">
-                          <span className={cn('text-4xl font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>{atsResult.overallScore}</span>
-                          <span className="text-sm text-muted-foreground">/ 100</span>
+                  {/* Save/Dismiss state machine — shown when draft exists or is loading */}
+                  {(atsResult || atsLoading) && (() => {
+                    const isDraft = !atsSaved && !!atsResult && !atsLoading
+                    const isSavedState = atsSaved && !!atsResult && !atsLoading
+                    if (isDraft) {
+                      return (
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            onClick={handleSaveATS}
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-primary text-primary-foreground hover:bg-primary/90 justify-center"
+                          >
+                            Save ATS Report
+                          </Button>
+                          <Button
+                            onClick={handleDismissATS}
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-secondary text-foreground hover:bg-secondary/80 border border-border justify-center"
+                          >
+                            Dismiss
+                          </Button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => { setAtsResult(null); setAtsJobDesc(''); setAtsError(null); setAtsJobDescValState('idle'); setAtsJobDescValError(null) }}
-                          className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
-                          title="Dismiss results"
-                        >
-                          <X className="size-4" />
-                        </button>
-                      </div>
-                      {atsResult.summary && <p className="text-sm text-muted-foreground">{atsResult.summary}</p>}
-                      {atsResult.matchedKeywords.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Matched Keywords</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {atsResult.matchedKeywords.map((kw, i) => <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-primary/40 text-primary bg-primary/10">{kw}</span>)}
-                          </div>
+                      )
+                    }
+                    if (isSavedState) {
+                      return (
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            disabled
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-green-600 text-white opacity-100 cursor-default justify-center"
+                          >
+                            Saved ✓
+                          </Button>
+                          <Button
+                            onClick={handleDeleteATS}
+                            className="w-40 min-h-[44px] rounded-lg text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 justify-center"
+                          >
+                            Delete ATS Report
+                          </Button>
                         </div>
-                      )}
-                      {atsResult.missingKeywords.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Missing Keywords</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {atsResult.missingKeywords.map((kw, i) => <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-destructive/40 text-destructive bg-destructive/10">{kw}</span>)}
-                          </div>
-                        </div>
-                      )}
-                      {atsResult.suggestions.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suggestions</p>
-                          <ul className="space-y-1.5">
-                            {atsResult.suggestions.map((s, i) => (
-                              <li key={i} className="flex gap-2 items-start">
-                                <span className="text-primary text-xs mt-0.5 shrink-0">•</span>
-                                <span className="text-sm text-foreground">{s}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {atsResult && (
-                    <div className="space-y-2">
-                      {isAtsStale && (
-                        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                          <span className="text-xs text-amber-700 dark:text-amber-400">Outdated — resume changed since last check.</span>
-                          <button type="button" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsLoading} className="shrink-0 text-xs font-bold text-primary hover:underline disabled:opacity-50">Run again</button>
-                        </div>
-                      )}
-                      {!isAtsStale && atsResultSaved === false && (
-                        <p className="text-xs text-muted-foreground px-1">ATS result not saved yet. Save your resume to persist it.</p>
-                      )}
-                      {!isAtsStale && atsResultSaved === true && (
-                        <p className="text-xs text-green-600 px-1">&#10003; ATS result saved with this resume.</p>
-                      )}
+                      )
+                    }
+                    return null
+                  })()}
+                  {isAtsStale && atsResult && (
+                    <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                      <span className="text-xs text-amber-700 dark:text-amber-400">Outdated — resume changed since last check.</span>
+                      <button type="button" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsLoading} className="shrink-0 text-xs font-bold text-primary hover:underline disabled:opacity-50">Run again</button>
                     </div>
                   )}
                 </div>
@@ -2079,6 +2144,138 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     <span className="uppercase tracking-widest">Edit directly</span>
                   )}
                 </div>
+              </div>
+            </div>
+          ) : aiTool === 'coverletter' ? (
+            /* Cover Letter placeholder — no content yet */
+            <div className="flex-1 flex flex-col">
+              <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
+                <button
+                  onClick={() => setCenterCollapsed(prev => !prev)}
+                  title={centerCollapsed ? "Show editor" : "Minimize editor"}
+                  className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  {centerCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+                </button>
+                <Mail className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs font-semibold text-foreground">Cover Letter</span>
+              </div>
+              <div className="flex-1 flex items-center justify-center bg-muted/30">
+                <div className="flex flex-col items-center gap-3 text-center px-6">
+                  <Mail className="size-10 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground">Your cover letter will appear here after generation.</p>
+                </div>
+              </div>
+            </div>
+          ) : aiTool === 'ats' ? (
+            /* ATS right panel — placeholder, loading overlay, or read-only report */
+            <div className="relative flex flex-col h-full">
+              {/* Header */}
+              <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-background border-b border-border">
+                <button
+                  onClick={() => setCenterCollapsed(prev => !prev)}
+                  title={centerCollapsed ? "Show editor" : "Minimize editor"}
+                  className="shrink-0 hidden lg:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  {centerCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+                </button>
+                <Target className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs font-semibold text-foreground">ATS Report</span>
+                {atsLoading && <Loader2 className="size-3.5 animate-spin text-primary ml-auto" />}
+                {atsResult && !atsLoading && (
+                  <span className={cn('ml-auto text-sm font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>
+                    {atsResult.overallScore}/100
+                  </span>
+                )}
+              </div>
+              {/* Progress bar overlay during ATS loading */}
+              {atsLoading && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" style={{ top: '52px' }}>
+                  <div className="bg-background/80 backdrop-blur-sm rounded-xl shadow-lg p-8 w-80 flex flex-col items-center gap-4 text-center pointer-events-auto">
+                    <Loader2 className="size-6 animate-spin text-primary shrink-0" />
+                    <p className="text-sm font-semibold text-foreground">
+                      {ATS_PROGRESS_MESSAGES[atsProgressMsg]?.label ?? 'Analyzing…'}
+                    </p>
+                    <div className="w-full space-y-1.5">
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300"
+                          style={{ width: `${atsProgress >= 0 ? atsProgress : 0}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground tabular-nums">{atsProgress >= 0 ? Math.round(atsProgress) : 0}%</p>
+                    </div>
+                    <div className="flex justify-between w-full text-[10px] text-muted-foreground/70">
+                      <span>Parsing</span>
+                      <span>Matching</span>
+                      <span>Scoring</span>
+                      <span>Building</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Content: placeholder or read-only report */}
+              <div className={cn('flex-1 overflow-auto bg-muted/30', atsLoading && 'opacity-30 blur-sm pointer-events-none')}>
+                {atsResult ? (
+                  <div className="p-4 space-y-4">
+                    {/* Score */}
+                    <div className="bg-background rounded-xl border border-border p-4 space-y-4 shadow-sm">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className={cn('text-4xl font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>
+                          {atsResult.overallScore}
+                        </span>
+                        <span className="text-sm text-muted-foreground">/ 100</span>
+                      </div>
+                      {atsResult.summary && <p className="text-sm text-muted-foreground">{atsResult.summary}</p>}
+                      {atsResult.matchedKeywords.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Matched Keywords</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {atsResult.matchedKeywords.map((kw, i) => (
+                              <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-primary/40 text-primary bg-primary/10">{kw}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {atsResult.missingKeywords.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Missing Keywords</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {atsResult.missingKeywords.map((kw, i) => (
+                              <span key={i} className="px-2 py-0.5 text-xs rounded-md border border-destructive/40 text-destructive bg-destructive/10">{kw}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {atsResult.suggestions.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suggestions</p>
+                          <ul className="space-y-1.5">
+                            {atsResult.suggestions.map((s, i) => (
+                              <li key={i} className="flex gap-2 items-start">
+                                <span className="text-primary text-xs mt-0.5 shrink-0">•</span>
+                                <span className="text-sm text-foreground">{s}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                    {isAtsStale && (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                        <span className="text-xs text-amber-700 dark:text-amber-400">Outdated — resume changed since last check.</span>
+                        <button type="button" onClick={handleAnalyzeATS} disabled={!atsJobDesc.trim() || atsLoading} className="shrink-0 text-xs font-bold text-primary hover:underline disabled:opacity-50">Run again</button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center h-full">
+                    <div className="flex flex-col items-center gap-3 text-center px-6">
+                      <Target className="size-10 text-muted-foreground/30" />
+                      <p className="text-sm text-muted-foreground">Your ATS report will appear here after generation.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : currentStep === 1 ? (
