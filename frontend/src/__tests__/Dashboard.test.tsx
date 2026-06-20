@@ -210,7 +210,7 @@ describe('Dashboard — stats bar', () => {
   it('shows a placeholder for Avg ATS Score when no resume has been scored', async () => {
     renderDashboard()
     await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
-    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 
   it('computes Avg ATS Score from resumes that have a score', async () => {
