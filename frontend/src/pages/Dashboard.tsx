@@ -488,6 +488,7 @@ export default function Dashboard() {
                       {/* More menu */}
                       <div className="relative">
                         <button
+                          aria-label="More options"
                           onClick={() => {
                             setMoreOpenId(moreOpenId === r.id ? null : r.id)
                             setClMoreOpenId(null)
@@ -639,6 +640,7 @@ export default function Dashboard() {
                       {/* More menu */}
                       <div className="relative">
                         <button
+                          aria-label="More options"
                           onClick={() => {
                             setClMoreOpenId(clMoreOpenId === cl.id ? null : cl.id)
                             setMoreOpenId(null)
@@ -756,6 +758,7 @@ export default function Dashboard() {
                       {/* More menu */}
                       <div className="relative">
                         <button
+                          aria-label="More options"
                           onClick={() => {
                             setAtsMoreOpenId(atsMoreOpenId === r.id ? null : r.id)
                             setMoreOpenId(null)
