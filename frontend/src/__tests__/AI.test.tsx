@@ -32,7 +32,7 @@ const mockUseAuth = vi.mocked(useAuth)
 const emptyStats: AiUsageStats = {
   totalCalls: 0,
   callsThisMonth: 0,
-  callsByAction: { parse: 0, enrich: 0, tailor: 0, cover_letter: 0, ats_score: 0 },
+  callsByAction: { parse: 0, enrich: 0, tailor: 0, cover_letter: 0, cover_letter_improve: 0, ats_score: 0 },
   recent: [],
 }
 
@@ -232,7 +232,7 @@ describe('AI — AI Usage card (with usage)', () => {
     const stats: AiUsageStats = {
       totalCalls: 12,
       callsThisMonth: 5,
-      callsByAction: { parse: 3, enrich: 4, tailor: 2, cover_letter: 2, ats_score: 1 },
+      callsByAction: { parse: 3, enrich: 4, tailor: 2, cover_letter: 2, cover_letter_improve: 0, ats_score: 1 },
       recent: [
         { id: 'log-1', action: 'enrich', model: 'claude-sonnet-4-6', created_at: '2026-06-01T10:00:00Z' },
         { id: 'log-2', action: 'parse', model: 'claude-haiku-4-5', created_at: '2026-06-02T11:00:00Z' },
@@ -256,7 +256,7 @@ describe('AI — AI Usage card (with usage)', () => {
     const stats: AiUsageStats = {
       totalCalls: 12,
       callsThisMonth: 5,
-      callsByAction: { parse: 3, enrich: 4, tailor: 2, cover_letter: 2, ats_score: 1 },
+      callsByAction: { parse: 3, enrich: 4, tailor: 2, cover_letter: 2, cover_letter_improve: 0, ats_score: 1 },
       recent: [],
     }
     mockGetAiUsageStats.mockResolvedValue(stats)
@@ -277,7 +277,7 @@ describe('AI — AI Usage card (with usage)', () => {
     const stats: AiUsageStats = {
       totalCalls: 15,
       callsThisMonth: 15,
-      callsByAction: { parse: 15, enrich: 0, tailor: 0, cover_letter: 0, ats_score: 0 },
+      callsByAction: { parse: 15, enrich: 0, tailor: 0, cover_letter: 0, cover_letter_improve: 0, ats_score: 0 },
       recent,
     }
     mockGetAiUsageStats.mockResolvedValue(stats)

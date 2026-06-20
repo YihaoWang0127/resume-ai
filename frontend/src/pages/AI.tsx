@@ -63,6 +63,7 @@ const ACTION_LABELS: Record<AiUsageAction, string> = {
   enrich: 'Enrich Resume',
   tailor: 'Tailor Resume',
   cover_letter: 'Cover Letter',
+  cover_letter_improve: 'Improve Cover Letter',
   ats_score: 'ATS Score',
 }
 

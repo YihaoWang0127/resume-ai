@@ -170,6 +170,26 @@ export async function generateCoverLetter(
   return res.body
 }
 
+export async function improveCoverLetter(
+  text: string,
+  options: {
+    selection?: string
+    jobDescription?: string
+    resume?: ResumeSchema
+    tone?: 'professional' | 'enthusiastic' | 'concise'
+  } = {},
+): Promise<ReadableStream<Uint8Array>> {
+  const stream = await fetchStream('/api/cover-letter/improve', {
+    text,
+    selection: options.selection ?? null,
+    job_description: options.jobDescription ?? null,
+    resume: options.resume ? toBackend(options.resume) : null,
+    tone: options.tone ?? 'professional',
+  })
+  logAiUsage('cover_letter_improve', SMART_MODEL).catch(() => {})
+  return stream
+}
+
 export async function exportCoverLetter(
   content: string,
   companyName: string,
