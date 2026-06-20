@@ -2113,7 +2113,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     data-testid="template-select"
                     value={selectedIndustry}
                     onChange={(e) => setSelectedIndustry(e.target.value)}
-                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                    className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
                   >
                     <option value="general">Modern</option>
                     <option value="tech">Tech</option>
@@ -2128,7 +2128,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   <select
                     value={reviewFont}
                     onChange={(e) => setReviewFont(e.target.value)}
-                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-28"
+                    className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-28"
                   >
                     <option>Inter</option>
                     <option>Georgia</option>
@@ -2138,7 +2138,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   <select
                     value={reviewFontSize}
                     onChange={(e) => setReviewFontSize(e.target.value)}
-                    className="min-h-[44px] text-xs bg-background border border-border rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-20"
+                    className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-20"
                   >
                     <option>10pt</option>
                     <option>11pt</option>
@@ -2274,7 +2274,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 size="sm"
                 onClick={currentResumeId ? handleUpdate : handleSaveClick}
                 disabled={isSaving}
-                className="flex items-center gap-1.5 text-xs rounded-lg bg-primary text-white hover:bg-primary/90 min-h-[44px] shrink-0"
+                className="flex items-center justify-center gap-1.5 text-xs rounded-lg bg-primary text-white hover:bg-primary/90 h-8 w-24 shrink-0"
               >
                 {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
                 Save
@@ -2285,7 +2285,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <button
                   type="button"
                   onClick={() => setPrimaryExportOpen((o) => !o)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors min-h-[44px]"
+                  className="flex items-center justify-center gap-1.5 px-3 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors h-8 w-24"
                 >
                   <Download className="size-3.5" />
                   Export
