@@ -23,6 +23,13 @@ vi.mock('@/components/ResumeUploader', () => ({
   ),
 }))
 
+vi.mock('@/services/resumes', () => ({
+  listResumes: vi.fn().mockResolvedValue([]),
+}))
+vi.mock('@/services/profile', () => ({
+  getProfile: vi.fn().mockResolvedValue(null),
+}))
+
 // ── imports after mocks ───────────────────────────────────────────────────────
 
 import { useAuth } from '@/contexts/AuthContext'
@@ -107,14 +114,15 @@ describe('Home — resume preview card', () => {
 // ── CTA button behavior — no session ─────────────────────────────────────────
 
 describe('Home — "Create My Resume Package" button (no session)', () => {
-  it('calls openAuthModal when user is null and isGuest is false', async () => {
+  it('opens picker modal when user is null and isGuest is false', async () => {
     setupAuth({ user: null, isGuest: false, loading: false })
     const user = userEvent.setup()
     renderHome()
 
     await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
 
-    expect(openAuthModal).toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: /Create Your Resume Package/i })).toBeInTheDocument()
+    expect(openAuthModal).not.toHaveBeenCalled()
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
@@ -125,6 +133,7 @@ describe('Home — "Create My Resume Package" button (no session)', () => {
 
     await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
 
+    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
     expect(openAuthModal).not.toHaveBeenCalled()
     expect(mockNavigate).not.toHaveBeenCalled()
   })
@@ -133,7 +142,7 @@ describe('Home — "Create My Resume Package" button (no session)', () => {
 // ── CTA button behavior — guest session ──────────────────────────────────────
 
 describe('Home — "Create My Resume Package" button (anonymous guest)', () => {
-  it('opens the upload modal when isGuest is true', async () => {
+  it('opens the picker modal when isGuest is true', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
       isGuest: true,
@@ -143,13 +152,15 @@ describe('Home — "Create My Resume Package" button (anonymous guest)', () => {
     const user = userEvent.setup()
     renderHome()
 
-    // Modal should not be visible before clicking
-    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
+    // Picker should not be visible before clicking
+    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
 
-    expect(screen.getByRole('heading', { name: /Upload Resume/i })).toBeInTheDocument()
-    expect(screen.getByTestId('resume-uploader')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Create Your Resume Package/i })).toBeInTheDocument()
+    expect(screen.getByText('Use Saved Resume')).toBeInTheDocument()
+    expect(screen.getByText('Upload New Resume')).toBeInTheDocument()
+    expect(screen.getByText('Create From Profile')).toBeInTheDocument()
     expect(mockNavigate).not.toHaveBeenCalled()
     expect(openAuthModal).not.toHaveBeenCalled()
   })
@@ -158,7 +169,7 @@ describe('Home — "Create My Resume Package" button (anonymous guest)', () => {
 // ── CTA button behavior — authenticated ──────────────────────────────────────
 
 describe('Home — "Create My Resume Package" button (authenticated)', () => {
-  it('navigates to /dashboard when a real user is logged in (isGuest: false)', async () => {
+  it('opens picker modal when a real user is logged in (isGuest: false)', async () => {
     setupAuth({
       user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
       isGuest: false,
@@ -169,15 +180,53 @@ describe('Home — "Create My Resume Package" button (authenticated)', () => {
 
     await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+    expect(screen.getByRole('heading', { name: /Create Your Resume Package/i })).toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
     expect(openAuthModal).not.toHaveBeenCalled()
   })
 })
 
-// ── Guest upload modal ────────────────────────────────────────────────────────
+// ── Picker modal ──────────────────────────────────────────────────────────────
 
-describe('Home — guest upload modal', () => {
-  it('upload modal appears after clicking Enhance when isGuest is true', async () => {
+describe('Home — picker modal', () => {
+  it('shows all 3 option cards after clicking CTA', async () => {
+    setupAuth({ user: null, isGuest: false, loading: false })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
+
+    expect(screen.getByRole('heading', { name: /Create Your Resume Package/i })).toBeInTheDocument()
+    expect(screen.getByText('Use Saved Resume')).toBeInTheDocument()
+    expect(screen.getByText('Upload New Resume')).toBeInTheDocument()
+    expect(screen.getByText('Create From Profile')).toBeInTheDocument()
+  })
+
+  it('"Upload New Resume" card → shows upload sub-view with resume-uploader', async () => {
+    setupAuth({ user: null, isGuest: false, loading: false })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
+    await user.click(screen.getByText('Upload New Resume'))
+
+    expect(screen.getByRole('heading', { name: /Upload New Resume/i })).toBeInTheDocument()
+    expect(screen.getByTestId('resume-uploader')).toBeInTheDocument()
+  })
+
+  it('"Use Saved Resume" card when !user → closes modal and calls openAuthModal', async () => {
+    setupAuth({ user: null, isGuest: false, loading: false })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
+    await user.click(screen.getByText('Use Saved Resume'))
+
+    expect(openAuthModal).toHaveBeenCalled()
+    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
+  })
+
+  it('"Use Saved Resume" card when isGuest: true → closes modal and calls openAuthModal', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
       isGuest: true,
@@ -187,12 +236,67 @@ describe('Home — guest upload modal', () => {
     renderHome()
 
     await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
+    await user.click(screen.getByText('Use Saved Resume'))
 
-    expect(screen.getByRole('heading', { name: /Upload Resume/i })).toBeInTheDocument()
-    expect(screen.getByTestId('resume-uploader')).toBeInTheDocument()
+    expect(openAuthModal).toHaveBeenCalled()
+    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
   })
 
-  it('clicking the X button closes the upload modal', async () => {
+  it('"Create From Profile" card when !user → closes modal and calls openAuthModal', async () => {
+    setupAuth({ user: null, isGuest: false, loading: false })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
+    await user.click(screen.getByText('Create From Profile'))
+
+    expect(openAuthModal).toHaveBeenCalled()
+    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
+  })
+
+  it('back arrow in upload sub-view returns to picker', async () => {
+    setupAuth({ user: null, isGuest: false, loading: false })
+    const user = userEvent.setup()
+    renderHome()
+
+    // Open picker → navigate to upload sub-view
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
+    await user.click(screen.getByText('Upload New Resume'))
+    expect(screen.getByRole('heading', { name: /Upload New Resume/i })).toBeInTheDocument()
+
+    // Click back arrow (the ArrowLeft button that only appears in sub-views)
+    const heading = screen.getByRole('heading', { name: /Upload New Resume/i })
+    const headerDiv = heading.closest('div')!.parentElement!
+    const backButton = headerDiv.querySelector('button')!
+    await user.click(backButton)
+
+    expect(screen.getByRole('heading', { name: /Create Your Resume Package/i })).toBeInTheDocument()
+  })
+
+  it('uploading a resume from upload sub-view navigates to /editor', async () => {
+    setupAuth({
+      user: { id: 'anon1', is_anonymous: true } as any,
+      isGuest: true,
+      loading: false,
+    })
+    const user = userEvent.setup()
+    renderHome()
+
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
+    await user.click(screen.getByText('Upload New Resume'))
+
+    // Simulate upload completing via the mocked ResumeUploader
+    await user.click(screen.getByRole('button', { name: /Upload/i }))
+
+    expect(mockNavigate).toHaveBeenCalledWith('/editor', expect.objectContaining({ state: expect.objectContaining({ from: '/' }) }))
+    expect(screen.queryByRole('heading', { name: /Upload New Resume/i })).not.toBeInTheDocument()
+  })
+})
+
+// ── Modal close behavior ──────────────────────────────────────────────────────
+
+describe('Home — picker modal close behavior', () => {
+  it('clicking the X button closes the picker modal', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
       isGuest: true,
@@ -203,25 +307,25 @@ describe('Home — guest upload modal', () => {
 
     // Open the modal first
     await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
-    expect(screen.getByRole('heading', { name: /Upload Resume/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Create Your Resume Package/i })).toBeInTheDocument()
 
-    // The X close button is the only button in the modal header (next to the heading).
-    // It has no text — find the button sibling of the "Upload Resume" heading.
-    const heading = screen.getByRole('heading', { name: /Upload Resume/i })
-    const headerDiv = heading.parentElement!
+    // The X close button is the only button after the heading in the modal header.
+    const heading = screen.getByRole('heading', { name: /Create Your Resume Package/i })
+    const headerDiv = heading.closest('div')!.parentElement!
+    // X button is the last button in the header (no back arrow shown in picker view)
     const closeButton = headerDiv.querySelector('button')!
     await user.click(closeButton)
 
-    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
   })
 
   it.each([
     ['authenticated user', { user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any, isGuest: false, loading: false }],
     ['no session', { user: null, isGuest: false, loading: false }],
-  ])('upload modal is NOT visible for %s without clicking Enhance', (_label, auth) => {
+  ])('picker modal is NOT visible for %s without clicking CTA', (_label, auth) => {
     setupAuth(auth)
     renderHome()
-    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
     expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
   })
 })
@@ -263,7 +367,7 @@ describe('Home — "See Example" button (disabled)', () => {
     expect(openAuthModal).not.toHaveBeenCalled()
   })
 
-  it('does not open the upload modal when clicked while disabled (guest)', async () => {
+  it('does not open the picker modal when clicked while disabled (guest)', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
       isGuest: true,
@@ -274,7 +378,7 @@ describe('Home — "See Example" button (disabled)', () => {
 
     await user.click(screen.getByRole('button', { name: /See Example/i }))
 
-    expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
     expect(mockNavigate).not.toHaveBeenCalled()
     expect(openAuthModal).not.toHaveBeenCalled()
   })
