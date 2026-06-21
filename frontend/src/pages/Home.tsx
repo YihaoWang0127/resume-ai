@@ -18,13 +18,13 @@ const CHECKLIST = [
 ]
 
 const COMPANIES = [
-  { name: 'Google',    domain: 'google.com' },
-  { name: 'Microsoft', domain: 'microsoft.com' },
-  { name: 'Amazon',    domain: 'amazon.com' },
-  { name: 'Meta',      domain: 'meta.com' },
-  { name: 'Netflix',   domain: 'netflix.com' },
-  { name: 'Airbnb',   domain: 'airbnb.com' },
-  { name: 'Stripe',   domain: 'stripe.com' },
+  { name: 'Google',    slug: 'google' },
+  { name: 'Microsoft', slug: 'microsoft' },
+  { name: 'Amazon',    slug: 'amazon' },
+  { name: 'Meta',      slug: 'meta' },
+  { name: 'Netflix',   slug: 'netflix' },
+  { name: 'Airbnb',   slug: 'airbnb' },
+  { name: 'Stripe',   slug: 'stripe' },
 ]
 
 const WORKFLOW_STEPS = [
@@ -297,19 +297,19 @@ export default function Home() {
               Trusted by professionals from top companies
             </p>
             <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12">
-              {COMPANIES.map(({ name, domain }) => (
+              {COMPANIES.map(({ name, slug }) => (
                 <div
                   key={name}
-                  className="flex items-center gap-2.5 opacity-40 hover:opacity-65 transition-opacity grayscale hover:grayscale-0"
+                  className="flex items-center gap-2.5 opacity-50 hover:opacity-80 transition-opacity"
                 >
                   <img
-                    src={`https://logo.clearbit.com/${domain}`}
+                    src={`https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/${slug}.svg`}
                     alt={`${name} logo`}
-                    className="size-6 object-contain"
+                    className="size-5 object-contain dark:invert"
                     loading="lazy"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                   />
-                  <span className="text-base font-semibold text-gray-500 dark:text-gray-400">
+                  <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
                     {name}
                   </span>
                 </div>
