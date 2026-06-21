@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, CheckCircle2, Eye, FileText, ClipboardList, BarChart2, X } from 'lucide-react'
+import { Sparkles, CheckCircle2, Eye, FileText, ClipboardList, BarChart2, X, ArrowLeft, Bookmark, Upload, UserCircle, Loader2 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/contexts/AuthContext'
 import ResumeUploader from '@/components/ResumeUploader'
 import Modal from '@/components/Modal'
-import type { ResumeSchema } from '@/types/resume'
+import type { ResumeSchema, SkillCategory } from '@/types/resume'
+import { listResumes, type SavedResume } from '@/services/resumes'
+import { getProfile } from '@/services/profile'
+import type { ProfileData } from '@/types/profile'
 
 const CHECKLIST = [
   'Tailored Resume',
@@ -37,24 +40,114 @@ const WORKFLOW_STEPS = [
   },
 ]
 
+function profileToResume(profile: ProfileData, userEmail: string): ResumeSchema {
+  const skillCategories: SkillCategory[] = []
+  if (profile.skills_technical) {
+    skillCategories.push({
+      category: 'Technical Skills',
+      items: profile.skills_technical.split(',').map((s) => s.trim()).filter(Boolean),
+    })
+  }
+  if (profile.skills_tools) {
+    skillCategories.push({
+      category: 'Tools & Platforms',
+      items: profile.skills_tools.split(',').map((s) => s.trim()).filter(Boolean),
+    })
+  }
+  if (profile.skills_certifications) {
+    skillCategories.push({
+      category: 'Certifications',
+      items: profile.skills_certifications.split(',').map((s) => s.trim()).filter(Boolean),
+    })
+  }
+  return {
+    metadata: {
+      fullName: profile.full_name,
+      email: userEmail,
+      phone: profile.phone || undefined,
+      location: profile.address || undefined,
+      linkedIn: profile.linkedin_url || undefined,
+      github: profile.github_url || undefined,
+    },
+    experience: profile.experience ?? [],
+    education: [],
+    skills: skillCategories,
+    summary: profile.job_title
+      ? `${profile.job_title} with ${profile.years_of_experience > 0 ? profile.years_of_experience + '+ years' : 'experience'} in ${profile.target_industry || 'the industry'}.`
+      : '',
+    detectedIndustry: profile.target_industry || undefined,
+  }
+}
+
+type ModalView = 'picker' | 'upload' | 'saved-resumes'
+
 export default function Home() {
   const { user, loading, isGuest, openAuthModal } = useAuth()
   const navigate = useNavigate()
-  const [uploadModalOpen, setUploadModalOpen] = useState(false)
-
-  const handleParsed = (resume: ResumeSchema) => {
-    setUploadModalOpen(false)
-    navigate('/editor', { state: { resume, from: '/' } })
-  }
+  const [modalView, setModalView] = useState<ModalView | null>(null)
+  const [savedResumes, setSavedResumes] = useState<SavedResume[]>([])
+  const [loadingResumes, setLoadingResumes] = useState(false)
+  const [loadingProfile, setLoadingProfile] = useState(false)
 
   const handleEnhance = () => {
     if (loading) return
-    if (isGuest) {
-      setUploadModalOpen(true)
-    } else if (user) {
-      navigate('/dashboard')
-    } else {
+    setModalView('picker')
+  }
+
+  const handleParsed = (resume: ResumeSchema) => {
+    setModalView(null)
+    navigate('/editor', { state: { resume, from: '/' } })
+  }
+
+  const handleUseSaved = async () => {
+    if (!user || isGuest) {
+      setModalView(null)
       openAuthModal()
+      return
+    }
+    setModalView('saved-resumes')
+    setLoadingResumes(true)
+    try {
+      const resumes = await listResumes()
+      setSavedResumes(resumes)
+    } catch {
+      setSavedResumes([])
+    } finally {
+      setLoadingResumes(false)
+    }
+  }
+
+  const handleSelectSavedResume = (saved: SavedResume) => {
+    setModalView(null)
+    navigate('/editor', { state: { resume: saved.resume_data, resumeId: saved.id, from: '/' } })
+  }
+
+  const handleUploadNew = () => {
+    setModalView('upload')
+  }
+
+  const handleCreateFromProfile = async () => {
+    if (!user || isGuest) {
+      setModalView(null)
+      openAuthModal()
+      return
+    }
+    setLoadingProfile(true)
+    try {
+      const profile = await getProfile()
+      if (!profile) {
+        // No profile saved yet — redirect to profile page
+        setModalView(null)
+        navigate('/profile')
+        return
+      }
+      const resume = profileToResume(profile, user.email ?? '')
+      setModalView(null)
+      navigate('/editor', { state: { resume, from: '/' } })
+    } catch {
+      setLoadingProfile(false)
+    } finally {
+      setLoadingProfile(false)
     }
   }
 
@@ -206,22 +299,155 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Guest upload modal */}
-      <Modal open={uploadModalOpen} overlayClassName="p-4" className="rounded-xl max-w-lg p-0">
+      {/* 3-option picker / upload / saved-resumes modal */}
+      <Modal
+        open={modalView !== null}
+        onClose={() => setModalView(null)}
+        overlayClassName="p-4"
+        className="rounded-2xl max-w-2xl p-0"
+      >
+        {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
-          <h2 className="text-base font-bold text-foreground uppercase tracking-wide">
-            Upload Resume
-          </h2>
+          <div className="flex items-center gap-3">
+            {modalView !== 'picker' && (
+              <button
+                onClick={() => setModalView('picker')}
+                className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+            )}
+            <h2 className="text-base font-bold text-foreground">
+              {modalView === 'picker' && 'Create Your Resume Package'}
+              {modalView === 'upload' && 'Upload New Resume'}
+              {modalView === 'saved-resumes' && 'Choose a Saved Resume'}
+            </h2>
+          </div>
           <button
-            onClick={() => setUploadModalOpen(false)}
+            onClick={() => setModalView(null)}
             className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors"
           >
             <X className="size-4" />
           </button>
         </div>
-        <div className="p-6">
-          <ResumeUploader onParsed={handleParsed} />
-        </div>
+
+        {/* Picker view */}
+        {modalView === 'picker' && (
+          <div className="p-6">
+            <p className="text-sm text-muted-foreground mb-6">
+              Choose how you'd like to start your resume package.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Option 1: Use Saved Resume */}
+              <button
+                type="button"
+                onClick={handleUseSaved}
+                className="flex flex-col items-start gap-3 p-5 border border-border rounded-xl hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all text-left min-h-[44px] group"
+              >
+                <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Bookmark className="size-5 text-primary" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-semibold text-foreground">Use Saved Resume</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Choose an existing resume as your starting point.
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 2: Upload New Resume */}
+              <button
+                type="button"
+                onClick={handleUploadNew}
+                className="flex flex-col items-start gap-3 p-5 border border-primary/40 rounded-xl bg-primary/5 hover:border-primary hover:bg-primary/10 cursor-pointer transition-all text-left min-h-[44px] group"
+              >
+                <div className="size-10 rounded-xl bg-primary/15 flex items-center justify-center group-hover:bg-primary/25 transition-colors">
+                  <Upload className="size-5 text-primary" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-semibold text-foreground">Upload New Resume</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Import a PDF, DOCX, or TXT file to get started.
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 3: Create From Profile */}
+              <button
+                type="button"
+                onClick={handleCreateFromProfile}
+                disabled={loadingProfile}
+                className="flex flex-col items-start gap-3 p-5 border border-border rounded-xl hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all text-left min-h-[44px] group disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  {loadingProfile ? (
+                    <Loader2 className="size-5 text-primary animate-spin" />
+                  ) : (
+                    <UserCircle className="size-5 text-primary" />
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-semibold text-foreground">Create From Profile</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Generate a resume using your saved profile information.
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Upload view */}
+        {modalView === 'upload' && (
+          <div className="p-6">
+            <ResumeUploader onParsed={handleParsed} />
+          </div>
+        )}
+
+        {/* Saved resumes view */}
+        {modalView === 'saved-resumes' && (
+          <div className="p-6">
+            {loadingResumes ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="size-6 text-primary animate-spin" />
+              </div>
+            ) : savedResumes.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="size-10 mx-auto mb-3 opacity-40" />
+                <p className="text-sm font-medium">No saved resumes yet</p>
+                <p className="text-xs mt-1">Upload a new resume to get started.</p>
+                <button
+                  onClick={() => setModalView('upload')}
+                  className="mt-4 text-primary text-sm font-medium hover:underline"
+                >
+                  Upload now
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto">
+                {savedResumes.map((saved) => (
+                  <button
+                    key={saved.id}
+                    type="button"
+                    onClick={() => handleSelectSavedResume(saved)}
+                    className="flex items-center gap-4 p-4 border border-border rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all text-left min-h-[44px] group"
+                  >
+                    <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="size-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{saved.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(saved.updated_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <ArrowLeft className="size-4 text-muted-foreground rotate-180 group-hover:text-primary transition-colors shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
       {/* Footer */}

@@ -6,13 +6,20 @@ interface ModalProps {
   children: ReactNode
   className?: string
   overlayClassName?: string
+  onClose?: () => void
 }
 
-export default function Modal({ open, children, className, overlayClassName }: ModalProps) {
+export default function Modal({ open, children, className, overlayClassName, onClose }: ModalProps) {
   if (!open) return null
   return (
-    <div className={cn('fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm', overlayClassName)}>
-      <div className={cn('bg-card border border-border w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto p-4', className)}>
+    <div
+      className={cn('fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm', overlayClassName)}
+      onClick={onClose}
+    >
+      <div
+        className={cn('bg-card border border-border w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto p-4', className)}
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>
