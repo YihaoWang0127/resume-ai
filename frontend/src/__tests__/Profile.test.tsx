@@ -66,7 +66,17 @@ const savedProfile: ProfileData = {
   full_name: 'Jane Smith',
   phone: '555-1234',
   address: 'San Francisco, CA',
+  linkedin_url: '',
+  github_url: '',
+  portfolio_url: '',
   job_title: 'Software Engineer',
+  target_job_title: '',
+  target_industry: '',
+  years_of_experience: 0,
+  experience_bullets: [],
+  skills_technical: '',
+  skills_tools: '',
+  skills_certifications: '',
   experience: [
     {
       company: 'Acme Corp',
@@ -262,8 +272,8 @@ describe('Profile — Personal Info & Experience (loaded, empty)', () => {
     await waitFor(() => expect(screen.getByLabelText('Phone')).toBeInTheDocument())
 
     expect(screen.getByLabelText('Phone')).toHaveValue('')
-    expect(screen.getByLabelText('Address')).toHaveValue('')
-    expect(screen.getByLabelText('Current / Target Job Title')).toHaveValue('')
+    expect(screen.getByLabelText('Location')).toHaveValue('')
+    expect(screen.getByLabelText('Current Job Title')).toHaveValue('')
   })
 
   it('shows the "no work experience yet" empty state', async () => {
@@ -309,7 +319,7 @@ describe('Profile — Personal Info & Experience (loaded, empty)', () => {
     await waitFor(() =>
       expect(mockUpsertProfile).toHaveBeenCalledWith(expect.objectContaining({ phone: '555-0000' }))
     )
-    expect(toast.success).toHaveBeenCalledWith('Profile information saved')
+    expect(toast.success).toHaveBeenCalledWith('Career profile saved')
   })
 
   it('shows an error toast when saving Personal Info fails', async () => {
@@ -333,8 +343,8 @@ describe('Profile — Personal Info & Experience (loaded with saved data)', () =
     renderProfile()
     await waitFor(() => expect(screen.getByLabelText('Phone')).toHaveValue('555-1234'))
 
-    expect(screen.getByLabelText('Address')).toHaveValue('San Francisco, CA')
-    expect(screen.getByLabelText('Current / Target Job Title')).toHaveValue('Software Engineer')
+    expect(screen.getByLabelText('Location')).toHaveValue('San Francisco, CA')
+    expect(screen.getByLabelText('Current Job Title')).toHaveValue('Software Engineer')
   })
 
   it('renders existing experience entries', async () => {
