@@ -63,15 +63,15 @@ function renderHome() {
 describe('Home — hero section', () => {
   it('renders badge, headline, subtitle, checklist items, and CTA buttons', () => {
     renderHome()
-    expect(screen.getByText('AI-Powered Resume Enhancement')).toBeInTheDocument()
-    expect(screen.getByText('Your Resume.')).toBeInTheDocument()
-    expect(screen.getByText('Enhanced by AI.')).toBeInTheDocument()
-    expect(screen.getByText(/Improve your resume, stand out to recruiters/i)).toBeInTheDocument()
-    expect(screen.getByText('AI Content Enhancement')).toBeInTheDocument()
-    expect(screen.getByText('ATS Optimization')).toBeInTheDocument()
-    expect(screen.getByText('Smart Suggestions')).toBeInTheDocument()
-    expect(screen.getByText('HR-Approved Templates')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Enhance My Resume/i })).toBeInTheDocument()
+    expect(screen.getByText('Built for Every Job Application')).toBeInTheDocument()
+    expect(screen.getByText('Build every job application package')).toBeInTheDocument()
+    expect(screen.getByText('in minutes.')).toBeInTheDocument()
+    expect(screen.getByText('Resume, cover letter, and ATS check — tailored to each job.')).toBeInTheDocument()
+    expect(screen.getByText('Tailored Resume')).toBeInTheDocument()
+    expect(screen.getAllByText('Cover Letter').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('ATS Score').length).toBeGreaterThan(0)
+    expect(screen.getByText('Job-Specific Keywords')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Create My Resume Package/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /See Example/i })).toBeInTheDocument()
   })
 })
@@ -95,27 +95,24 @@ describe('Home — social proof and trust bar', () => {
 // ── Resume preview card ───────────────────────────────────────────────────────
 
 describe('Home — resume preview card', () => {
-  it('renders the top bar tabs and resume content sections', () => {
+  it('renders the 3-step workflow card', () => {
     renderHome()
-    expect(screen.getByText('Preview')).toBeInTheDocument()
-    expect(screen.getByText('Suggestions')).toBeInTheDocument()
-    expect(screen.getByText('Download')).toBeInTheDocument()
-    expect(screen.getByText(/ATS Score/i)).toBeInTheDocument()
-    expect(screen.getByText('Professional Summary')).toBeInTheDocument()
-    expect(screen.getByText('Experience')).toBeInTheDocument()
-    expect(screen.getByText('Education')).toBeInTheDocument()
+    expect(screen.getByText('How it works')).toBeInTheDocument()
+    expect(screen.getByText('Upload Your Resume')).toBeInTheDocument()
+    expect(screen.getByText('Paste a Job Description')).toBeInTheDocument()
+    expect(screen.getByText('Your application package')).toBeInTheDocument()
   })
 })
 
 // ── CTA button behavior — no session ─────────────────────────────────────────
 
-describe('Home — "Enhance My Resume" button (no session)', () => {
+describe('Home — "Create My Resume Package" button (no session)', () => {
   it('calls openAuthModal when user is null and isGuest is false', async () => {
     setupAuth({ user: null, isGuest: false, loading: false })
     const user = userEvent.setup()
     renderHome()
 
-    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
 
     expect(openAuthModal).toHaveBeenCalled()
     expect(mockNavigate).not.toHaveBeenCalled()
@@ -126,7 +123,7 @@ describe('Home — "Enhance My Resume" button (no session)', () => {
     const user = userEvent.setup()
     renderHome()
 
-    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
 
     expect(openAuthModal).not.toHaveBeenCalled()
     expect(mockNavigate).not.toHaveBeenCalled()
@@ -135,7 +132,7 @@ describe('Home — "Enhance My Resume" button (no session)', () => {
 
 // ── CTA button behavior — guest session ──────────────────────────────────────
 
-describe('Home — "Enhance My Resume" button (anonymous guest)', () => {
+describe('Home — "Create My Resume Package" button (anonymous guest)', () => {
   it('opens the upload modal when isGuest is true', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
@@ -149,7 +146,7 @@ describe('Home — "Enhance My Resume" button (anonymous guest)', () => {
     // Modal should not be visible before clicking
     expect(screen.queryByRole('heading', { name: /Upload Resume/i })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
 
     expect(screen.getByRole('heading', { name: /Upload Resume/i })).toBeInTheDocument()
     expect(screen.getByTestId('resume-uploader')).toBeInTheDocument()
@@ -160,7 +157,7 @@ describe('Home — "Enhance My Resume" button (anonymous guest)', () => {
 
 // ── CTA button behavior — authenticated ──────────────────────────────────────
 
-describe('Home — "Enhance My Resume" button (authenticated)', () => {
+describe('Home — "Create My Resume Package" button (authenticated)', () => {
   it('navigates to /dashboard when a real user is logged in (isGuest: false)', async () => {
     setupAuth({
       user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
@@ -170,7 +167,7 @@ describe('Home — "Enhance My Resume" button (authenticated)', () => {
     const user = userEvent.setup()
     renderHome()
 
-    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
 
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
     expect(openAuthModal).not.toHaveBeenCalled()
@@ -189,7 +186,7 @@ describe('Home — guest upload modal', () => {
     const user = userEvent.setup()
     renderHome()
 
-    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
 
     expect(screen.getByRole('heading', { name: /Upload Resume/i })).toBeInTheDocument()
     expect(screen.getByTestId('resume-uploader')).toBeInTheDocument()
@@ -205,7 +202,7 @@ describe('Home — guest upload modal', () => {
     renderHome()
 
     // Open the modal first
-    await user.click(screen.getByRole('button', { name: /Enhance My Resume/i }))
+    await user.click(screen.getByRole('button', { name: /Create My Resume Package/i }))
     expect(screen.getByRole('heading', { name: /Upload Resume/i })).toBeInTheDocument()
 
     // The X close button is the only button in the modal header (next to the heading).
