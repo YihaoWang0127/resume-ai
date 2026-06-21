@@ -17,7 +17,15 @@ const CHECKLIST = [
   'Job-Specific Keywords',
 ]
 
-const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb', 'Stripe']
+const COMPANIES = [
+  { name: 'Google',    domain: 'google.com' },
+  { name: 'Microsoft', domain: 'microsoft.com' },
+  { name: 'Amazon',    domain: 'amazon.com' },
+  { name: 'Meta',      domain: 'meta.com' },
+  { name: 'Netflix',   domain: 'netflix.com' },
+  { name: 'Airbnb',   domain: 'airbnb.com' },
+  { name: 'Stripe',   domain: 'stripe.com' },
+]
 
 const WORKFLOW_STEPS = [
   {
@@ -288,11 +296,23 @@ export default function Home() {
             <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-8">
               Trusted by professionals from top companies
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-10">
-              {COMPANIES.map((name) => (
-                <span key={name} className="text-xl font-bold text-gray-300 dark:text-gray-600 hover:text-gray-400 dark:hover:text-gray-500 transition-colors">
-                  {name}
-                </span>
+            <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12">
+              {COMPANIES.map(({ name, domain }) => (
+                <div
+                  key={name}
+                  className="flex items-center gap-2.5 opacity-40 hover:opacity-65 transition-opacity grayscale hover:grayscale-0"
+                >
+                  <img
+                    src={`https://logo.clearbit.com/${domain}`}
+                    alt={`${name} logo`}
+                    className="size-6 object-contain"
+                    loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                  <span className="text-base font-semibold text-gray-500 dark:text-gray-400">
+                    {name}
+                  </span>
+                </div>
               ))}
             </div>
           </div>
