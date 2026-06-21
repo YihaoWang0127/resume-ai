@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Sparkles } from 'lucide-react'
+import { ChevronDown, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { getPreferences, upsertPreferences } from '@/services/preferences'
 import { DEFAULT_PREFERENCES } from '@/types/preferences'
@@ -75,6 +75,7 @@ export default function AI() {
   const [saving, setSaving] = useState(false)
   const [initial, setInitial] = useState<UserPreferencesInput>(DEFAULT_PREFERENCES)
   const [prefs, setPrefs] = useState<UserPreferencesInput>(DEFAULT_PREFERENCES)
+  const [techDetailsOpen, setTechDetailsOpen] = useState(false)
 
   // --- AI Usage state ---
   const [usageLoading, setUsageLoading] = useState(true)
@@ -183,9 +184,9 @@ export default function AI() {
         <AccountSidebar />
         <div className="flex-1 min-w-0 space-y-6">
         <div>
-          <h1 className="text-xl font-bold text-foreground">AI</h1>
+          <h1 className="text-xl font-bold text-foreground">AI Preferences</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tune how Claude writes for you, see which models power each feature, and review your usage.
+            Set how Resume AI tailors your resume, cover letters, and ATS suggestions.
           </p>
         </div>
 
@@ -194,7 +195,7 @@ export default function AI() {
           <Card>
             <CardHeader>
               <CardTitle>AI Preferences</CardTitle>
-              <CardDescription>Tune how Claude writes and tailors your content.</CardDescription>
+              <CardDescription>Set your tone, style, and industry for tailored AI output.</CardDescription>
             </CardHeader>
             <CardContent>
               {[0, 1, 2, 3, 4].map((i) => (
@@ -209,7 +210,7 @@ export default function AI() {
           <Card>
             <CardHeader>
               <CardTitle>AI Preferences</CardTitle>
-              <CardDescription>Tune how Claude writes and tailors your content.</CardDescription>
+              <CardDescription>Set your tone, style, and industry for tailored AI output.</CardDescription>
             </CardHeader>
 
             <CardContent>
@@ -296,27 +297,6 @@ export default function AI() {
           </Card>
         )}
 
-        {/* Models card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Models</CardTitle>
-            <CardDescription>Which Claude model powers each feature.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {MODEL_INFO.map((item) => (
-              <div
-                key={item.feature}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 rounded-lg border border-border px-4 py-3"
-              >
-                <span className="text-sm font-medium text-foreground">{item.feature}</span>
-                <span className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">{item.model}</span> ({item.description})
-                </span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
         {/* AI Usage card */}
         <Card>
           <CardHeader>
@@ -400,6 +380,41 @@ export default function AI() {
             </CardContent>
           )}
         </Card>
+        {/* Technical Details collapsible card */}
+        <div className="rounded-xl border border-border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setTechDetailsOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-secondary/40 transition-colors"
+          >
+            <span className="text-xs font-medium text-muted-foreground">Technical details</span>
+            <ChevronDown
+              className={`size-3.5 text-muted-foreground transition-transform ${techDetailsOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+          {techDetailsOpen && (
+            <div className="px-5 pb-4 border-t border-border bg-secondary/20">
+              <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+                Resume AI uses Claude Haiku for fast parsing and validation of uploaded resumes, and Claude Sonnet for
+                enrichment, tailoring, cover letter generation, and ATS scoring. Model selection is automatic and
+                optimized for speed and quality per feature.
+              </p>
+              <div className="mt-3 space-y-1.5">
+                {MODEL_INFO.map((item) => (
+                  <div
+                    key={item.feature}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5"
+                  >
+                    <span className="text-xs text-muted-foreground">{item.feature}</span>
+                    <span className="text-xs text-muted-foreground/70">
+                      {item.model} — {item.description}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         </div>
       </main>
     </div>

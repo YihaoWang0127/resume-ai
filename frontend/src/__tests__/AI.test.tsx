@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { DEFAULT_PREFERENCES } from '@/types/preferences'
@@ -157,14 +157,16 @@ describe('AI — AI Preferences (editing)', () => {
   })
 })
 
-// ── Models card ──────────────────────────────────────────────────────────────
+// ── Technical details collapsible ────────────────────────────────────────────
 
-describe('AI — Models card', () => {
+describe('AI — Technical details', () => {
   beforeEach(() => mockGetPreferences.mockResolvedValue(null))
 
-  it('renders the Models card with each feature and its model', async () => {
+  it('shows model info after expanding the Technical details section', async () => {
     renderAI()
-    await waitFor(() => expect(screen.getByText('Models')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Technical details')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText('Technical details').closest('button')!)
 
     expect(screen.getByText('Resume Parsing')).toBeInTheDocument()
     expect(screen.getByText('Enrichment & Tailoring')).toBeInTheDocument()
