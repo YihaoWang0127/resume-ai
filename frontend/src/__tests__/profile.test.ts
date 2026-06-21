@@ -22,10 +22,20 @@ const savedProfile: ProfileData = {
   full_name: 'Jane Smith',
   phone: '555-1234',
   address: 'San Francisco, CA',
+  linkedin_url: '',
+  github_url: '',
+  portfolio_url: '',
   job_title: 'Software Engineer',
+  target_job_title: '',
+  target_industry: '',
+  years_of_experience: 0,
   experience: [
     { company: 'Acme', title: 'Engineer', startDate: 'Jan 2022', endDate: '', current: true, bullets: ['Did things'] },
   ],
+  experience_bullets: [],
+  skills_technical: '',
+  skills_tools: '',
+  skills_certifications: '',
   updated_at: '2026-01-01T00:00:00Z',
 }
 

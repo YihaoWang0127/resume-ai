@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, CheckCircle2, Eye, ChevronDown, User, X } from 'lucide-react'
+import { Sparkles, CheckCircle2, Eye, FileText, ClipboardList, BarChart2, X } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/contexts/AuthContext'
 import ResumeUploader from '@/components/ResumeUploader'
@@ -8,13 +8,34 @@ import Modal from '@/components/Modal'
 import type { ResumeSchema } from '@/types/resume'
 
 const CHECKLIST = [
-  'AI Content Enhancement',
-  'ATS Optimization',
-  'Smart Suggestions',
-  'HR-Approved Templates',
+  'Tailored Resume',
+  'Cover Letter',
+  'ATS Score',
+  'Job-Specific Keywords',
 ]
 
 const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb', 'Stripe']
+
+const WORKFLOW_STEPS = [
+  {
+    step: '1',
+    icon: FileText,
+    title: 'Upload Your Resume',
+    description: 'Drop in your existing resume. We accept PDF, DOCX, or plain text.',
+  },
+  {
+    step: '2',
+    icon: ClipboardList,
+    title: 'Paste a Job Description',
+    description: 'Copy in the job posting. We extract the role, requirements, and keywords.',
+  },
+  {
+    step: '3',
+    icon: BarChart2,
+    title: 'Get Resume + Cover Letter + ATS Score',
+    description: 'Your resume is tailored to the job, a cover letter is generated, and your ATS fit is scored — in minutes.',
+  },
+]
 
 export default function Home() {
   const { user, loading, isGuest, openAuthModal } = useAuth()
@@ -51,18 +72,18 @@ export default function Home() {
               {/* Badge */}
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary rounded-full px-4 py-1.5 text-sm font-medium w-fit">
                 <Sparkles className="size-4 shrink-0" />
-                AI-Powered Resume Enhancement
+                Built for Every Job Application
               </div>
 
               {/* Headline */}
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
-                <span className="block text-foreground">Your Resume.</span>
-                <span className="block text-primary">Enhanced by AI.</span>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
+                <span className="block text-foreground">Build every job application package</span>
+                <span className="block text-primary">in minutes.</span>
               </h1>
 
               {/* Subtitle */}
               <p className="text-base text-muted-foreground leading-relaxed max-w-lg">
-                Improve your resume, stand out to recruiters, and land more interviews with the power of AI.
+                Resume, cover letter, and ATS check — tailored to each job.
               </p>
 
               {/* Feature checklist */}
@@ -82,7 +103,7 @@ export default function Home() {
                   onClick={handleEnhance}
                   className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-6 py-3 font-semibold text-sm hover:bg-primary/90 transition-colors min-h-[44px]"
                 >
-                  Enhance My Resume
+                  Create My Resume Package
                   <Sparkles className="size-4 shrink-0" />
                 </button>
                 <button
@@ -117,97 +138,51 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right: Detailed Resume Preview Card */}
-            <div className="hidden lg:block">
-              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
-                {/* Card top bar */}
-                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-700/50">
-                  <div className="flex items-center gap-3">
-                    <div className="size-7 rounded bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                      <User className="size-4 text-gray-400 dark:text-gray-500" />
+            {/* Right: Job Application Workflow Card */}
+            <div className="hidden lg:flex flex-col gap-4">
+              {/* Header label */}
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">How it works</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              {/* Step cards */}
+              {WORKFLOW_STEPS.map(({ step, icon: Icon, title, description }) => (
+                <div
+                  key={step}
+                  className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-5 flex items-start gap-4"
+                >
+                  {/* Step number + icon */}
+                  <div className="shrink-0 flex flex-col items-center gap-1.5">
+                    <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Icon className="size-5 text-primary" />
                     </div>
-                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Software Engineer</span>
-                    <span className="bg-green-100 text-green-700 rounded-full text-xs px-2.5 py-0.5 font-semibold">
-                      ATS Score 98%
-                    </span>
+                    <span className="text-[10px] font-bold text-primary/60 tracking-widest">STEP {step}</span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-primary border-b-2 border-primary pb-0.5">Preview</span>
-                    <span className="text-sm text-gray-400 dark:text-gray-500">Suggestions <span className="bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400">12</span></span>
-                    <span className="text-sm text-gray-400 dark:text-gray-500 flex items-center gap-1">Download <ChevronDown className="size-3" /></span>
+
+                  {/* Text */}
+                  <div className="flex flex-col gap-1 pt-0.5">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-tight">{title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+                  </div>
+
+                  {/* Completion indicator */}
+                  <div className="ml-auto shrink-0 pt-0.5">
+                    <CheckCircle2 className="size-5 text-green-400" />
                   </div>
                 </div>
+              ))}
 
-                {/* Card body — two panels */}
-                <div className="flex divide-x divide-gray-100 dark:divide-gray-700/50">
-                  {/* Left: AI Suggestions */}
-                  <div className="w-[200px] shrink-0 p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">AI Suggestions</span>
-                      <span className="bg-primary text-primary-foreground rounded-full text-[10px] px-1.5 py-px font-bold">12</span>
-                    </div>
-                    {[
-                      { label: 'Improve Impact', sub: 'Add more impact to your bullet points.', color: 'text-green-500' },
-                      { label: 'Quantify Results', sub: 'Add metrics to showcase your achievements.', color: 'text-blue-400' },
-                      { label: 'Keyword Match', sub: 'Great match with job description.', color: 'text-blue-400' },
-                      { label: 'Skills Enhancement', sub: 'Add in-demand skills for this role.', color: 'text-green-500' },
-                    ].map((s) => (
-                      <div key={s.label} className="flex items-start gap-2">
-                        <CheckCircle2 className={`size-4 shrink-0 mt-0.5 ${s.color}`} />
-                        <div>
-                          <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight">{s.label}</p>
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-0.5">{s.sub}</p>
-                        </div>
-                      </div>
-                    ))}
-                    <button type="button" className="text-xs text-primary font-medium hover:underline flex items-center gap-1">
-                      View All Suggestions →
-                    </button>
-                  </div>
-
-                  {/* Right: Resume content */}
-                  <div className="flex-1 p-4 space-y-3 text-[11px]">
-                    <div>
-                      <p className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">Alex Johnson</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">Software Engineer</p>
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">alex.johnson@email.com · (555) 123-4567 · San Francisco, CA · linkedin.com/in/alexjohnson</p>
-                    </div>
-
-                    <div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 border-b border-gray-200 dark:border-gray-700/50 pb-0.5">Professional Summary</p>
-                      <p className="text-[10px] text-gray-600 dark:text-gray-400 leading-relaxed">Results-driven software engineer with 5+ years of experience building scalable web applications. Passionate about clean code, user experience, and delivering impactful solutions.</p>
-                    </div>
-
-                    <div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 border-b border-gray-200 dark:border-gray-700/50 pb-0.5">Experience</p>
-                      <div className="flex items-baseline justify-between">
-                        <p className="text-[10px] font-bold text-gray-800 dark:text-gray-200">Senior Software Engineer</p>
-                        <p className="text-[9px] text-gray-400 dark:text-gray-500">2021 - Present</p>
-                      </div>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-500 mb-1">Tech Corp</p>
-                      <ul className="space-y-0.5 pl-2">
-                        {[
-                          'Developed and maintained scalable web applications serving 100K+ users',
-                          'Improved application performance by 40% through code optimization',
-                          'Led a team of 4 engineers and mentored junior developers',
-                          'Implemented CI/CD pipelines reducing deployment time by 60%',
-                        ].map((bullet) => (
-                          <li key={bullet} className="text-[9px] text-gray-500 dark:text-gray-500 flex gap-1">
-                            <span className="shrink-0">·</span>{bullet}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 border-b border-gray-200 dark:border-gray-700/50 pb-0.5">Education</p>
-                      <div className="flex items-baseline justify-between">
-                        <p className="text-[10px] font-bold text-gray-800 dark:text-gray-200">Bachelor of Science in Computer Science</p>
-                        <p className="text-[9px] text-gray-400 dark:text-gray-500">2017 - 2021</p>
-                      </div>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-500">University of California, Berkeley</p>
-                    </div>
-                  </div>
+              {/* Output summary badge */}
+              <div className="bg-primary/5 border border-primary/15 rounded-2xl px-5 py-4 flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-sm font-semibold text-foreground">Your application package</p>
+                  <p className="text-xs text-muted-foreground">Everything you need, ready to send.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2.5 py-1 rounded-full">Resume</span>
+                  <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2.5 py-1 rounded-full">Cover Letter</span>
+                  <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full">ATS Score</span>
                 </div>
               </div>
             </div>

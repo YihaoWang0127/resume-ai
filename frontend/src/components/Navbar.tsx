@@ -190,7 +190,7 @@ export default function Navbar({ onBack, children }: Props) {
   const displayName = fullName.trim() || user?.email || ''
 
   return (
-    <nav className="relative shrink-0 border-b border-border px-6 h-16 flex items-center justify-between bg-background">
+    <nav className="sticky top-0 z-10 shrink-0 border-b border-border px-6 h-16 flex items-center justify-between bg-background">
       {/* Left: logo + optional back */}
       <div className="flex items-center gap-3">
         <button
