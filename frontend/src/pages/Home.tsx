@@ -205,7 +205,7 @@ export default function Home() {
               </div>
 
               {/* Headline */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight max-w-2xl text-[hsl(var(--heading))]">
+              <h1 className="text-3xl sm:text-4xl lg:text-4xl font-bold tracking-tight leading-tight max-w-2xl text-[hsl(var(--heading))]">
                 <span className="block">Every job application,</span>
                 <span className="block">perfectly tailored</span>
                 <span className="block">
@@ -323,12 +323,9 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </section>
-
-        {/* ── Trust Bar ────────────────────────────────────────── */}
-        <div className="py-12 px-8 max-w-7xl mx-auto">
-          <div className="bg-white/70 dark:bg-gray-800/70 rounded-2xl py-10 px-8">
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-8">
+          {/* ── Trust Bar ──────────────────────────────────────── */}
+          <div className="border-t border-primary/10 py-10 px-8 max-w-7xl mx-auto">
+            <p className="text-center text-sm text-[hsl(var(--text-muted))] mb-8">
               Trusted by professionals from top companies
             </p>
             <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12">
@@ -352,7 +349,7 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </div>
+        </section>
       </main>
 
       {/* 3-option picker / upload / saved-resumes modal */}
