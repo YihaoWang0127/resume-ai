@@ -193,7 +193,7 @@ export default function Home() {
 
       <main className="flex-1">
         {/* ── Hero Section ─────────────────────────────────────── */}
-        <section className="bg-[hsl(var(--hero-bg))] bg-dot-pattern">
+        <section className="bg-[hsl(var(--hero-bg))]">
           <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-8 lg:gap-12 items-start pt-16 pb-8 px-8 max-w-7xl mx-auto">
 
             {/* Left: text + CTAs */}
