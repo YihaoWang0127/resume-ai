@@ -278,7 +278,7 @@ export default function Home() {
             <div className="hidden lg:flex flex-col gap-4">
               {/* Header label */}
               <div className="flex items-center gap-2 px-1">
-                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">How it works</span>
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Steps</span>
                 <div className="flex-1 h-px bg-border" />
               </div>
 
