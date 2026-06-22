@@ -193,47 +193,8 @@ export default function Home() {
 
       <main className="flex-1">
         {/* ── Hero Section ─────────────────────────────────────── */}
-        <section className="relative overflow-hidden bg-[hsl(var(--hero-bg))] bg-dot-pattern">
-
-          {/* Decorative botanical leaves — top right */}
-          <svg aria-hidden="true" className="pointer-events-none absolute -top-8 -right-12 w-[420px] opacity-30 select-none" viewBox="0 0 420 380" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M380 10 C320 40, 260 120, 300 200 C340 280, 420 260, 400 180 C380 100, 340 60, 380 10Z" fill="#93C5FD" />
-            <path d="M340 -20 C270 20, 200 110, 250 200 C300 290, 390 270, 370 180 C350 90, 310 40, 340 -20Z" fill="#BFDBFE" />
-            <path d="M410 60 C370 90, 340 160, 370 230 C400 300, 450 280, 440 210 C430 140, 410 100, 410 60Z" fill="#BAE6FD" opacity="0.7" />
-            {/* Leaf stems */}
-            <path d="M380 10 Q340 100 300 200" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-            <path d="M340 -20 Q290 100 250 200" stroke="#BFDBFE" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-            <path d="M300 80 C260 100, 220 150, 240 220" stroke="#93C5FD" strokeWidth="1" strokeLinecap="round" fill="none" />
-          </svg>
-
-          {/* Decorative leaf cluster — upper right secondary */}
-          <svg aria-hidden="true" className="pointer-events-none absolute top-24 -right-4 w-[200px] opacity-20 select-none" viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M160 0 C120 30, 80 100, 110 170 C140 240, 200 220, 185 150 C170 80, 150 40, 160 0Z" fill="#7DD3FC" />
-            <path d="M190 20 C160 50, 140 120, 165 180 C190 240, 230 215, 220 150 C210 85, 195 50, 190 20Z" fill="#BAE6FD" opacity="0.8" />
-            <path d="M160 0 Q135 85 110 170" stroke="#7DD3FC" strokeWidth="1.2" strokeLinecap="round" fill="none" />
-          </svg>
-
-          {/* Decorative network graph — left edge */}
-          <svg aria-hidden="true" className="pointer-events-none absolute left-0 top-1/3 w-[90px] opacity-15 select-none" viewBox="0 0 90 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="20" cy="20" r="5" fill="#93C5FD" />
-            <circle cx="60" cy="50" r="5" fill="#93C5FD" />
-            <circle cx="15" cy="90" r="5" fill="#93C5FD" />
-            <circle cx="65" cy="120" r="5" fill="#93C5FD" />
-            <circle cx="25" cy="150" r="4" fill="#93C5FD" />
-            <line x1="20" y1="20" x2="60" y2="50" stroke="#93C5FD" strokeWidth="1.2" />
-            <line x1="60" y1="50" x2="15" y2="90" stroke="#93C5FD" strokeWidth="1.2" />
-            <line x1="15" y1="90" x2="65" y2="120" stroke="#93C5FD" strokeWidth="1.2" />
-            <line x1="65" y1="120" x2="25" y2="150" stroke="#93C5FD" strokeWidth="1.2" />
-            <line x1="20" y1="20" x2="15" y2="90" stroke="#93C5FD" strokeWidth="0.8" opacity="0.5" />
-          </svg>
-
-          {/* Decorative search/magnify circle — bottom right */}
-          <svg aria-hidden="true" className="pointer-events-none absolute bottom-12 right-8 w-[64px] opacity-20 select-none" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="26" cy="26" r="18" stroke="#93C5FD" strokeWidth="3" />
-            <line x1="39" y1="39" x2="56" y2="56" stroke="#93C5FD" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[45%_55%] gap-8 lg:gap-12 items-start pt-16 pb-8 px-8 max-w-7xl mx-auto">
+        <section className="bg-[hsl(var(--hero-bg))] bg-dot-pattern">
+          <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-8 lg:gap-12 items-start pt-16 pb-8 px-8 max-w-7xl mx-auto">
 
             {/* Left: text + CTAs */}
             <div className="flex flex-col gap-6">
