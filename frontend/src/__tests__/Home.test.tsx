@@ -104,7 +104,7 @@ describe('Home — social proof and trust bar', () => {
 describe('Home — resume preview card', () => {
   it('renders the 3-step workflow card', () => {
     renderHome()
-    expect(screen.getByText('Steps')).toBeInTheDocument()
+    expect(screen.getByText('How It Works')).toBeInTheDocument()
     expect(screen.getByText('Upload Your Resume')).toBeInTheDocument()
     expect(screen.getByText('Paste a Job Description')).toBeInTheDocument()
     expect(screen.getByText('Your application package')).toBeInTheDocument()
