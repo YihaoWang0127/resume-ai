@@ -193,7 +193,7 @@ export default function Home() {
 
       <main className="flex-1">
         {/* ── Hero Section ─────────────────────────────────────── */}
-        <section>
+        <section className="bg-[hsl(var(--hero-bg))] bg-dot-pattern">
           <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-8 lg:gap-12 items-start pt-16 pb-8 px-8 max-w-7xl mx-auto">
 
             {/* Left: text + CTAs */}
@@ -205,28 +205,35 @@ export default function Home() {
               </div>
 
               {/* Headline */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
-                <span className="block text-foreground">Build every job application package</span>
-                <span className="block text-primary">in minutes.</span>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight max-w-2xl text-[hsl(var(--heading))]">
+                <span className="block">Every job application,</span>
+                <span className="block">perfectly tailored</span>
+                <span className="block">
+                  <span className="bg-gradient-to-r from-[#0B74F1] to-[#1473E6] bg-clip-text text-transparent">
+                    in minutes.
+                  </span>
+                </span>
               </h1>
 
               {/* Subtitle */}
-              <p className="text-base text-muted-foreground leading-relaxed max-w-lg">
-                Resume, cover letter, and ATS check — tailored to each job.
+              <p className="text-base text-[hsl(var(--text-muted))] leading-relaxed max-w-lg mt-6">
+                Resume, cover letter, and ATS check — crafted for the exact role you're chasing.
               </p>
 
               {/* Feature checklist */}
               <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                 {CHECKLIST.map((item) => (
                   <div key={item} className="flex items-center gap-2">
-                    <CheckCircle2 className="size-4 text-primary shrink-0" />
-                    <span className="text-sm font-medium text-foreground">{item}</span>
+                    <span className="shrink-0 rounded-full ring-2 ring-primary/30 bg-primary/10 p-0.5 flex items-center justify-center">
+                      <CheckCircle2 className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-sm font-medium text-[hsl(var(--checklist-text))]">{item}</span>
                   </div>
                 ))}
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 mt-8">
                 <button
                   type="button"
                   onClick={handleEnhance}
@@ -238,7 +245,7 @@ export default function Home() {
                 <button
                   type="button"
                   disabled
-                  className="inline-flex items-center gap-2 border border-border bg-background rounded-lg px-6 py-3 font-semibold text-sm min-h-[44px] opacity-50 cursor-not-allowed"
+                  className="inline-flex items-center gap-2 border border-primary text-primary bg-transparent rounded-lg px-6 py-3 font-semibold text-sm min-h-[44px] opacity-50 cursor-not-allowed hover:bg-primary/10 transition-colors"
                 >
                   See Example
                   <Eye className="size-4 shrink-0" />

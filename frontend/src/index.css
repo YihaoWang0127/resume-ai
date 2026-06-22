@@ -11,19 +11,26 @@
     --card-foreground: 240 3% 12%;      /* #1D1D1F */
     --popover: 240 11% 97%;             /* #F5F5F7 */
     --popover-foreground: 240 3% 12%;   /* #1D1D1F */
-    --primary: 210 100% 45%;            /* #0071E3 */
+    --primary: 212 91% 49%;             /* #0B74F1 */
     --primary-foreground: 0 0% 100%;    /* white */
     --secondary: 240 6% 90%;
     --secondary-foreground: 240 3% 12%;
     --muted: 240 6% 90%;
-    --muted-foreground: 240 2% 54%;     /* #86868B */
-    --accent: 210 100% 45%;             /* #0071E3 */
+    --muted-foreground: 215 14% 47%;    /* #64748B slate-500 */
+    --accent: 212 91% 49%;              /* #0B74F1 */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --border: 240 6% 83%;               /* #D2D2D7 */
     --input: 240 5% 88%;
-    --ring: 210 100% 45%;               /* #0071E3 */
+    --ring: 212 91% 49%;                /* #0B74F1 */
+    /* Hero section */
+    --hero-bg: 220 100% 98%;            /* #F6F9FF very light blue-gray */
+    /* Heading / text */
+    --heading: 222 47% 11%;             /* #0F172A near-black */
+    --text-muted: 215 14% 47%;          /* #64748B slate-500 */
+    /* Checklist */
+    --checklist-text: 215 25% 27%;      /* #334155 slate-700 */
     /* Rounded corners */
     --radius: 0.5rem;
     --radius-xs: 0.25rem;
@@ -54,6 +61,11 @@
     --border: 240 4% 24%;               /* #39393F */
     --input: 240 4% 24%;
     --ring: 210 100% 56%;               /* #0A84FF */
+    /* Hero section (dark) */
+    --hero-bg: 222 47% 11%;             /* deep navy for dark hero */
+    --heading: 0 0% 98%;                /* #FAFAFA */
+    --text-muted: 240 3% 64%;           /* #9C9CA3 */
+    --checklist-text: 215 14% 75%;      /* light slate */
   }
   * {
     @apply border-border;
@@ -64,5 +76,13 @@
   }
   h1, h2, h3 {
     font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  /* Subtle dot-grid pattern for hero sections */
+  .bg-dot-pattern {
+    background-image: radial-gradient(circle, rgba(148, 163, 184, 0.18) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
 }
