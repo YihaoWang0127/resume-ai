@@ -132,7 +132,7 @@ describe('Navbar — center nav links', () => {
   it('renders all five nav links when no onBack or children props are present', () => {
     renderNavbar()
     expect(screen.getByText('Features')).toBeInTheDocument()
-    expect(screen.getByText('How It Works')).toBeInTheDocument()
+    expect(screen.getByText('Steps')).toBeInTheDocument()
     expect(screen.getByText('Examples')).toBeInTheDocument()
     expect(screen.getByText('Pricing')).toBeInTheDocument()
     expect(screen.getByText('Blog')).toBeInTheDocument()
@@ -146,7 +146,7 @@ describe('Navbar — center nav links', () => {
   it('hides center nav links when onBack prop is provided', () => {
     render(<Navbar onBack={vi.fn()} />, { wrapper: MemoryRouter })
     expect(screen.queryByText('Features')).not.toBeInTheDocument()
-    expect(screen.queryByText('How It Works')).not.toBeInTheDocument()
+    expect(screen.queryByText('Steps')).not.toBeInTheDocument()
     expect(screen.queryByText('Examples')).not.toBeInTheDocument()
     expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
     expect(screen.queryByText('Blog')).not.toBeInTheDocument()
@@ -160,7 +160,7 @@ describe('Navbar — center nav links', () => {
       { wrapper: MemoryRouter }
     )
     expect(screen.queryByText('Features')).not.toBeInTheDocument()
-    expect(screen.queryByText('How It Works')).not.toBeInTheDocument()
+    expect(screen.queryByText('Steps')).not.toBeInTheDocument()
     expect(screen.queryByText('Examples')).not.toBeInTheDocument()
     expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
     expect(screen.queryByText('Blog')).not.toBeInTheDocument()
@@ -189,16 +189,16 @@ describe('Navbar — nav dropdown panels', () => {
     expect(screen.queryByText('What you get')).not.toBeInTheDocument()
   })
 
-  it('opens the "How It Works" panel when that button is clicked', async () => {
+  it('opens the "Steps" panel when that button is clicked', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
-    await user.click(screen.getByRole('button', { name: /How It Works/i }))
+    await user.click(screen.getByRole('button', { name: /Steps/i }))
 
     expect(screen.getByText('Three simple steps')).toBeInTheDocument()
   })
 
-  it('switches from Features panel to "How It Works" panel (only one open at a time)', async () => {
+  it('switches from Features panel to "Steps" panel (only one open at a time)', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
@@ -206,8 +206,8 @@ describe('Navbar — nav dropdown panels', () => {
     await user.click(screen.getByRole('button', { name: /Features/i }))
     expect(screen.getByText('What you get')).toBeInTheDocument()
 
-    // Click How It Works — Features panel should close, How It Works opens
-    await user.click(screen.getByRole('button', { name: /How It Works/i }))
+    // Click Steps — Features panel should close, Steps opens
+    await user.click(screen.getByRole('button', { name: /Steps/i }))
     expect(screen.queryByText('What you get')).not.toBeInTheDocument()
     expect(screen.getByText('Three simple steps')).toBeInTheDocument()
   })
@@ -291,7 +291,7 @@ describe('Navbar — nav dropdown panels', () => {
     const user = userEvent.setup()
     renderNavbar()
 
-    await user.click(screen.getByRole('button', { name: /How It Works/i }))
+    await user.click(screen.getByRole('button', { name: /Steps/i }))
 
     expect(screen.getByText('Upload')).toBeInTheDocument()
     expect(screen.getByText('Enhance')).toBeInTheDocument()

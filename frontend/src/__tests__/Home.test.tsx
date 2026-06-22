@@ -71,9 +71,9 @@ describe('Home — hero section', () => {
   it('renders badge, headline, subtitle, checklist items, and CTA buttons', () => {
     renderHome()
     expect(screen.getByText('Built for Every Job Application')).toBeInTheDocument()
-    expect(screen.getByText('Build every job application package')).toBeInTheDocument()
+    expect(screen.getByText('Every job application,')).toBeInTheDocument()
     expect(screen.getByText('in minutes.')).toBeInTheDocument()
-    expect(screen.getByText('Resume, cover letter, and ATS check — tailored to each job.')).toBeInTheDocument()
+    expect(screen.getByText("Resume, cover letter, and ATS check — crafted for the exact role you're chasing.")).toBeInTheDocument()
     expect(screen.getByText('Tailored Resume')).toBeInTheDocument()
     expect(screen.getAllByText('Cover Letter').length).toBeGreaterThan(0)
     expect(screen.getAllByText('ATS Score').length).toBeGreaterThan(0)
@@ -104,7 +104,7 @@ describe('Home — social proof and trust bar', () => {
 describe('Home — resume preview card', () => {
   it('renders the 3-step workflow card', () => {
     renderHome()
-    expect(screen.getByText('How it works')).toBeInTheDocument()
+    expect(screen.getByText('How It Works')).toBeInTheDocument()
     expect(screen.getByText('Upload Your Resume')).toBeInTheDocument()
     expect(screen.getByText('Paste a Job Description')).toBeInTheDocument()
     expect(screen.getByText('Your application package')).toBeInTheDocument()

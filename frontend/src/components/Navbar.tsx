@@ -11,9 +11,9 @@ interface Props {
   children?: ReactNode
 }
 
-type NavLabel = 'Features' | 'How It Works' | 'Examples' | 'Pricing' | 'Blog'
+type NavLabel = 'Features' | 'Steps' | 'Examples' | 'Pricing' | 'Blog'
 
-const NAV_LABELS: NavLabel[] = ['Features', 'How It Works', 'Examples', 'Pricing', 'Blog']
+const NAV_LABELS: NavLabel[] = ['Features', 'Steps', 'Examples', 'Pricing', 'Blog']
 
 /* ─── Panel content components ─────────────────────────────────── */
 
@@ -140,7 +140,7 @@ function BlogPanel() {
 
 const NAV_PANELS: Record<NavLabel, ReactNode> = {
   Features: <FeaturesPanel />,
-  'How It Works': <HowItWorksPanel />,
+  'Steps': <HowItWorksPanel />,
   Examples: <ExamplesPanel />,
   Pricing: <PricingPanel />,
   Blog: <BlogPanel />,

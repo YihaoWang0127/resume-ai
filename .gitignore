@@ -1,3 +1,11 @@
+# Design sync — generated, not committed
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+frontend/src/_ds_styles.css
+
 # Python
 backend/venv/
 backend/.env
