@@ -58,23 +58,33 @@ describe('AccountSidebar — nav links', () => {
 
   it('navigates to the correct path when a link is clicked', async () => {
     const user = userEvent.setup()
-    renderSidebar('/profile')
 
-    for (const { label, path } of NAV_ITEMS) {
+    // Test non-Profile items from /profile (where Profile is an accordion toggle, not a navigate)
+    const { unmount } = renderSidebar('/profile')
+    const nonProfileItems = NAV_ITEMS.filter(({ path }) => path !== '/profile')
+    for (const { label, path } of nonProfileItems) {
       const buttons = screen.getAllByText(label).map((el) => el.closest('button')!)
       await user.click(buttons[0])
       expect(mockNavigate).toHaveBeenCalledWith(path)
     }
+
+    // Test Profile navigation separately — must be on a non-profile path
+    unmount()
+    vi.clearAllMocks()
+    renderSidebar('/ai')
+    const profileButtons = screen.getAllByText('Profile').map((el) => el.closest('button')!)
+    await user.click(profileButtons[0])
+    expect(mockNavigate).toHaveBeenCalledWith('/profile')
   })
 
   it('renders nav links in Profile, Dashboard, AI, Settings order on desktop when not on /dashboard', () => {
-    const { container } = renderSidebar('/profile')
+    const { container } = renderSidebar('/ai')
 
     // Desktop sidebar is the second nav group in the DOM (mobile pill bar is first)
     const desktopNav = container.querySelectorAll('nav > div')[1]
     const labels = Array.from(desktopNav.querySelectorAll('button')).map((btn) => btn.textContent?.trim())
 
-    // Expect the four top-level items to appear in order (no sub-items when not on /dashboard)
+    // Expect the four top-level items to appear in order (no sub-items when not on /dashboard or /profile)
     expect(labels).toEqual(['Profile', 'Dashboard', 'AI', 'Settings'])
   })
 
@@ -159,7 +169,8 @@ describe('AccountSidebar — guest and signed-out users', () => {
 
   it('renders exactly 3 tabs (Profile, AI, Settings) in both the mobile pill bar and desktop sidebar for a guest', () => {
     setupAuth({ user: { id: 'anon1', is_anonymous: true } as any, isGuest: true })
-    const { container } = renderSidebar('/profile')
+    // Mount at /ai so Profile accordion is not expanded
+    const { container } = renderSidebar('/ai')
 
     const [mobileNav, desktopNav] = container.querySelectorAll('nav > div')
     expect(Array.from(mobileNav.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
@@ -167,7 +178,7 @@ describe('AccountSidebar — guest and signed-out users', () => {
       'AI',
       'Settings',
     ])
-    expect(Array.from(desktopNav.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
+    expect(Array.from(desktopNav.querySelectorAll('button')).map((b) => b.textContent?.trim())).toEqual([
       'Profile',
       'AI',
       'Settings',
@@ -176,7 +187,8 @@ describe('AccountSidebar — guest and signed-out users', () => {
 
   it('renders exactly 3 tabs (Profile, AI, Settings) for a signed-out user', () => {
     setupAuth({ user: null, isGuest: false })
-    const { container } = renderSidebar('/profile')
+    // Mount at /ai so Profile accordion is not expanded
+    const { container } = renderSidebar('/ai')
 
     const [mobileNav, desktopNav] = container.querySelectorAll('nav > div')
     expect(Array.from(mobileNav.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
@@ -184,7 +196,7 @@ describe('AccountSidebar — guest and signed-out users', () => {
       'AI',
       'Settings',
     ])
-    expect(Array.from(desktopNav.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
+    expect(Array.from(desktopNav.querySelectorAll('button')).map((b) => b.textContent?.trim())).toEqual([
       'Profile',
       'AI',
       'Settings',
@@ -246,7 +258,7 @@ describe('AccountSidebar — Dashboard sub-items', () => {
 
     const overviewButtons = screen.getAllByText('Overview').map((el) => el.closest('button')!)
     await user.click(overviewButtons[0])
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { replace: true })
   })
 
   it('navigates to /dashboard?tab=resumes when clicking the Resumes sub-item', async () => {
@@ -255,7 +267,7 @@ describe('AccountSidebar — Dashboard sub-items', () => {
 
     const resumeButtons = screen.getAllByText('Resumes').map((el) => el.closest('button')!)
     await user.click(resumeButtons[0])
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=resumes')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=resumes', { replace: true })
   })
 
   it('navigates to /dashboard?tab=cover-letters when clicking the Cover Letters sub-item', async () => {
@@ -264,7 +276,7 @@ describe('AccountSidebar — Dashboard sub-items', () => {
 
     const clButtons = screen.getAllByText('Cover Letters').map((el) => el.closest('button')!)
     await user.click(clButtons[0])
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=cover-letters')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=cover-letters', { replace: true })
   })
 
   it('navigates to /dashboard?tab=ats-scores when clicking the ATS Scores sub-item', async () => {
@@ -273,7 +285,7 @@ describe('AccountSidebar — Dashboard sub-items', () => {
 
     const atsButtons = screen.getAllByText('ATS Scores').map((el) => el.closest('button')!)
     await user.click(atsButtons[0])
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=ats-scores')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?tab=ats-scores', { replace: true })
   })
 
   it('clicking Dashboard parent button still navigates to /dashboard', async () => {

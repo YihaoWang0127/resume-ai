@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import type { ResumeSchema } from '@/types/resume'
@@ -137,6 +137,20 @@ beforeEach(() => {
   mockGetAiUsageStats.mockResolvedValue({ ...emptyUsageStats, callsThisMonth: 3 } as any)
 })
 
+// ── section helpers ───────────────────────────────────────────────────────────
+
+function getResumesSection() {
+  return document.getElementById('resumes')!
+}
+
+function getCoverLettersSection() {
+  return document.getElementById('cover-letters')!
+}
+
+function getAtsSection() {
+  return document.getElementById('ats-scores')!
+}
+
 // ── rendering ─────────────────────────────────────────────────────────────────
 
 describe('Dashboard — rendering', () => {
@@ -149,8 +163,9 @@ describe('Dashboard — rendering', () => {
 
   it('renders resume cards from listResumes data', async () => {
     renderDashboard('resumes')
-    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
-    expect(screen.getByText('Product Manager Resume')).toBeInTheDocument()
+    // Resume titles appear in both the Overview table and the My Resumes cards section
+    await waitFor(() => expect(screen.getAllByText('Software Engineer Resume').length).toBeGreaterThan(0))
+    expect(screen.getAllByText('Product Manager Resume').length).toBeGreaterThan(0)
   })
 
   it('shows the New Resume card at the end of the grid', async () => {
@@ -230,24 +245,26 @@ describe('Dashboard — stats bar', () => {
     expect(skeleton).toBeTruthy()
   })
 
-  it('does not show stats bar on the resumes tab', async () => {
+  it('shows stats bar on the resumes tab (all sections always rendered)', async () => {
     renderDashboard('resumes')
     await waitFor(() => expect(screen.getByRole('heading', { name: /my resumes/i })).toBeInTheDocument())
-    expect(screen.queryByText('Total Resumes')).not.toBeInTheDocument()
-    expect(screen.queryByText('Avg ATS Score')).not.toBeInTheDocument()
+    // All sections are always rendered — stats bar is always present
+    expect(screen.getByText('Total Resumes')).toBeInTheDocument()
+    expect(screen.getByText('Avg ATS Score')).toBeInTheDocument()
   })
 })
 
 // ── tab switching ────────────────────────────────────────────────────────────
 
 describe('Dashboard — tab switching', () => {
-  it('shows the Overview view by default (no resumes heading)', async () => {
+  it('shows the Overview view by default (Application Overview heading present)', async () => {
     renderDashboard()
     await waitFor(() =>
       expect(screen.getByText('Application Overview')).toBeInTheDocument()
     )
-    expect(screen.queryByRole('heading', { name: /my resumes/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: /my cover letters/i })).not.toBeInTheDocument()
+    // All sections are always rendered now — headings for all sections are present
+    expect(screen.getByRole('heading', { name: /my resumes/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /my cover letters/i })).toBeInTheDocument()
   })
 
   it('shows resumes view when tab=resumes', async () => {
@@ -255,8 +272,9 @@ describe('Dashboard — tab switching', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: /my resumes/i })).toBeInTheDocument()
     )
-    expect(screen.queryByRole('heading', { name: /my cover letters/i })).not.toBeInTheDocument()
-    expect(screen.queryByText('Application Overview')).not.toBeInTheDocument()
+    // All sections are always rendered — other section headings are also present
+    expect(screen.getByRole('heading', { name: /my cover letters/i })).toBeInTheDocument()
+    expect(screen.getByText('Application Overview')).toBeInTheDocument()
   })
 
   it('shows cover letters view when tab=cover-letters', async () => {
@@ -264,7 +282,8 @@ describe('Dashboard — tab switching', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: /my cover letters/i })).toBeInTheDocument()
     )
-    expect(screen.queryByRole('heading', { name: /my resumes/i })).not.toBeInTheDocument()
+    // All sections are always rendered — resumes heading is also present
+    expect(screen.getByRole('heading', { name: /my resumes/i })).toBeInTheDocument()
   })
 
   it('shows ATS Score view when tab=ats-scores', async () => {
@@ -272,35 +291,42 @@ describe('Dashboard — tab switching', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: /ats score/i })).toBeInTheDocument()
     )
-    expect(screen.queryByRole('heading', { name: /my resumes/i })).not.toBeInTheDocument()
+    // All sections are always rendered — resumes heading is also present
+    expect(screen.getByRole('heading', { name: /my resumes/i })).toBeInTheDocument()
   })
 
-  it('shows only resumes with ats_score on the ATS Score tab and a "New ATS Check" card', async () => {
-    // Default mock has no ats_score on either resume → neither card appears
+  it('shows only resumes with ats_score in the ATS Score section and a "New ATS Check" card', async () => {
+    // Default mock has no ats_score on either resume → neither card appears in ATS section
     renderDashboard('ats-scores')
 
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: /ats score/i })).toBeInTheDocument()
     )
-    // No scored resumes → no resume cards appear in the grid
-    expect(screen.queryByText('Software Engineer Resume')).not.toBeInTheDocument()
-    expect(screen.queryByText('Product Manager Resume')).not.toBeInTheDocument()
+
+    const atsSection = getAtsSection()
+    // No scored resumes → no resume cards appear in the ATS grid
+    expect(within(atsSection).queryByText('Software Engineer Resume')).not.toBeInTheDocument()
+    expect(within(atsSection).queryByText('Product Manager Resume')).not.toBeInTheDocument()
     // The "New ATS Check" dashed card is always present
     expect(screen.getByText('New ATS Check')).toBeInTheDocument()
   })
 
-  it('shows only the scored resume on ATS Score tab when one resume has ats_score', async () => {
+  it('shows only the scored resume in the ATS Score section when one resume has ats_score', async () => {
     mockListResumes.mockResolvedValue([
       { ...savedResume1, ats_score: 85, ats_score_updated_at: '2024-02-01T00:00:00Z' },
       savedResume2,
     ] as any)
     renderDashboard('ats-scores')
 
-    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
+    await waitFor(() => {
+      const atsSection = getAtsSection()
+      expect(within(atsSection).getByText('Software Engineer Resume')).toBeInTheDocument()
+    })
+    const atsSection = getAtsSection()
     // Score is displayed as "85/100" without the "Score:" prefix
-    expect(screen.getByText('85/100')).toBeInTheDocument()
-    // The un-scored resume must not appear
-    expect(screen.queryByText('Product Manager Resume')).not.toBeInTheDocument()
+    expect(within(atsSection).getByText('85/100')).toBeInTheDocument()
+    // The un-scored resume must not appear in the ATS section
+    expect(within(atsSection).queryByText('Product Manager Resume')).not.toBeInTheDocument()
   })
 })
 
@@ -422,10 +448,13 @@ describe('Dashboard — navigation', () => {
   it('Edit button on cover letter navigates to /cover-letter/:id', async () => {
     const user = userEvent.setup()
     renderDashboard('cover-letters')
-    // Card now shows company_name as heading, not the title
-    await waitFor(() => expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument())
+    // Wait for cover letter section to be loaded
+    await waitFor(() => expect(screen.getAllByText('Stripe').length).toBeGreaterThan(0))
 
-    await user.click(screen.getByRole('button', { name: /edit/i }))
+    // Scope to the cover letters section to find its Edit button
+    const clSection = getCoverLettersSection()
+    const editButton = within(clSection).getByRole('button', { name: /edit/i })
+    await user.click(editButton)
 
     expect(mockNavigate).toHaveBeenCalledWith('/cover-letter/cl1', { state: { from: '/dashboard' } })
   })
@@ -476,9 +505,10 @@ describe('Dashboard — delete flow', () => {
     await user.click(getModalConfirmButton())
 
     await waitFor(() => expect(mockDeleteResume).toHaveBeenCalledWith(savedResume1.id))
-    await waitFor(() =>
-      expect(screen.queryByText('Software Engineer Resume')).not.toBeInTheDocument()
-    )
+    await waitFor(() => {
+      const resumesSection = getResumesSection()
+      expect(within(resumesSection).queryByText('Software Engineer Resume')).not.toBeInTheDocument()
+    })
   })
 
   it('Cancel button hides the confirmation modal without deleting', async () => {
@@ -503,7 +533,11 @@ describe('Dashboard — cover letter delete flow', () => {
     // Card now shows company_name as heading; wait for the More button to be ready
     await waitFor(() => expect(screen.getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
 
-    await openMoreMenuAndDelete(user, 0)
+    // Scope to cover letters section to get the correct More Options button
+    const clSection = getCoverLettersSection()
+    const moreBtn = within(clSection).getByRole('button', { name: /more options/i })
+    await user.click(moreBtn)
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
 
     expect(screen.getByRole('heading', { name: /delete cover letter/i })).toBeInTheDocument()
     expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument()
@@ -514,13 +548,17 @@ describe('Dashboard — cover letter delete flow', () => {
     renderDashboard('cover-letters')
     await waitFor(() => expect(screen.getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
 
-    await openMoreMenuAndDelete(user, 0)
+    // Scope to cover letters section to get the correct More Options button
+    const clSection = getCoverLettersSection()
+    const moreBtn = within(clSection).getByRole('button', { name: /more options/i })
+    await user.click(moreBtn)
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
     await user.click(getModalConfirmButton())
 
     await waitFor(() => expect(mockDeleteCoverLetter).toHaveBeenCalledWith(savedCoverLetter1.id))
-    // After deletion, the company name 'Stripe' should no longer appear in the card list
+    // After deletion, no more options button should remain in the cover letters section
     await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /more options/i })).not.toBeInTheDocument()
+      expect(within(getCoverLettersSection()).queryByRole('button', { name: /more options/i })).not.toBeInTheDocument()
     )
   })
 })
@@ -545,7 +583,8 @@ describe('Dashboard — ATS badge on resume card', () => {
   it('shows an ATS score badge on resume cards that have a saved ats_score', async () => {
     mockListResumes.mockResolvedValue([resumeWithAts, savedResume2] as any)
     renderDashboard('resumes')
-    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
+    // Resume title appears in both Overview table and My Resumes cards
+    await waitFor(() => expect(screen.getAllByText('Software Engineer Resume').length).toBeGreaterThan(0))
     // Badge text: "ATS 72"
     expect(screen.getByText(/ATS 72/)).toBeInTheDocument()
     // Resume without a score should not show a badge
@@ -566,7 +605,8 @@ describe('Dashboard — ATS badge on resume card', () => {
     )
     // View mode shows the score result directly — NOT the JD entry textarea
     expect(screen.queryByPlaceholderText(/paste the job description here/i)).not.toBeInTheDocument()
-    expect(screen.getByText('72/100')).toBeInTheDocument()
+    // 72/100 appears in the ATS score card and again in the modal — use getAllByText
+    expect(screen.getAllByText('72/100').length).toBeGreaterThan(0)
     expect(screen.getByText('Good overall match.')).toBeInTheDocument()
     expect(screen.getByText('TypeScript')).toBeInTheDocument()
     expect(screen.getByText('GraphQL')).toBeInTheDocument()
@@ -588,7 +628,8 @@ describe('Dashboard — ATS badge on resume card', () => {
   it('ATS badge is not rendered for resumes without ats_score', async () => {
     // Default mock: both resumes have no ats_score
     renderDashboard('resumes')
-    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
+    // Resume title appears in both Overview table and My Resumes cards
+    await waitFor(() => expect(screen.getAllByText('Software Engineer Resume').length).toBeGreaterThan(0))
     expect(screen.queryByText(/ATS \d+/)).not.toBeInTheDocument()
   })
 })
@@ -635,17 +676,21 @@ describe('Dashboard — ATS Score tab Detail and trash buttons', () => {
     const user = userEvent.setup()
     renderDashboard('ats-scores')
 
-    await waitFor(() => expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument())
+    await waitFor(() => {
+      const atsSection = getAtsSection()
+      expect(within(atsSection).getByText('Software Engineer Resume')).toBeInTheDocument()
+    })
 
-    // Delete is now inside the ⋯ More menu — open it then click Delete
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
-    await user.click(screen.getAllByRole('button', { name: /more options/i })[0])
+    // Delete is now inside the ⋯ More menu in the ATS section — open it then click Delete
+    const atsSection = getAtsSection()
+    await waitFor(() => expect(within(atsSection).getAllByRole('button', { name: /more options/i }).length).toBeGreaterThan(0))
+    await user.click(within(atsSection).getAllByRole('button', { name: /more options/i })[0])
     await user.click(screen.getByRole('button', { name: /^delete$/i }))
 
     await waitFor(() => expect(mockClearAtsScore).toHaveBeenCalledWith(resumeWithAts.id))
     // After clearing, the resume disappears from the ATS tab list
     await waitFor(() =>
-      expect(screen.queryByText('Software Engineer Resume')).not.toBeInTheDocument()
+      expect(within(getAtsSection()).queryByText('Software Engineer Resume')).not.toBeInTheDocument()
     )
   })
 })
@@ -682,12 +727,13 @@ describe('Dashboard — ATS Score tab New ATS Check card', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: /new ats check/i })).toBeInTheDocument()
     )
-    // Both resumes are listed in the picker
-    expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument()
-    expect(screen.getByText('Product Manager Resume')).toBeInTheDocument()
+    // Both resumes are listed in the picker modal
+    const pickerModal = screen.getByRole('heading', { name: /new ats check/i }).closest('div[class]') as HTMLElement
+    expect(within(pickerModal).getByText('Software Engineer Resume')).toBeInTheDocument()
+    expect(within(pickerModal).getByText('Product Manager Resume')).toBeInTheDocument()
 
     // Picking a resume opens the JD entry form
-    await user.click(screen.getByText('Software Engineer Resume'))
+    await user.click(within(pickerModal).getByText('Software Engineer Resume'))
     await waitFor(() =>
       expect(screen.getByPlaceholderText(/paste the job description here/i)).toBeInTheDocument()
     )
@@ -711,10 +757,13 @@ describe('Dashboard — export dropdown', () => {
   it('cover letter Export button opens a dropdown with PDF, DOCX, TXT options', async () => {
     const user = userEvent.setup()
     renderDashboard('cover-letters')
-    // Wait for the Export button (card now shows company_name as heading, not title)
-    await waitFor(() => expect(screen.getByRole('button', { name: /export/i })).toBeInTheDocument())
+    // Wait for cover letter cards to render
+    await waitFor(() => expect(screen.getAllByText('Stripe').length).toBeGreaterThan(0))
 
-    await user.click(screen.getByRole('button', { name: /export/i }))
+    // Scope to cover letters section to click its Export button
+    const clSection = getCoverLettersSection()
+    const exportButton = within(clSection).getByRole('button', { name: /export/i })
+    await user.click(exportButton)
 
     expect(screen.getByText('PDF')).toBeInTheDocument()
     expect(screen.getByText('DOCX')).toBeInTheDocument()
@@ -745,7 +794,8 @@ describe('Dashboard — overview', () => {
     renderDashboard()
     await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
     // savedCoverLetter1 is linked to savedResume1, company_name is 'Stripe'
-    expect(screen.getByText('Software Engineer Resume')).toBeInTheDocument()
+    // Resume titles appear in both the Overview table and the My Resumes section
+    expect(screen.getAllByText('Software Engineer Resume').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Stripe').length).toBeGreaterThan(0)
   })
 
@@ -753,6 +803,7 @@ describe('Dashboard — overview', () => {
     renderDashboard()
     await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
     // savedResume2 has no cover letter — it should still appear as its own row
-    expect(screen.getByText('Product Manager Resume')).toBeInTheDocument()
+    // Title appears in both Overview table and My Resumes section
+    expect(screen.getAllByText('Product Manager Resume').length).toBeGreaterThan(0)
   })
 })

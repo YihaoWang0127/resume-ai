@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Navigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target, MoreHorizontal, Building2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { listResumes, deleteResume, updateAtsScore, clearAtsScore, type SavedResume } from '@/services/resumes'
@@ -102,8 +102,6 @@ function SkeletonOverview() {
 export default function Dashboard() {
   const { user, loading, isGuest } = useAuth()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const activeView = (searchParams.get('tab') ?? 'overview') as 'overview' | 'resumes' | 'cover-letters' | 'ats-scores'
 
   // ── resumes ──────────────────────────────────────────────────────────────────
   const [resumes, setResumes] = useState<SavedResume[]>([])
@@ -368,165 +366,166 @@ export default function Dashboard() {
     return rows
   })()
 
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen lg:h-screen bg-background flex flex-col">
       <Navbar onBack={() => navigate('/')} />
 
-      <main className="flex-1 px-6 py-10 max-w-5xl mx-auto w-full flex flex-col lg:flex-row gap-8">
-        <AccountSidebar />
+      <main className="flex-1 lg:overflow-hidden px-6 max-w-5xl mx-auto w-full flex flex-col lg:flex-row gap-8 py-10 lg:py-0">
+        <div className="lg:py-10">
+          <AccountSidebar />
+        </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 lg:overflow-y-auto lg:py-10 pb-16">
 
         {(loading || fetching) ? (
-          activeView === 'overview' ? (
-            <SkeletonOverview />
-          ) : (
-            <>
-              <section className="mb-12">
-                <div className="h-7 w-40 bg-muted rounded animate-pulse mb-6" />
-                <SkeletonCards />
-              </section>
-              <section>
-                <div className="h-7 w-48 bg-muted rounded animate-pulse mb-6" />
-                <SkeletonCards />
-              </section>
-            </>
-          )
+          <>
+            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+              <SkeletonOverview />
+            </div>
+            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+              <div className="h-7 w-40 bg-muted rounded animate-pulse mb-6" />
+              <SkeletonCards />
+            </div>
+            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+              <div className="h-7 w-48 bg-muted rounded animate-pulse mb-6" />
+              <SkeletonCards />
+            </div>
+          </>
         ) : (
           <>
             {/* ── OVERVIEW ──────────────────────────────────────────────────── */}
-            {activeView === 'overview' && (
-              <>
-                {/* Stats bar */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-                  <div className="bg-card border border-border rounded-xl p-4">
-                    <p className="text-2xl font-bold text-foreground">{resumes.length}</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Resumes</p>
-                  </div>
-                  <div className="bg-card border border-border rounded-xl p-4">
-                    <p className="text-2xl font-bold text-foreground">{coverLetters.length}</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Cover Letters</p>
-                  </div>
-                  <div className="bg-card border border-border rounded-xl p-4">
-                    <p className="text-2xl font-bold text-foreground">{avgAtsScore ?? '—'}</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Avg ATS Score</p>
-                  </div>
-                  <div className="bg-card border border-border rounded-xl p-4">
-                    <p className="text-2xl font-bold text-foreground">{aiCallsThisMonth ?? 0}</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">AI Actions Used This Month</p>
-                  </div>
+            <section id="overview" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
+              <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground mb-6">
+                Overview
+              </h2>
+
+              {/* Stats bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+                <div className="bg-card border border-border rounded-xl p-4">
+                  <p className="text-2xl font-bold text-foreground">{resumes.length}</p>
+                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Resumes</p>
                 </div>
+                <div className="bg-card border border-border rounded-xl p-4">
+                  <p className="text-2xl font-bold text-foreground">{coverLetters.length}</p>
+                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Cover Letters</p>
+                </div>
+                <div className="bg-card border border-border rounded-xl p-4">
+                  <p className="text-2xl font-bold text-foreground">{avgAtsScore ?? '—'}</p>
+                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Avg ATS Score</p>
+                </div>
+                <div className="bg-card border border-border rounded-xl p-4">
+                  <p className="text-2xl font-bold text-foreground">{aiCallsThisMonth ?? 0}</p>
+                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">AI Actions Used This Month</p>
+                </div>
+              </div>
 
-                {/* Application Overview table */}
-                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground mb-6">
-                  Application Overview
-                </h2>
+              {/* Application Overview table */}
+              <h3 className="text-base font-bold uppercase tracking-wider text-foreground mb-4">
+                Application Overview
+              </h3>
 
-                {relationshipRows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No documents yet. Upload a resume to get started.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border-collapse" style={{ minWidth: '860px' }}>
-                      <thead>
-                        <tr className="border-b border-border">
-                          {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
-                            <th
-                              key={col}
-                              className="py-3 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
-                            >
-                              {col}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {relationshipRows.map((row, idx) => {
-                          const scoreInfo = row.resume.ats_score != null ? atsScoreLabel(row.resume.ats_score) : null
-                          return (
-                            <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
-                              {/* Resume */}
-                              <td className="py-3 px-4 text-sm font-medium text-foreground min-w-[200px]">
-                                {row.resume.title}
-                              </td>
-                              {/* Company */}
-                              <td className="py-3 px-4 text-sm text-foreground min-w-[120px] whitespace-nowrap">
-                                {row.company ?? <span className="text-muted-foreground">—</span>}
-                              </td>
-                              {/* Job Title */}
-                              <td className="py-3 px-4 text-sm text-foreground min-w-[160px]">
-                                {row.jobTitle ?? <span className="text-muted-foreground">—</span>}
-                              </td>
-                              {/* Cover Letter */}
-                              <td className="py-3 px-4 whitespace-nowrap">
-                                {row.coverLetter ? (
-                                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border bg-green-500/10 text-green-600 border-green-500/30">
-                                    Generated
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">Not generated</span>
-                                )}
-                              </td>
-                              {/* ATS Score */}
-                              <td className="py-3 px-4 whitespace-nowrap">
-                                {row.resume.ats_score != null && scoreInfo ? (
-                                  <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${scoreInfo.className}`}>
-                                    {row.resume.ats_score} {scoreInfo.label}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">Not checked</span>
-                                )}
-                              </td>
-                              {/* Last Updated */}
-                              <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">
-                                {formatDate(row.lastUpdated)}
-                              </td>
-                              {/* Actions */}
-                              <td className="py-3 px-4">
-                                <div className="flex items-center gap-2 flex-nowrap">
+              {relationshipRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No documents yet. Upload a resume to get started.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse" style={{ minWidth: '860px' }}>
+                    <thead>
+                      <tr className="border-b border-border">
+                        {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
+                          <th
+                            key={col}
+                            className="py-3 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
+                          >
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {relationshipRows.map((row, idx) => {
+                        const scoreInfo = row.resume.ats_score != null ? atsScoreLabel(row.resume.ats_score) : null
+                        return (
+                          <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
+                            {/* Resume */}
+                            <td className="py-3 px-4 text-sm font-medium text-foreground min-w-[200px]">
+                              {row.resume.title}
+                            </td>
+                            {/* Company */}
+                            <td className="py-3 px-4 text-sm text-foreground min-w-[120px] whitespace-nowrap">
+                              {row.company ?? <span className="text-muted-foreground">—</span>}
+                            </td>
+                            {/* Job Title */}
+                            <td className="py-3 px-4 text-sm text-foreground min-w-[160px]">
+                              {row.jobTitle ?? <span className="text-muted-foreground">—</span>}
+                            </td>
+                            {/* Cover Letter */}
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              {row.coverLetter ? (
+                                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border bg-green-500/10 text-green-600 border-green-500/30">
+                                  Generated
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not generated</span>
+                              )}
+                            </td>
+                            {/* ATS Score */}
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              {row.resume.ats_score != null && scoreInfo ? (
+                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${scoreInfo.className}`}>
+                                  {row.resume.ats_score} {scoreInfo.label}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not checked</span>
+                              )}
+                            </td>
+                            {/* Last Updated */}
+                            <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">
+                              {formatDate(row.lastUpdated)}
+                            </td>
+                            {/* Actions */}
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2 flex-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewResume(row.resume)}
+                                  className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
+                                >
+                                  View Resume
+                                </button>
+                                {row.coverLetter && (
                                   <button
                                     type="button"
-                                    onClick={() => setPreviewResume(row.resume)}
+                                    onClick={() => navigate(`/cover-letter/${row.coverLetter!.id}`, { state: { from: '/dashboard' } })}
                                     className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
                                   >
-                                    View Resume
+                                    View Cover Letter
                                   </button>
-                                  {row.coverLetter && (
-                                    <button
-                                      type="button"
-                                      onClick={() => navigate(`/cover-letter/${row.coverLetter!.id}`, { state: { from: '/dashboard' } })}
-                                      className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                    >
-                                      View Cover Letter
-                                    </button>
-                                  )}
-                                  {row.resume.ats_score != null && (
-                                    <button
-                                      type="button"
-                                      onClick={() => openAtsDetail(row.resume)}
-                                      className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                    >
-                                      View ATS
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
+                                )}
+                                {row.resume.ats_score != null && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openAtsDetail(row.resume)}
+                                    className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
+                                  >
+                                    View ATS
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
 
             {/* ── MY RESUMES ─────────────────────────────────────────────────── */}
-            {activeView === 'resumes' && (
-            <section className="mb-12">
+            <section id="resumes" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
               <div className="flex items-center gap-3 mb-6">
-                <h2
-                  className="text-2xl font-bold uppercase tracking-wider text-foreground"
-                >
+                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">
                   My Resumes
                 </h2>
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 rounded-full">
@@ -656,7 +655,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setUploadModalOpen(true)}
-                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 min-h-[240px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
+                  className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 min-h-[240px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
                 >
                   <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center">
                     <Plus className="size-5 text-muted-foreground group-hover:text-primary" />
@@ -673,15 +672,11 @@ export default function Dashboard() {
               </div>
               )}
             </section>
-            )}
 
             {/* ── MY COVER LETTERS ────────────────────────────────────────────── */}
-            {activeView === 'cover-letters' && (
-            <section>
+            <section id="cover-letters" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
               <div className="flex items-center gap-3 mb-6">
-                <h2
-                  className="text-2xl font-bold uppercase tracking-wider text-foreground"
-                >
+                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">
                   My Cover Letters
                 </h2>
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 rounded-full">
@@ -809,7 +804,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setNewClStep('options')}
-                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 min-h-[200px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
+                  className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 min-h-[200px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
                 >
                   <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center">
                     <Plus className="size-5 text-muted-foreground group-hover:text-primary" />
@@ -826,16 +821,12 @@ export default function Dashboard() {
               </div>
               )}
             </section>
-            )}
 
             {/* ── ATS SCORE ───────────────────────────────────────────────────── */}
-            {activeView === 'ats-scores' && (
-            <section>
+            <section id="ats-scores" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
               <div className="flex items-center gap-3 mb-6">
-                <h2
-                  className="text-2xl font-bold uppercase tracking-wider text-foreground"
-                >
-                  ATS Score
+                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">
+                  ATS Scores
                 </h2>
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 rounded-full">
                   {resumes.filter((r) => r.ats_score != null).length}
@@ -940,7 +931,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setAtsNewCheckStep('resume-pick')}
-                  className="bg-background border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 min-h-[160px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
+                  className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 min-h-[160px] hover:border-primary hover:bg-primary/5 hover:scale-[1.02] transition-all duration-200 group"
                 >
                   <div className="size-10 rounded-full border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center">
                     <Plus className="size-5 text-muted-foreground group-hover:text-primary" />
@@ -957,7 +948,6 @@ export default function Dashboard() {
               </div>
               )}
             </section>
-            )}
           </>
         )}
         </div>

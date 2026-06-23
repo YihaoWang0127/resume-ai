@@ -13,7 +13,7 @@ export default function StreamingOutput({ text, isStreaming }: Props) {
   }, [text])
 
   return (
-    <div className="w-full bg-background p-4 font-mono text-xs text-primary border border-border">
+    <div className="w-full bg-card p-4 font-mono text-xs text-primary border border-border rounded-xl">
       <pre className="whitespace-pre-wrap break-all leading-relaxed">
         {text || (
           <span className="text-muted-foreground not-italic">
