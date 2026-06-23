@@ -728,7 +728,7 @@ describe('Dashboard — ATS Score tab New ATS Check card', () => {
       expect(screen.getByRole('heading', { name: /new ats check/i })).toBeInTheDocument()
     )
     // Both resumes are listed in the picker modal
-    const pickerModal = screen.getByRole('heading', { name: /new ats check/i }).closest('div[class]')!
+    const pickerModal = screen.getByRole('heading', { name: /new ats check/i }).closest('div[class]') as HTMLElement
     expect(within(pickerModal).getByText('Software Engineer Resume')).toBeInTheDocument()
     expect(within(pickerModal).getByText('Product Manager Resume')).toBeInTheDocument()
 
