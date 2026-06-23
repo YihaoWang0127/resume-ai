@@ -65,7 +65,7 @@ interface StreamState {
 }
 
 const field =
-  'w-full px-3 py-2 border border-border bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-shadow placeholder:text-muted-foreground rounded-lg'
+  'w-full px-3 py-2 border border-border bg-background text-foreground text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-shadow placeholder:text-muted-foreground rounded-lg'
 const fieldSm = cn(field, 'text-xs')
 
 // ── Edit Zone helpers (resumeToLines, computeLineDiff) live in @/lib/resumeDiff ──
@@ -1022,7 +1022,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const displayName = fullName.trim() || user?.email || ''
 
   return (
-    <div className="flex flex-col h-screen bg-muted">
+    <div className="flex flex-col h-screen bg-background">
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
       <header className="shrink-0 h-14 flex items-center justify-between px-4 lg:px-6 bg-background border-b border-border shadow-sm z-10">
         {/* Left: logo + back */}
@@ -1113,7 +1113,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               <ChevronDown className={cn('size-3 text-muted-foreground transition-transform', accountMenuOpen && 'rotate-180')} />
             </button>
             {accountMenuOpen && (
-              <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-primary/30 rounded-lg py-1 min-w-[180px] shadow-lg">
+              <div className="absolute right-0 top-full mt-1.5 z-50 bg-card border border-border rounded-lg py-1 min-w-[180px] shadow-lg">
                 <button
                   type="button"
                   onClick={() => { setAccountMenuOpen(false); navigate('/profile') }}
@@ -1163,8 +1163,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
       {/* Guest banner */}
       {isGuest && (
-        <div className="shrink-0 border-b border-yellow-900/40 bg-yellow-950/20 px-4 py-2 flex items-center justify-between gap-4">
-          <p className="text-xs text-yellow-400/90">You're browsing as guest. Sign up to save your resumes.</p>
+        <div className="shrink-0 border-b border-yellow-200 bg-yellow-50 px-4 py-2 flex items-center justify-between gap-4">
+          <p className="text-xs text-yellow-700">You're browsing as guest. Sign up to save your resumes.</p>
           <button
             type="button"
             onClick={() => onSignUp?.()}
@@ -1176,7 +1176,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       )}
 
       {/* Mobile Edit / Preview toggle */}
-      <div className="lg:hidden shrink-0 border-b border-border flex bg-background">
+      <div className="lg:hidden shrink-0 border-b border-border flex bg-card">
         <button
           type="button"
           onClick={() => setMobileViewTab('edit')}
@@ -1207,7 +1207,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       <div className="flex flex-1 overflow-hidden">
 
         {/* LEFT SIDEBAR ─────────────────────────────────────────────────────── */}
-        <aside className="hidden lg:flex flex-col shrink-0 border-r border-border bg-background overflow-y-auto" style={{ width: currentStep === 3 ? 224 : sidebarWidth }}>
+        <aside className="hidden lg:flex flex-col shrink-0 border-r border-border bg-card overflow-y-auto" style={{ width: currentStep === 3 ? 224 : sidebarWidth }}>
           {currentStep === 2 ? (
             /* ── AI TOOL SELECTOR (Step 2 only) ─────────────────────────────── */
             <>
@@ -1223,8 +1223,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     className={cn(
                       'w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-l-2',
                       aiTool === tool.id
-                        ? 'bg-primary/[0.08] border-primary'
-                        : 'border-transparent hover:bg-secondary/40',
+                        ? 'bg-primary/10 border-primary'
+                        : 'border-transparent hover:bg-muted/50',
                     )}
                   >
                     <tool.Icon className={cn('size-4 shrink-0 mt-0.5', aiTool === tool.id ? 'text-primary' : 'text-muted-foreground')} />
@@ -1261,12 +1261,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     className={cn(
                       'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-l-2',
                       reviewDocTab === doc.id
-                        ? 'bg-primary/[0.08] border-primary'
-                        : 'border-transparent hover:bg-secondary/40',
+                        ? 'bg-primary/10 border-primary'
+                        : 'border-transparent hover:bg-muted/50',
                     )}
                   >
                     <doc.Icon className={cn('size-4 shrink-0', reviewDocTab === doc.id ? 'text-primary' : 'text-muted-foreground')} />
-                    <span className={cn('text-sm font-medium', reviewDocTab === doc.id ? 'text-primary' : 'text-foreground')}>
+                    <span className={cn('text-sm font-medium', reviewDocTab === doc.id ? 'text-primary font-semibold' : 'text-foreground')}>
                       {doc.label}
                     </span>
                     {doc.id === 'coverletter' && clStreamContent && (
@@ -1297,8 +1297,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       className={cn(
                         'w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors border-l-2',
                         tab === s.id
-                          ? 'bg-primary/[0.08] text-primary border-primary'
-                          : 'text-foreground hover:bg-secondary/40 border-transparent',
+                          ? 'bg-primary/10 text-primary font-medium border-primary'
+                          : 'text-muted-foreground hover:bg-muted/50 border-transparent',
                       )}
                     >
                       <s.Icon className="size-4 shrink-0" />
@@ -1338,7 +1338,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         {/* CENTER EDITOR — hidden in step 3 */}
         <div
           className={cn(
-            'relative flex-col overflow-hidden bg-background border-r border-border transition-all duration-200',
+            'relative flex-col overflow-hidden bg-card border-r border-border transition-all duration-200',
             currentStep === 3 ? 'hidden' : (mobileViewTab === 'edit' ? 'flex' : 'hidden'),
             currentStep !== 3 && (centerCollapsed ? 'lg:hidden' : 'lg:flex lg:shrink-0'),
           )}
@@ -1404,7 +1404,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       </div>
                     </div>
                   ) : enrichmentState === 'loading' ? (
-                    <div className="rounded-xl border border-border bg-muted/30 p-5 flex flex-col items-center gap-3 text-center">
+                    <div className="rounded-xl border border-border bg-background p-5 flex flex-col items-center gap-3 text-center">
                       <Loader2 className="size-6 animate-spin text-primary" />
                       <p className="text-sm font-medium text-foreground">{ENRICHMENT_LOADING_MESSAGES[enrichMsgIndex]}</p>
                       <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1679,7 +1679,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       Analyze how well your resume matches a job description's keywords and requirements.
                     </p>
                   </div>
-                  <div className="space-y-3 bg-background rounded-xl border border-border p-4 shadow-sm">
+                  <div className="space-y-3 bg-card rounded-xl border border-border p-4 shadow-sm">
                     <label className="block text-xs font-bold text-foreground uppercase tracking-wider">
                       Job Description
                       <span className="text-destructive text-xs ml-1">(required)</span>
@@ -1777,7 +1777,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           ) : (
             <>
           {/* Mobile: horizontal section tab strip */}
-          <div className="lg:hidden shrink-0 flex overflow-x-auto scrollbar-none bg-background border-b border-border">
+          <div className="lg:hidden shrink-0 flex overflow-x-auto scrollbar-none bg-card border-b border-border">
             {[...RESUME_SECTION_DEFS, ...REVIEW_TOOL_DEFS].map((s) => (
               <button
                 key={s.id}
@@ -1875,9 +1875,9 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <h3 className="text-base font-semibold text-foreground">Summary</h3>
                 <p className="text-sm text-muted-foreground mt-0.5">Write a brief professional summary.</p>
               </div>
-              <div className="bg-background rounded-xl border border-border overflow-hidden shadow-sm">
-                <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-secondary/20">
-                  <select className="text-xs text-foreground bg-background border border-border rounded-md px-2 py-1 mr-1 outline-none focus:ring-1 focus:ring-primary/40">
+              <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+                <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted">
+                  <select className="text-xs text-foreground bg-background border border-border rounded-md px-2 py-1 mr-1 outline-none focus:ring-1 focus:ring-ring/40">
                     <option>Paragraph</option>
                   </select>
                   <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
@@ -1900,7 +1900,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <div className="relative">
                   <textarea
                     rows={8}
-                    className="w-full px-4 py-3 text-sm text-foreground bg-background outline-none resize-none placeholder:text-muted-foreground"
+                    className="w-full px-4 py-3 text-sm text-foreground bg-card outline-none resize-none placeholder:text-muted-foreground"
                     placeholder="A brief professional summary…"
                     value={resume.summary ?? ''}
                     onChange={(e) =>
@@ -1927,7 +1927,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <p className="text-sm text-muted-foreground mt-0.5">Add your work experience and achievements.</p>
               </div>
               {resume.experience.map((exp, i) => (
-                <div key={i} className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                <div key={i} className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-foreground leading-tight">{exp.title || 'Job Title'}</p>
@@ -1994,7 +1994,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <p className="text-sm text-muted-foreground mt-0.5">Add your educational background.</p>
               </div>
               {resume.education.map((edu, i) => (
-                <div key={i} className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                <div key={i} className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-foreground">{edu.institution || 'Institution'}</span>
                     <button onClick={() => removeEdu(i)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
@@ -2021,7 +2021,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <p className="text-sm text-muted-foreground mt-0.5">List your technical and soft skills.</p>
               </div>
               {resume.skills.map((group, gi) => (
-                <div key={gi} className="bg-background rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                <div key={gi} className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm">
                   <div className="flex items-center gap-2">
                     <input className={cn(field, 'flex-1 font-medium')} placeholder="Category (Languages, Frameworks…)" value={group.category} onChange={(e) => setSkillCat(gi, e.target.value)} />
                     <button onClick={() => removeSkillGroup(gi)} className="shrink-0 p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
@@ -2030,7 +2030,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {group.items.map((item, ii) => (
-                      <div key={ii} className="flex items-center gap-1 bg-secondary/60 border border-border rounded-lg px-2.5 py-1">
+                      <div key={ii} className="flex items-center gap-1 bg-muted border border-border rounded-lg px-2.5 py-1">
                         <input className="bg-transparent text-xs outline-none w-20 text-foreground placeholder:text-muted-foreground" placeholder="Skill" value={item} onChange={(e) => setSkillItem(gi, ii, e.target.value)} />
                         {group.items.length > 1 && (
                           <button onClick={() => removeSkillItem(gi, ii)} className="text-muted-foreground hover:text-destructive"><X className="size-3" /></button>
@@ -2102,7 +2102,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               {/* Progress bar overlay during streaming — centered over the panel, does not push content */}
               {clIsStreaming && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" style={{ top: '52px' }}>
-                  <div className="bg-background/80 backdrop-blur-sm rounded-xl shadow-lg p-8 w-80 flex flex-col items-center gap-4 text-center pointer-events-auto">
+                  <div className="bg-card/90 backdrop-blur-sm rounded-xl shadow-lg p-8 w-80 flex flex-col items-center gap-4 text-center pointer-events-auto">
                     <Loader2 className="size-6 animate-spin text-primary shrink-0" />
                     <p className="text-sm font-semibold text-foreground">
                       {CL_PROGRESS_MESSAGES[clProgressMsg]?.label ?? 'Generating…'}
@@ -2126,13 +2126,13 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </div>
               )}
               {/* Editable textarea */}
-              <div className="flex-1 overflow-hidden flex flex-col p-4 gap-2 bg-muted/30">
+              <div className="flex-1 overflow-hidden flex flex-col p-4 gap-2 bg-background">
                 <textarea
                   value={clStreamContent}
                   onChange={(e) => setClStreamContent(e.target.value)}
                   disabled={clIsStreaming}
                   placeholder={clIsStreaming ? 'Generating your cover letter…' : 'Your cover letter will appear here. You can edit it directly.'}
-                  className="flex-1 w-full bg-card border border-border rounded-lg p-4 text-sm text-foreground leading-relaxed resize-none outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground disabled:opacity-60"
+                  className="flex-1 w-full bg-card border border-border rounded-lg p-4 text-sm text-foreground leading-relaxed resize-none outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors placeholder:text-muted-foreground disabled:opacity-60"
                 />
                 <div className="flex justify-between text-[11px] text-muted-foreground px-1">
                   <span>
@@ -2160,7 +2160,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 <Mail className="size-3.5 text-muted-foreground shrink-0" />
                 <span className="text-xs font-semibold text-foreground">Cover Letter</span>
               </div>
-              <div className="flex-1 flex items-center justify-center bg-muted/30">
+              <div className="flex-1 flex items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-3 text-center px-6">
                   <Mail className="size-10 text-muted-foreground/30" />
                   <p className="text-sm text-muted-foreground">Your cover letter will appear here after generation.</p>
@@ -2191,7 +2191,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               {/* Progress bar overlay during ATS loading */}
               {atsLoading && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" style={{ top: '52px' }}>
-                  <div className="bg-background/80 backdrop-blur-sm rounded-xl shadow-lg p-8 w-80 flex flex-col items-center gap-4 text-center pointer-events-auto">
+                  <div className="bg-card/90 backdrop-blur-sm rounded-xl shadow-lg p-8 w-80 flex flex-col items-center gap-4 text-center pointer-events-auto">
                     <Loader2 className="size-6 animate-spin text-primary shrink-0" />
                     <p className="text-sm font-semibold text-foreground">
                       {ATS_PROGRESS_MESSAGES[atsProgressMsg]?.label ?? 'Analyzing…'}
@@ -2215,11 +2215,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </div>
               )}
               {/* Content: placeholder or read-only report */}
-              <div className={cn('flex-1 overflow-auto bg-muted/30', atsLoading && 'opacity-30 blur-sm pointer-events-none')}>
+              <div className={cn('flex-1 overflow-auto bg-background', atsLoading && 'opacity-30 blur-sm pointer-events-none')}>
                 {atsResult ? (
                   <div className="p-4 space-y-4">
                     {/* Score */}
-                    <div className="bg-background rounded-xl border border-border p-4 space-y-4 shadow-sm">
+                    <div className="bg-card rounded-xl border border-border p-4 space-y-4 shadow-sm">
                       <div className="flex items-baseline gap-1.5">
                         <span className={cn('text-4xl font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>
                           {atsResult.overallScore}
@@ -2322,13 +2322,13 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 </div>
               </div>
               {/* Diff content area */}
-              <div className="flex-1 overflow-auto bg-muted/60 p-4">
+              <div className="flex-1 overflow-auto bg-background p-4">
                 <div
                   style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
                   className="transition-all duration-300"
                 >
                   <div
-                    className="bg-white shadow-paper mx-auto rounded-sm font-mono text-[10pt] leading-relaxed"
+                    className="bg-card shadow-paper mx-auto rounded-sm font-mono text-[10pt] leading-relaxed"
                     style={{ width: '100%', maxWidth: '816px', minHeight: '1056px', padding: '48px 56px' }}
                   >
                     {diffLines.map((line, idx) => (
@@ -2352,7 +2352,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                           'flex-1 whitespace-pre-wrap break-words',
                           line.type === 'removed' && 'line-through text-red-700',
                           line.type === 'added' && 'text-green-800',
-                          line.type === 'same' && 'text-gray-800',
+                          line.type === 'same' && 'text-foreground',
                           line.text === '' && 'h-4',
                         )}>
                           {line.text || ' '}
@@ -2401,7 +2401,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   </div>
                 )}
                 {/* Scrollable preview content */}
-                <div className="flex-1 overflow-auto bg-muted/60 p-4 relative">
+                <div className="flex-1 overflow-auto bg-background p-4 relative">
                   <div
                     className={cn('transition-all duration-300', enrichmentState === 'loading' && 'opacity-30 blur-sm pointer-events-none')}
                     style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
@@ -2467,7 +2467,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
           <div className="flex flex-col flex-1 overflow-hidden">
 
             {/* Step 3 Toolbar */}
-            <div className="shrink-0 h-12 border-b border-border bg-background flex items-center px-4 gap-2">
+            <div className="shrink-0 h-12 border-b border-border bg-card flex items-center px-4 gap-2">
               {/* Inner scrollable section — all formatting controls */}
               <div className="flex items-center gap-2 overflow-x-auto min-w-0 flex-1 pr-2">
                 {/* Formatting controls — shown for resume and cover letter tabs */}
@@ -2478,7 +2478,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       data-testid="template-select"
                       value={selectedIndustry}
                       onChange={(e) => setSelectedIndustry(e.target.value)}
-                      className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0"
+                      className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-ring/50 shrink-0"
                     >
                       <option value="general">Modern</option>
                       <option value="tech">Tech</option>
@@ -2493,7 +2493,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     <select
                       value={reviewFont}
                       onChange={(e) => setReviewFont(e.target.value)}
-                      className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-28"
+                      className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-ring/50 shrink-0 w-28"
                     >
                       <option>Inter</option>
                       <option>Georgia</option>
@@ -2503,7 +2503,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     <select
                       value={reviewFontSize}
                       onChange={(e) => setReviewFontSize(e.target.value)}
-                      className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-primary/50 shrink-0 w-20"
+                      className="h-8 text-xs bg-background border border-border rounded-md px-2 py-0 text-foreground outline-none focus:ring-1 focus:ring-ring/50 shrink-0 w-20"
                     >
                       <option>10pt</option>
                       <option>11pt</option>
@@ -2518,7 +2518,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                         'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs font-bold transition-colors shrink-0',
                         reviewBold
                           ? 'bg-primary/10 text-primary border-primary/50'
-                          : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
+                          : 'bg-background text-muted-foreground border-border hover:bg-muted/50',
                       )}
                     >
                       <Bold className="size-3.5" />
@@ -2532,7 +2532,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                         'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs transition-colors shrink-0',
                         reviewItalic
                           ? 'bg-primary/10 text-primary border-primary/50'
-                          : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
+                          : 'bg-background text-muted-foreground border-border hover:bg-muted/50',
                       )}
                     >
                       <Italic className="size-3.5" />
@@ -2546,7 +2546,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                         'min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border text-xs transition-colors shrink-0',
                         reviewUnderline
                           ? 'bg-primary/10 text-primary border-primary/50'
-                          : 'bg-background text-muted-foreground border-border hover:bg-secondary/60',
+                          : 'bg-background text-muted-foreground border-border hover:bg-muted/50',
                       )}
                     >
                       <Underline className="size-3.5" />
@@ -2554,7 +2554,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     {/* Color picker */}
                     <label
                       title="Text color"
-                      className="relative min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border border-border bg-background hover:bg-secondary/60 cursor-pointer shrink-0"
+                      className="relative min-h-[32px] min-w-[32px] flex items-center justify-center px-2 py-1 rounded border border-border bg-background hover:bg-muted/50 cursor-pointer shrink-0"
                     >
                       <input
                         type="color"
@@ -2732,14 +2732,14 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             </div>
 
             {/* Step 3 Preview Area */}
-            <div className="flex-1 overflow-auto bg-muted/30 p-6">
+            <div className="flex-1 overflow-auto bg-background p-6">
 
               {/* Resume Tab */}
               {reviewDocTab === 'resume' && (
                 <>
                   {reviewResumeMode === 'final' && (
                     <div className="flex justify-center">
-                      <div className="bg-white text-black shadow-md rounded-sm" style={{ width: '816px', maxWidth: '100%' }}>
+                      <div style={{ width: '816px', maxWidth: '100%' }}>
                         <ResumePreview
                           resume={resume}
                           flashSections={flashSections}
@@ -2759,7 +2759,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     <div className="flex gap-4 min-w-0">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 text-center">Original</p>
-                        <div className="bg-white text-black shadow-md rounded-sm overflow-hidden">
+                        <div className="overflow-hidden">
                           <ResumePreview
                             resume={originalResume ?? resume}
                             industry={selectedIndustry}
@@ -2775,7 +2775,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2 text-center">AI Enhanced</p>
-                        <div className="bg-white text-black shadow-md rounded-sm overflow-hidden">
+                        <div className="overflow-hidden">
                           <ResumePreview
                             resume={enrichedResume ?? resume}
                             flashSections={flashSections}
@@ -2794,7 +2794,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                   )}
                   {reviewResumeMode === 'unified' && (
                     <div className="flex justify-center">
-                      <div className="bg-white text-black shadow-md rounded-sm" style={{ width: '816px', maxWidth: '100%' }}>
+                      <div style={{ width: '816px', maxWidth: '100%' }}>
                         <ResumePreview
                           resume={resume}
                           flashSections={flashSections}
@@ -2827,7 +2827,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               {reviewDocTab === 'coverletter' && (
                 <div className="flex justify-center">
                   {clStreamContent ? (
-                    <div className="bg-white text-black shadow-md rounded-sm p-10 leading-relaxed" style={{ width: '816px', maxWidth: '100%', fontFamily: reviewFont, fontSize: reviewFontSize, fontWeight: reviewBold ? 'bold' : undefined, fontStyle: reviewItalic ? 'italic' : undefined, textDecoration: reviewUnderline ? 'underline' : undefined, color: reviewColor }}>
+                    <div className="text-black shadow-lg rounded-sm p-10 leading-relaxed" style={{ background: '#FAF9F6', width: '816px', maxWidth: '100%', fontFamily: reviewFont, fontSize: reviewFontSize, fontWeight: reviewBold ? 'bold' : undefined, fontStyle: reviewItalic ? 'italic' : undefined, textDecoration: reviewUnderline ? 'underline' : undefined, color: reviewColor }}>
                       <pre className="whitespace-pre-wrap font-inherit text-sm text-black leading-relaxed" style={{ fontFamily: 'inherit' }}>
                         {clStreamContent}
                       </pre>
@@ -2845,12 +2845,12 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               {reviewDocTab === 'ats' && (
                 <div className="flex justify-center">
                   {atsResult ? (
-                    <div className="bg-white text-black shadow-md rounded-sm p-8 space-y-6" style={{ width: '816px', maxWidth: '100%' }}>
+                    <div className="text-black shadow-lg rounded-sm p-8 space-y-6" style={{ background: '#FAF9F6', width: '816px', maxWidth: '100%' }}>
                       {/* Overview */}
                       {(reviewAtsView === 'overview') && (
                         <>
                           <div className="flex items-baseline gap-2 border-b border-gray-200 pb-4">
-                            <span className={cn('text-5xl font-bold', atsResult.overallScore >= 75 ? 'text-blue-600' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-red-500')}>
+                            <span className={cn('text-5xl font-bold', atsResult.overallScore >= 75 ? 'text-primary' : atsResult.overallScore >= 50 ? 'text-amber-500' : 'text-destructive')}>
                               {atsResult.overallScore}
                             </span>
                             <span className="text-lg text-gray-500">/ 100</span>
@@ -2869,7 +2869,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                               <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Matched Keywords</p>
                               <div className="flex flex-wrap gap-1.5">
                                 {atsResult.matchedKeywords.map((kw, i) => (
-                                  <span key={i} className="px-2 py-0.5 text-xs rounded border border-blue-300 text-blue-700 bg-blue-50">{kw}</span>
+                                  <span key={i} className="px-2 py-0.5 text-xs rounded border border-primary/40 text-primary bg-primary/10">{kw}</span>
                                 ))}
                               </div>
                             </div>
@@ -2915,7 +2915,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       </div>
 
       {/* ── BOTTOM STATUS BAR ─────────────────────────────────────────────────── */}
-      <div className="shrink-0 h-12 flex items-center justify-end px-4 lg:px-6 bg-background border-t border-border">
+      <div className="shrink-0 h-12 flex items-center justify-end px-4 lg:px-6 bg-card border-t border-border">
         <div className="flex items-center gap-2">
           {/* Back button — shown in stages 2 and 3 */}
           {currentStep > 1 && (

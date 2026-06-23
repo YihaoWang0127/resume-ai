@@ -36,6 +36,20 @@ const DASHBOARD_SUB_ITEMS: DashboardSubItem[] = [
   { label: 'ATS Scores', tab: 'ats-scores', icon: Target },
 ]
 
+interface ProfileSubItem {
+  label: string
+  sectionId: string
+}
+
+const PROFILE_SUB_ITEMS: ProfileSubItem[] = [
+  { sectionId: 'account', label: 'Account' },
+  { sectionId: 'contact-info', label: 'Contact Info' },
+  { sectionId: 'career-profile', label: 'Career Profile' },
+  { sectionId: 'experience-bank', label: 'Experience Bank' },
+  { sectionId: 'skills-bank', label: 'Skills Bank' },
+  { sectionId: 'work-experience', label: 'Work Experience' },
+]
+
 export default function AccountSidebar() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -43,14 +57,21 @@ export default function AccountSidebar() {
   const { user, isGuest } = useAuth()
 
   const isDashboard = location.pathname === '/dashboard'
+  const isProfile = location.pathname === '/profile'
   const currentTab = searchParams.get('tab')
+  const currentSection = searchParams.get('section')
 
   const [dashExpanded, setDashExpanded] = useState(isDashboard)
+  const [profileExpanded, setProfileExpanded] = useState(isProfile)
 
-  // Auto-expand when navigating to /dashboard from another route
+  // Auto-expand when navigating to /dashboard or /profile from another route
   useEffect(() => {
     if (isDashboard) setDashExpanded(true)
   }, [isDashboard])
+
+  useEffect(() => {
+    if (isProfile) setProfileExpanded(true)
+  }, [isProfile])
 
   // Dashboard requires a persisted (non-guest) account — Dashboard.tsx
   // redirects guests/signed-out users to "/", so don't show a tab that bounces them out.
@@ -59,10 +80,24 @@ export default function AccountSidebar() {
     : ACCOUNT_NAV_ITEMS
 
   const navigateToDashboardTab = (tab: string | null) => {
-    if (tab === null) {
-      navigate('/dashboard')
+    const sectionId = tab ?? 'overview'
+    if (isDashboard) {
+      // Already on dashboard — smooth-scroll to the section anchor
+      const el = document.getElementById(sectionId)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      // Update URL param so active highlight reflects current section
+      if (tab === null) {
+        navigate('/dashboard', { replace: true })
+      } else {
+        navigate(`/dashboard?tab=${tab}`, { replace: true })
+      }
     } else {
-      navigate(`/dashboard?tab=${tab}`)
+      // Navigate to dashboard first; scrolling happens after mount via hash
+      if (tab === null) {
+        navigate('/dashboard')
+      } else {
+        navigate(`/dashboard?tab=${tab}`)
+      }
     }
   }
 
@@ -73,11 +108,64 @@ export default function AccountSidebar() {
     return currentTab === tab
   }
 
+  const navigateToProfileSection = (sectionId: string) => {
+    if (isProfile) {
+      const el = document.getElementById(sectionId)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      navigate(`/profile?section=${sectionId}`, { replace: true })
+    } else {
+      navigate(`/profile?section=${sectionId}`)
+    }
+  }
+
+  const isProfileSectionActive = (sectionId: string) => {
+    if (!isProfile) return false
+    return currentSection === sectionId
+  }
+
   return (
     <nav className="lg:w-56 lg:shrink-0">
       {/* Mobile: horizontal scrollable tab bar */}
       <div className="flex lg:hidden gap-2 overflow-x-auto scrollbar-none -mx-6 px-6 pb-4 mb-2 border-b border-border">
         {navItems.map(({ path, label, icon: Icon }) => {
+          if (path === '/profile') {
+            if (isProfile && profileExpanded) {
+              // Replace Profile pill with 6 sub-item pills
+              return PROFILE_SUB_ITEMS.map((sub) => (
+                <button
+                  key={`profile-sub-${sub.sectionId}`}
+                  type="button"
+                  onClick={() => navigateToProfileSection(sub.sectionId)}
+                  className={cn(
+                    'flex shrink-0 items-center gap-2 px-4 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors',
+                    isProfileSectionActive(sub.sectionId)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                  )}
+                >
+                  {sub.label}
+                </button>
+              ))
+            }
+            // Not on profile — show normal Profile pill
+            return (
+              <button
+                key={path}
+                type="button"
+                onClick={() => navigate(path)}
+                className={cn(
+                  'flex shrink-0 items-center gap-2 px-4 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors',
+                  isProfile
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                )}
+              >
+                <Icon className="size-3.5" />
+                {label}
+              </button>
+            )
+          }
+
           if (path === '/dashboard') {
             if (isDashboard && dashExpanded) {
               // Replace Dashboard pill with 4 sub-item pills
@@ -137,6 +225,57 @@ export default function AccountSidebar() {
       {/* Desktop: vertical sticky sidebar */}
       <div className="hidden lg:flex lg:flex-col lg:gap-1 lg:sticky lg:top-20">
         {navItems.map(({ path, label, icon: Icon }) => {
+          if (path === '/profile') {
+            const isOpen = isProfile && profileExpanded
+            const ChevronIcon = isOpen ? ChevronDown : ChevronRight
+            return (
+              <div key={path}>
+                {/* Profile parent row */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isProfile) {
+                      setProfileExpanded((prev) => !prev)
+                    } else {
+                      navigate('/profile')
+                    }
+                  }}
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-colors w-full',
+                    isProfile
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                  )}
+                >
+                  <Icon className="size-4" />
+                  <span className="flex-1">{label}</span>
+                  <ChevronIcon className="size-4 shrink-0" />
+                </button>
+
+                {/* Sub-items — visible when on /profile and expanded */}
+                {isOpen && (
+                  <div className="flex flex-col gap-0.5 mt-0.5 pl-4">
+                    {PROFILE_SUB_ITEMS.map((sub) => (
+                      <button
+                        key={`desktop-profile-sub-${sub.sectionId}`}
+                        type="button"
+                        onClick={() => navigateToProfileSection(sub.sectionId)}
+                        className={cn(
+                          'flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium text-left transition-colors w-full min-h-[44px]',
+                          isProfileSectionActive(sub.sectionId)
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                        )}
+                      >
+                        {sub.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
           if (path === '/dashboard') {
             const isOpen = isDashboard && dashExpanded
             const ChevronIcon = isOpen ? ChevronDown : ChevronRight
