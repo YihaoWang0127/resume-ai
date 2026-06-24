@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from functools import lru_cache
 
 from fastapi import Depends, HTTPException, status
@@ -13,6 +14,12 @@ _SUPABASE_JWKS_URL = os.getenv("SUPABASE_JWKS_URL", "")
 _bearer = HTTPBearer(auto_error=False)
 
 
+@dataclass
+class AuthUser:
+    user_id: str
+    token: str
+
+
 @lru_cache(maxsize=1)
 def _jwks_client() -> PyJWKClient:
     return PyJWKClient(_SUPABASE_JWKS_URL, cache_keys=True)
@@ -20,8 +27,8 @@ def _jwks_client() -> PyJWKClient:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-) -> str:
-    """Verify the Supabase JWT and return the user id (sub claim).
+) -> AuthUser:
+    """Verify the Supabase JWT and return an AuthUser with user_id and token.
 
     Accepts both regular and anonymous (is_anonymous=true) JWTs — both have
     aud='authenticated' and a valid sub.  Rate limiting differentiates tiers.
@@ -55,4 +62,4 @@ async def get_current_user(
             detail="Token missing sub claim",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return user_id
+    return AuthUser(user_id=user_id, token=token)

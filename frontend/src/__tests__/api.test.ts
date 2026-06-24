@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest'
 import { setupServer } from 'msw/node'
 import { http, HttpResponse } from 'msw'
 
-vi.mock('@/services/aiUsage', () => ({ logAiUsage: vi.fn() }))
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     auth: {
@@ -11,11 +10,8 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
-import { parseResume, exportResume, scoreATS } from '@/services/api'
-import { logAiUsage } from '@/services/aiUsage'
+import { parseResume, exportResume, scoreATS, enrichResume, QuotaExceededError } from '@/services/api'
 import type { ResumeSchema } from '@/types/resume'
-
-const mockLogAiUsage = vi.mocked(logAiUsage)
 
 const BASE = 'http://localhost:8000'
 
@@ -29,13 +25,9 @@ const mockResume: ResumeSchema = {
 
 const server = setupServer()
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
-beforeEach(() => {
-  mockLogAiUsage.mockResolvedValue(undefined)
-})
 afterEach(() => {
   server.resetHandlers()
   vi.restoreAllMocks()
-  mockLogAiUsage.mockReset()
 })
 afterAll(() => server.close())
 
@@ -113,26 +105,6 @@ describe('parseResume', () => {
     await expect(parseResume(file)).rejects.toThrow()
   })
 
-  it('logs AI usage with action "parse" and the fast model', async () => {
-    server.use(
-      http.post(`${BASE}/api/parse`, () =>
-        HttpResponse.json({
-          metadata: { name: 'Jane Smith', email: 'jane@example.com' },
-          summary: null,
-          experience: [],
-          education: [],
-          skills: [],
-          projects: [],
-          detected_industry: 'tech',
-        }),
-      ),
-    )
-
-    const file = new File(['pdf content'], 'resume.pdf', { type: 'application/pdf' })
-    await parseResume(file)
-
-    expect(mockLogAiUsage).toHaveBeenCalledWith('parse', 'claude-haiku-4-5')
-  })
 })
 
 // ── exportResume ─────────────────────────────────────────────────────────────
@@ -309,21 +281,78 @@ describe('scoreATS', () => {
     await expect(scoreATS(mockResume, '')).rejects.toThrow()
   })
 
-  it('logs AI usage with action "ats_score" and the smart model', async () => {
+})
+
+// ── QuotaExceededError ────────────────────────────────────────────────────────
+
+describe('QuotaExceededError', () => {
+  it('is an instance of Error', () => {
+    const err = new QuotaExceededError()
+    expect(err).toBeInstanceOf(Error)
+  })
+
+  it('has name "QuotaExceededError"', () => {
+    const err = new QuotaExceededError()
+    expect(err.name).toBe('QuotaExceededError')
+  })
+
+  it('has the expected message', () => {
+    const err = new QuotaExceededError()
+    expect(err.message).toBe('Monthly AI limit reached')
+  })
+})
+
+// ── fetchStream — quota handling ──────────────────────────────────────────────
+
+describe('fetchStream — quota handling', () => {
+  it('throws QuotaExceededError when the server returns 402', async () => {
     server.use(
-      http.post(`${BASE}/api/ats-score`, () =>
-        HttpResponse.json({
-          overall_score: 78,
-          matched_keywords: ['Python'],
-          missing_keywords: ['Kubernetes'],
-          suggestions: ['Add a bullet about containers.'],
-          summary: 'Good match.',
-        }),
+      http.post(`${BASE}/api/enrich`, () =>
+        new HttpResponse(null, { status: 402 }),
       ),
     )
 
-    await scoreATS(mockResume, 'Senior Software Engineer role requiring Python.')
+    await expect(enrichResume(mockResume)).rejects.toThrow(QuotaExceededError)
+  })
 
-    expect(mockLogAiUsage).toHaveBeenCalledWith('ats_score', 'claude-sonnet-4-6')
+  it('throws a generic Error (not QuotaExceededError) on other non-ok statuses', async () => {
+    server.use(
+      http.post(`${BASE}/api/enrich`, () =>
+        new HttpResponse('Internal Server Error', { status: 500 }),
+      ),
+    )
+
+    const promise = enrichResume(mockResume)
+    await expect(promise).rejects.toThrow(Error)
+    await expect(promise).rejects.not.toThrow(QuotaExceededError)
+  })
+})
+
+// ── parseResume — quota handling ──────────────────────────────────────────────
+
+describe('parseResume — quota handling', () => {
+  it('throws QuotaExceededError when the server returns 402', async () => {
+    server.use(
+      http.post(`${BASE}/api/parse`, () =>
+        new HttpResponse(null, { status: 402 }),
+      ),
+    )
+
+    const file = new File(['pdf content'], 'resume.pdf', { type: 'application/pdf' })
+    await expect(parseResume(file)).rejects.toThrow(QuotaExceededError)
+  })
+})
+
+// ── scoreATS — quota handling ─────────────────────────────────────────────────
+
+describe('scoreATS — quota handling', () => {
+  it('throws QuotaExceededError when the server returns 402', async () => {
+    server.use(
+      http.post(`${BASE}/api/ats-score`, () =>
+        new HttpResponse(null, { status: 402 }),
+      ),
+    )
+
+    await expect(scoreATS(mockResume, 'some job description')).rejects.toThrow(QuotaExceededError)
   })
 })

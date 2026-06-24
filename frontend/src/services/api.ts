@@ -1,13 +1,15 @@
 import axios from 'axios'
 import type { ATSScoreResult, ResumeSchema } from '@/types/resume'
-import { logAiUsage } from '@/services/aiUsage'
 import { supabase } from '@/lib/supabase'
 
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000'
+export class QuotaExceededError extends Error {
+  constructor() {
+    super('Monthly AI limit reached')
+    this.name = 'QuotaExceededError'
+  }
+}
 
-// Mirrors backend/app/services/claude.py
-const FAST_MODEL = 'claude-haiku-4-5'
-const SMART_MODEL = 'claude-sonnet-4-6'
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000'
 
 const http = axios.create({ baseURL: BASE })
 
@@ -123,6 +125,7 @@ async function fetchStream(
     body: JSON.stringify(body),
   })
   if (!res.ok) {
+    if (res.status === 402) throw new QuotaExceededError()
     const text = await res.text()
     throw new Error(`${res.status} ${res.statusText}: ${text}`)
   }
@@ -136,15 +139,19 @@ export async function parseResume(file: File, signal?: AbortSignal): Promise<Res
   const form = new FormData()
   form.append('file', file)
   const { data: { session } } = await supabase.auth.getSession()
-  const { data } = await http.post<unknown>('/api/parse', form, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-    },
-    signal,
-  })
-  logAiUsage('parse', FAST_MODEL).catch(() => {})
-  return fromBackend(data)
+  try {
+    const { data } = await http.post<unknown>('/api/parse', form, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      signal,
+    })
+    return fromBackend(data)
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err) && err.response?.status === 402) throw new QuotaExceededError()
+    throw err
+  }
 }
 
 export async function enrichResume(
@@ -152,7 +159,6 @@ export async function enrichResume(
   tone?: string,
 ): Promise<ReadableStream<Uint8Array>> {
   const stream = await fetchStream('/api/enrich', { resume: toBackend(resume), tone: tone ?? 'professional' })
-  logAiUsage('enrich', SMART_MODEL).catch(() => {})
   return stream
 }
 
@@ -164,7 +170,6 @@ export async function tailorResume(
     resume: toBackend(resume),
     job_description: jobDescription,
   })
-  logAiUsage('tailor', SMART_MODEL).catch(() => {})
   return stream
 }
 
@@ -187,11 +192,11 @@ export async function generateCoverLetter(
     signal,
   })
   if (!res.ok) {
+    if (res.status === 402) throw new QuotaExceededError()
     const text = await res.text()
     throw new Error(`${res.status} ${res.statusText}: ${text}`)
   }
   if (!res.body) throw new Error('No response stream received')
-  logAiUsage('cover_letter', SMART_MODEL).catch(() => {})
   return res.body
 }
 
@@ -211,7 +216,6 @@ export async function improveCoverLetter(
     resume: options.resume ? toBackend(options.resume) : null,
     tone: options.tone ?? 'professional',
   })
-  logAiUsage('cover_letter_improve', SMART_MODEL).catch(() => {})
   return stream
 }
 
@@ -233,17 +237,21 @@ export async function scoreATS(
   resume: ResumeSchema,
   jobDescription: string,
 ): Promise<ATSScoreResult> {
-  const { data } = await http.post<BackendPayload>('/api/ats-score', {
-    resume: toBackend(resume),
-    job_description: jobDescription,
-  })
-  logAiUsage('ats_score', SMART_MODEL).catch(() => {})
-  return {
-    overallScore: typeof data.overall_score === 'number' ? data.overall_score : 0,
-    matchedKeywords: strArr(data.matched_keywords),
-    missingKeywords: strArr(data.missing_keywords),
-    suggestions: strArr(data.suggestions),
-    summary: str(data.summary),
+  try {
+    const { data } = await http.post<BackendPayload>('/api/ats-score', {
+      resume: toBackend(resume),
+      job_description: jobDescription,
+    })
+    return {
+      overallScore: typeof data.overall_score === 'number' ? data.overall_score : 0,
+      matchedKeywords: strArr(data.matched_keywords),
+      missingKeywords: strArr(data.missing_keywords),
+      suggestions: strArr(data.suggestions),
+      summary: str(data.summary),
+    }
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err) && err.response?.status === 402) throw new QuotaExceededError()
+    throw err
   }
 }
 

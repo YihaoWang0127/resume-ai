@@ -40,13 +40,14 @@ import Modal from '@/components/Modal'
 import { cn, getInitials } from '@/lib/utils'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
-import { enrichResume, exportResume, fromBackend, generateCoverLetter, scoreATS, tailorResume, validateJobDescription } from '@/services/api'
+import { enrichResume, exportResume, fromBackend, generateCoverLetter, QuotaExceededError, scoreATS, tailorResume, validateJobDescription } from '@/services/api'
 import { saveResume, updateResume, type AtsMetadata } from '@/services/resumes'
 import { saveCoverLetter, updateCoverLetter, deleteCoverLetter } from '@/services/coverLetters'
 import { useAuth } from '@/contexts/AuthContext'
 import ComparisonView from './ComparisonView'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
+import QuotaExceededModal from './QuotaExceededModal'
 import { resumeToLines, computeLineDiff } from '@/lib/resumeDiff'
 
 interface Props {
@@ -216,6 +217,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [enrichedResume, setEnrichedResume] = useState<ResumeSchema | null>(null)
   const [enrichMsgIndex, setEnrichMsgIndex] = useState(0)
   const [confirmReEnrichOpen, setConfirmReEnrichOpen] = useState(false)
+  const [showQuotaModal, setShowQuotaModal] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [zoomLevel, setZoomLevel] = useState(100)
   const [centerCollapsed, setCenterCollapsed] = useState(false)
@@ -488,6 +490,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         streamReaderRef.current = null
       }
     } catch (err) {
+      if (err instanceof QuotaExceededError) {
+        setShowQuotaModal(true)
+        setStream(null)
+        return
+      }
       const msg = err instanceof Error ? err.message : String(err)
       setStream((s: StreamState | null) => (s ? { ...s, error: msg, done: true } : null))
     } finally {
@@ -622,6 +629,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         setClStreamContent(accumulated)
       }
     } catch (err) {
+      if (err instanceof QuotaExceededError) {
+        setShowQuotaModal(true)
+        return
+      }
       setClStreamError(err instanceof Error ? err.message : String(err))
     } finally {
       setClIsStreaming(false)
@@ -678,6 +689,10 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       setAtsResumeSnapshot(JSON.stringify(resume))
       setAtsResultSaved(false)
     } catch (err) {
+      if (err instanceof QuotaExceededError) {
+        setShowQuotaModal(true)
+        return
+      }
       setAtsError(err instanceof Error ? err.message : String(err))
     } finally {
       setAtsLoading(false)
@@ -3089,6 +3104,9 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               </button>
             </div>
       </Modal>
+
+      {/* ── Quota exceeded modal ────────────────────────────────────────────── */}
+      <QuotaExceededModal open={showQuotaModal} onClose={() => setShowQuotaModal(false)} />
 
       {/* ── Save toast (global, for steps 1 and 2 only) ─────────────────────── */}
       {saveToast && currentStep !== 3 && (
