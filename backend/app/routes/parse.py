@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import os
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from app.auth import get_current_user
+from app.limiter import ai_rate_limit
 from app.models.resume import ResumeSchema
 from app.prompts.resume import build_parse_prompt
 from app.services.claude import complete, validate_resume
@@ -23,7 +25,11 @@ _MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post("/parse", response_model=ResumeSchema)
-async def parse_resume(file: UploadFile = File(...)) -> ResumeSchema:
+async def parse_resume(
+    file: UploadFile = File(...),
+    _user_id: str = Depends(get_current_user),
+    _rate: None = Depends(ai_rate_limit),
+) -> ResumeSchema:
     ext = os.path.splitext(file.filename or "")[1].lower()
     if file.content_type not in _ALLOWED_TYPES and ext not in _ALLOWED_EXTS:
         raise HTTPException(

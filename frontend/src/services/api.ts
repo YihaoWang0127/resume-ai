@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type { ATSScoreResult, ResumeSchema } from '@/types/resume'
 import { logAiUsage } from '@/services/aiUsage'
+import { supabase } from '@/lib/supabase'
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000'
 
@@ -9,6 +10,15 @@ const FAST_MODEL = 'claude-haiku-4-5'
 const SMART_MODEL = 'claude-sonnet-4-6'
 
 const http = axios.create({ baseURL: BASE })
+
+// Attach the Supabase access token to every axios request
+http.interceptors.request.use(async (config) => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session?.access_token) {
+    config.headers.Authorization = `Bearer ${session.access_token}`
+  }
+  return config
+})
 
 // ── type conversion ──────────────────────────────────────────────────────────
 
@@ -90,6 +100,17 @@ function toBackend(resume: ResumeSchema): object {
   }
 }
 
+// ── auth header helper ────────────────────────────────────────────────────────
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`
+  }
+  return headers
+}
+
 // ── streaming helper ─────────────────────────────────────────────────────────
 
 async function fetchStream(
@@ -98,7 +119,7 @@ async function fetchStream(
 ): Promise<ReadableStream<Uint8Array>> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify(body),
   })
   if (!res.ok) {
@@ -114,8 +135,12 @@ async function fetchStream(
 export async function parseResume(file: File, signal?: AbortSignal): Promise<ResumeSchema> {
   const form = new FormData()
   form.append('file', file)
+  const { data: { session } } = await supabase.auth.getSession()
   const { data } = await http.post<unknown>('/api/parse', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
     signal,
   })
   logAiUsage('parse', FAST_MODEL).catch(() => {})
@@ -152,7 +177,7 @@ export async function generateCoverLetter(
 ): Promise<ReadableStream<Uint8Array>> {
   const res = await fetch(`${BASE}/api/cover-letter`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify({
       resume: toBackend(resume),
       job_description: jobDescription,
@@ -197,7 +222,7 @@ export async function exportCoverLetter(
 ): Promise<Blob> {
   const res = await fetch(`${BASE}/api/cover-letter/export`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify({ content, company_name: companyName, format }),
   })
   if (!res.ok) throw new Error(`Export failed: ${res.status}`)
@@ -229,7 +254,7 @@ export async function exportResume(
 ): Promise<Blob> {
   const res = await fetch(`${BASE}/api/export`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify({ resume: toBackend(resume), format, industry }),
   })
   if (!res.ok) throw new Error(`Export failed: ${res.status}`)
