@@ -493,6 +493,9 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       if (err instanceof QuotaExceededError) {
         setShowQuotaModal(true)
         setStream(null)
+        setEnrichmentState('idle')
+        setEnrichedResume(null)
+        setOriginalResume(null)
         return
       }
       const msg = err instanceof Error ? err.message : String(err)
