@@ -3,10 +3,11 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from app.auth import get_current_user
 from app.models.resume import ResumeSchema
 from app.services.exporter import generate_cover_letter_docx, generate_cover_letter_pdf, generate_docx, generate_pdf
 
@@ -20,7 +21,10 @@ class ExportRequest(BaseModel):
 
 
 @router.post("/export")
-async def export_resume(req: ExportRequest) -> Response:
+async def export_resume(
+    req: ExportRequest,
+    _user_id: str = Depends(get_current_user),
+) -> Response:
     name = req.resume.metadata.name or "resume"
     fmt = req.format.lower()
 
@@ -55,7 +59,10 @@ class CoverLetterExportRequest(BaseModel):
 
 
 @router.post("/cover-letter/export")
-async def export_cover_letter(req: CoverLetterExportRequest) -> Response:
+async def export_cover_letter(
+    req: CoverLetterExportRequest,
+    _user_id: str = Depends(get_current_user),
+) -> Response:
     slug = re.sub(r"[^\w]+", "_", req.company_name.strip().lower()) or "company"
     filename = f"cover_letter_{slug}"
 

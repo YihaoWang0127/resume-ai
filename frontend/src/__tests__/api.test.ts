@@ -3,6 +3,13 @@ import { setupServer } from 'msw/node'
 import { http, HttpResponse } from 'msw'
 
 vi.mock('@/services/aiUsage', () => ({ logAiUsage: vi.fn() }))
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+    },
+  },
+}))
 
 import { parseResume, exportResume, scoreATS } from '@/services/api'
 import { logAiUsage } from '@/services/aiUsage'
