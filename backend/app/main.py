@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from dotenv import load_dotenv
+
+load_dotenv()  # must run before any app.* imports read env vars at module level
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
