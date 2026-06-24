@@ -4,11 +4,12 @@ import { Download, ChevronDown, Loader2, Save, RefreshCw, Sparkles, X } from 'lu
 import { useAuth } from '@/contexts/AuthContext'
 import Navbar from '@/components/Navbar'
 import ExportMenu from '@/components/ExportMenu'
-import { generateCoverLetter, exportCoverLetter, improveCoverLetter } from '@/services/api'
+import { generateCoverLetter, exportCoverLetter, improveCoverLetter, QuotaExceededError } from '@/services/api'
 import { saveCoverLetter, updateCoverLetter, getCoverLetter } from '@/services/coverLetters'
 import { getResume, listResumes } from '@/services/resumes'
 import type { SavedResume } from '@/services/resumes'
 import ResumePreview from '@/components/ResumePreview'
+import QuotaExceededModal from '@/components/QuotaExceededModal'
 import { cn } from '@/lib/utils'
 import type { ResumeSchema } from '@/types/resume'
 
@@ -69,6 +70,7 @@ export default function CoverLetterEditor() {
   const [allResumes, setAllResumes] = useState<SavedResume[]>([])
   const [pendingResumeId, setPendingResumeId] = useState<string | null>(null)
   const [showChangeWarning, setShowChangeWarning] = useState(false)
+  const [showQuotaModal, setShowQuotaModal] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
   const autoGenRef = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -201,6 +203,10 @@ export default function CoverLetterEditor() {
       }
       setIsDirty(true)
     } catch (err) {
+      if (err instanceof QuotaExceededError) {
+        setShowQuotaModal(true)
+        return
+      }
       console.error('Regenerate failed:', err)
     } finally {
       setRegenerating(false)
@@ -237,6 +243,10 @@ export default function CoverLetterEditor() {
       }
       setIsDirty(true)
     } catch (err) {
+      if (err instanceof QuotaExceededError) {
+        setShowQuotaModal(true)
+        return
+      }
       console.error('AI Improve failed:', err)
     } finally {
       setImproving(false)
@@ -732,6 +742,9 @@ export default function CoverLetterEditor() {
           </div>
         </div>
       )}
+
+      {/* Quota exceeded modal */}
+      <QuotaExceededModal open={showQuotaModal} onClose={() => setShowQuotaModal(false)} />
 
       {/* Change Resume warning modal */}
       {showChangeWarning && (

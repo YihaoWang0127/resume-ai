@@ -3,15 +3,16 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.auth import get_current_user
+from app.auth import AuthUser, get_current_user
 from app.limiter import ai_rate_limit
 from app.models.resume import ResumeSchema
 from app.prompts.resume import build_cover_letter_prompt, build_improve_cover_letter_prompt
 from app.services.claude import stream_text
+from app.services.quota import check_quota, log_ai_call
 
 router = APIRouter()
 
@@ -34,11 +35,15 @@ class CoverLetterImproveRequest(BaseModel):
 @router.post("/cover-letter")
 async def generate_cover_letter(
     req: CoverLetterRequest,
-    _user_id: str = Depends(get_current_user),
+    background_tasks: BackgroundTasks,
+    auth: AuthUser = Depends(get_current_user),
     _rate: None = Depends(ai_rate_limit),
 ) -> StreamingResponse:
     if not req.company_name.strip():
         raise HTTPException(400, "Company name is required")
+
+    await check_quota(auth.user_id, auth.token)
+    background_tasks.add_task(log_ai_call, auth.user_id, "cover_letter", "claude-sonnet-4-6", auth.token)
 
     resume_json = req.resume.model_dump_json(indent=2)
     system, user = build_cover_letter_prompt(
@@ -58,9 +63,13 @@ async def generate_cover_letter(
 @router.post("/cover-letter/improve")
 async def improve_cover_letter(
     req: CoverLetterImproveRequest,
-    _user_id: str = Depends(get_current_user),
+    background_tasks: BackgroundTasks,
+    auth: AuthUser = Depends(get_current_user),
     _rate: None = Depends(ai_rate_limit),
 ) -> StreamingResponse:
+    await check_quota(auth.user_id, auth.token)
+    background_tasks.add_task(log_ai_call, auth.user_id, "cover_letter_improve", "claude-sonnet-4-6", auth.token)
+
     resume_json = req.resume.model_dump_json(indent=2) if req.resume else None
     system, user = build_improve_cover_letter_prompt(
         text=req.text,

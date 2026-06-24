@@ -3,14 +3,15 @@ from __future__ import annotations
 import json
 import os
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 
-from app.auth import get_current_user
+from app.auth import AuthUser, get_current_user
 from app.limiter import ai_rate_limit
 from app.models.resume import ResumeSchema
 from app.prompts.resume import build_parse_prompt
 from app.services.claude import complete, validate_resume
 from app.services.parser import extract_text
+from app.services.quota import check_quota, log_ai_call
 
 router = APIRouter()
 
@@ -26,9 +27,10 @@ _MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 
 @router.post("/parse", response_model=ResumeSchema)
 async def parse_resume(
-    file: UploadFile = File(...),
-    _user_id: str = Depends(get_current_user),
+    background_tasks: BackgroundTasks,
+    auth: AuthUser = Depends(get_current_user),
     _rate: None = Depends(ai_rate_limit),
+    file: UploadFile = File(...),
 ) -> ResumeSchema:
     ext = os.path.splitext(file.filename or "")[1].lower()
     if file.content_type not in _ALLOWED_TYPES and ext not in _ALLOWED_EXTS:
@@ -65,6 +67,9 @@ async def parse_resume(
         raise
     except Exception:
         pass  # if validation fails, proceed anyway
+
+    await check_quota(auth.user_id, auth.token)
+    background_tasks.add_task(log_ai_call, auth.user_id, "parse", "claude-haiku-4-5", auth.token)
 
     system, user = build_parse_prompt(raw_text)
     try:

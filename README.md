@@ -18,7 +18,8 @@
 - **Industry Detection** — auto-detects Tech/Finance/Creative/Healthcare/General
 - **Live Preview** — 5 style presets with real-time switching
 - **ATS Keyword Scoring** — 0-100 keyword-match score with matched/missing chips and AI suggestions; validates job description input; dismissible results panel; tracked per-resume on the Dashboard
-- **AI Usage Tracking** — every AI call logged to `ai_usage_log`; surfaced on `/ai` as total calls, monthly count, and action breakdown
+- **AI Usage Tracking** — every AI call logged server-side to `ai_usage_log` (backend writes using the user's JWT); surfaced on `/ai` as total calls, monthly count, and action breakdown
+- **Monthly Quota Enforcement** — free tier capped at 30 AI calls/month; AI routes return HTTP 402 when the limit is reached; a "Monthly Limit Reached" modal surfaces in the UI instead of a generic error
 
 ### Auth & Storage
 - **Sign in with Google** — OAuth via Supabase; failed redirects show a toast and reopen the auth modal
@@ -111,6 +112,8 @@ Models:
 | POST | /api/ats-score | Score resume against a job description (keyword match, gaps, suggestions) |
 | POST | /api/validate-jd | Validate that input text is a real job description; returns `{ valid, reason }` |
 | GET | /health | Health check |
+
+AI routes (`/api/parse`, `/api/enrich`, `/api/tailor`, `/api/cover-letter`, `/api/cover-letter/improve`, `/api/ats-score`) return HTTP 402 with `{"detail": "Monthly AI limit of 30 calls reached. Upgrade to continue."}` when a user's free quota is exhausted.
 
 Frontend uses Supabase JS directly for all CRUD operations (save/load/list/delete).
 
@@ -286,7 +289,7 @@ resume-ai/
 cd backend
 python3.11 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # add ANTHROPIC_API_KEY
+cp .env.example .env   # add ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -311,7 +314,7 @@ npm run dev
 
 ## Deployment
 
-**Backend → Render:** Root `backend`, Python 3.11, env `ANTHROPIC_API_KEY`
+**Backend → Render:** Root `backend`, Python 3.11, env `ANTHROPIC_API_KEY` + `SUPABASE_URL` + `SUPABASE_ANON_KEY`
 **Frontend → Vercel:** Root `frontend`, env `VITE_API_URL` + `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
 
 Every `git push` → auto-deploys both.
@@ -362,6 +365,7 @@ and `backend` (`pytest -v`) — matching branch protection on `main`.
 - [x] ATS keyword scoring + Dashboard ATS Score tracking
 - [x] Profile page — personal info & work experience capture
 - [x] AI usage tracking and model transparency (`/ai` page)
+- [x] Server-side quota enforcement — 30 AI calls/month free tier with 402 response + UI modal
 - [x] Resume editor redesign — 3-column layout, step stepper, section nav, live preview panel
 - [ ] Mobile responsive editor
 - [ ] Stripe monetization

@@ -5,7 +5,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from app.auth import get_current_user
+from app.auth import AuthUser, get_current_user
 from app.limiter import ai_rate_limit
 from app.main import app
 
@@ -13,7 +13,7 @@ from app.main import app
 @pytest.fixture
 def client() -> TestClient:
     """Test client with auth and rate-limiting bypassed for route-logic tests."""
-    app.dependency_overrides[get_current_user] = lambda: "test-user-id"
+    app.dependency_overrides[get_current_user] = lambda: AuthUser(user_id="test-user-id", token="test-token")
     app.dependency_overrides[ai_rate_limit] = lambda: None
     with TestClient(app) as c:
         yield c
