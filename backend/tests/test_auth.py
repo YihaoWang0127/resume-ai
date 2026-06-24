@@ -18,15 +18,15 @@ def _parse(client: TestClient, headers: dict | None = None, pdf: bytes = b"") ->
 
 # ── 401 cases ─────────────────────────────────────────────────────────────────
 
-def test_401_no_token(client: TestClient) -> None:
-    assert _parse(client) == 401
+def test_401_no_token(auth_client: TestClient) -> None:
+    assert _parse(auth_client) == 401
 
 
-def test_401_malformed_bearer(client: TestClient) -> None:
-    assert _parse(client, {"Authorization": "Bearer not.a.jwt"}) == 401
+def test_401_malformed_bearer(auth_client: TestClient) -> None:
+    assert _parse(auth_client, {"Authorization": "Bearer not.a.jwt"}) == 401
 
 
-def test_401_invalid_signature(client: TestClient, mocker) -> None:
+def test_401_invalid_signature(auth_client: TestClient, mocker) -> None:
     from jwt.exceptions import InvalidSignatureError
 
     mocker.patch(
@@ -35,12 +35,12 @@ def test_401_invalid_signature(client: TestClient, mocker) -> None:
             get_signing_key_from_jwt=mocker.Mock(side_effect=InvalidSignatureError("bad sig"))
         ),
     )
-    assert _parse(client, {"Authorization": "Bearer bad.token.here"}) == 401
+    assert _parse(auth_client, {"Authorization": "Bearer bad.token.here"}) == 401
 
 
 # ── 200 with valid token ───────────────────────────────────────────────────────
 
-def test_200_valid_token(client: TestClient, mocker, minimal_pdf_bytes: bytes) -> None:
+def test_200_valid_token(auth_client: TestClient, mocker, minimal_pdf_bytes: bytes) -> None:
     _mock_valid_jwt(mocker, "user-abc")
     mocker.patch("app.routes.parse.extract_text", return_value="Jane Smith\nSoftware Engineer")
     mocker.patch("app.routes.parse.validate_resume", return_value={"is_resume": True})
@@ -49,7 +49,7 @@ def test_200_valid_token(client: TestClient, mocker, minimal_pdf_bytes: bytes) -
         return_value='{"metadata":{"name":"Jane","email":"j@example.com"},"experience":[],"education":[],"skills":[]}',
     )
 
-    resp = client.post(
+    resp = auth_client.post(
         "/api/parse",
         files={"file": ("resume.pdf", minimal_pdf_bytes, "application/pdf")},
         headers={"Authorization": "Bearer valid.token.here"},
@@ -59,7 +59,7 @@ def test_200_valid_token(client: TestClient, mocker, minimal_pdf_bytes: bytes) -
 
 # ── 429 rate limit ────────────────────────────────────────────────────────────
 
-def test_429_rate_limit(client: TestClient, mocker, minimal_pdf_bytes: bytes) -> None:
+def test_429_rate_limit(auth_client: TestClient, mocker, minimal_pdf_bytes: bytes) -> None:
     _mock_valid_jwt(mocker, "user-ratelimit-test")
     mocker.patch("app.routes.parse.extract_text", return_value="Jane Smith")
     mocker.patch("app.routes.parse.validate_resume", return_value={"is_resume": True})
@@ -70,7 +70,7 @@ def test_429_rate_limit(client: TestClient, mocker, minimal_pdf_bytes: bytes) ->
 
     headers = {"Authorization": "Bearer valid.token.here"}
     statuses = [
-        client.post(
+        auth_client.post(
             "/api/parse",
             files={"file": ("resume.pdf", minimal_pdf_bytes, "application/pdf")},
             headers=headers,

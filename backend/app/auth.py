@@ -10,7 +10,7 @@ from jwt.exceptions import PyJWTError
 
 _SUPABASE_JWKS_URL = os.getenv("SUPABASE_JWKS_URL", "")
 
-_bearer = HTTPBearer()
+_bearer = HTTPBearer(auto_error=False)
 
 
 @lru_cache(maxsize=1)
@@ -19,13 +19,19 @@ def _jwks_client() -> PyJWKClient:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> str:
     """Verify the Supabase JWT and return the user id (sub claim).
 
     Accepts both regular and anonymous (is_anonymous=true) JWTs — both have
     aud='authenticated' and a valid sub.  Rate limiting differentiates tiers.
     """
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token = credentials.credentials
     try:
         signing_key = _jwks_client().get_signing_key_from_jwt(token)
