@@ -11,18 +11,21 @@ SENIOR_KEYWORDS = {'senior', 'lead', 'principal', 'manager', 'director', 'head',
 # Regex to split on spaces and common punctuation for word-boundary checks
 _WORD_SPLIT_RE = re.compile(r'[\s/,.()\-]+')
 
+_MONTH_ABBRS: dict[str, int] = {
+    'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+    'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+}
+
 
 def _parse_year(date_str: str | None) -> int | None:
     """Return a 4-digit year from a date string, or None if unparseable."""
     if not date_str:
         return None
-    # Try dateutil first (handles most formats)
     try:
         from dateutil import parser as _du_parser  # type: ignore
         return _du_parser.parse(date_str, default=datetime.datetime(1900, 1, 1)).year
     except Exception:
         pass
-    # Fallback: extract first 4-digit year from the string
     match = re.search(r'\b(19|20)\d{2}\b', date_str)
     if match:
         return int(match.group())
@@ -38,11 +41,24 @@ def _parse_date(date_str: str | None) -> datetime.date | None:
         return _du_parser.parse(date_str, default=datetime.datetime(1900, 1, 1)).date()
     except Exception:
         pass
-    # Fallback: if we can get a year at least, return Jan 1 of that year
+    # Fallback: handle "Mon YYYY" / "Month YYYY" patterns to preserve month
+    s = date_str.strip().lower()
+    for abbr, month_num in _MONTH_ABBRS.items():
+        if s.startswith(abbr):
+            year = _parse_year(date_str)
+            if year:
+                return datetime.date(year, month_num, 1)
+            break
+    # Last resort: year only → January 1
     year = _parse_year(date_str)
     if year:
         return datetime.date(year, 1, 1)
     return None
+
+
+def _years_between(start: datetime.date, end: datetime.date) -> float:
+    """Calculate fractional years between two dates using year+month arithmetic."""
+    return (end.year - start.year) + (end.month - start.month) / 12.0
 
 
 def infer_career_stage(resume: ResumeSchema) -> Literal['student', 'early', 'experienced']:
@@ -82,7 +98,7 @@ def infer_career_stage(resume: ResumeSchema) -> Literal['student', 'early', 'exp
     # 3. Tenure sum
     # ------------------------------------------------------------------
     today = datetime.date.today()
-    total_days = 0.0
+    total_years = 0.0
 
     for exp in resume.experience:
         start = _parse_date(exp.start_date)
@@ -92,11 +108,9 @@ def infer_career_stage(resume: ResumeSchema) -> Literal['student', 'early', 'exp
         end = _parse_date(exp.end_date) if exp.end_date else today
         if end is None:
             end = today
-        delta = (end - start).days
-        if delta > 0:
-            total_days += delta
-
-    total_years = total_days / 365.25
+        years = _years_between(start, end)
+        if years > 0:
+            total_years += years
 
     # ------------------------------------------------------------------
     # 4. Final rules

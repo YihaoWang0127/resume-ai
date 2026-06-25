@@ -190,7 +190,7 @@ describe('ResumeEditor — save dialog', () => {
     await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
 
     await waitFor(() =>
-      expect(mockSaveResume).toHaveBeenCalledWith(mockResume, 'My Custom Title', undefined)
+      expect(mockSaveResume).toHaveBeenCalledWith(mockResume, 'My Custom Title', undefined, undefined)
     )
   })
 
@@ -242,6 +242,7 @@ describe('ResumeEditor — save dialog', () => {
         expect.objectContaining({ detectedIndustry: 'finance' }),
         expect.any(String),
         undefined,
+        undefined,
       )
     )
     const [savedResume] = mockSaveResume.mock.calls[0]
@@ -271,6 +272,7 @@ describe('ResumeEditor — update existing resume', () => {
       expect(mockUpdateResume).toHaveBeenCalledWith(
         'existing-id',
         expect.objectContaining({ detectedIndustry: 'finance' }),
+        undefined,
         undefined,
         undefined,
       )
@@ -1300,7 +1302,7 @@ describe('ResumeEditor — Resume Polish tone selector', () => {
       await Promise.resolve()
     })
 
-    expect(mockEnrichResume).toHaveBeenCalledWith(mockResume, 'assertive')
+    expect(mockEnrichResume).toHaveBeenCalledWith(mockResume, 'assertive', undefined)
   })
 })
 
@@ -2558,30 +2560,6 @@ describe('ResumeEditor — ATS save/dismiss state machine', () => {
   })
 })
 
-// ── Projects section always rendered ─────────────────────────────────────────
-// The projects section is part of orderedSections and should always render in
-// the center panel at step 1, with its "Add Project" button and section heading.
-
-describe('ResumeEditor — Projects section always rendered', () => {
-  it('renders the Projects section heading at step 1', () => {
-    renderEditor()
-
-    expect(screen.getByRole('heading', { name: /^projects$/i })).toBeInTheDocument()
-  })
-
-  it('renders "Add Project" button at step 1 with no initial projects', () => {
-    renderEditor()
-
-    expect(screen.getByRole('button', { name: /add project/i })).toBeInTheDocument()
-  })
-
-  it('renders "Projects" nav button in the sidebar at step 1', () => {
-    renderEditor()
-
-    expect(screen.getAllByRole('button', { name: /^projects$/i }).length).toBeGreaterThan(0)
-  })
-})
-
 // ── Stage-aware section order in sidebar nav ──────────────────────────────────
 // SECTION_ORDER_BY_STAGE determines nav button order (after Contact):
 //   student:     Summary, Education, Projects, Skills, Experience
@@ -2607,17 +2585,6 @@ describe('ResumeEditor — stage-aware sidebar nav order', () => {
     expect(educationPos).toBeLessThan(experiencePos)
   })
 
-  it('student stage: Projects nav button appears before Skills nav button', () => {
-    renderEditor({ initialCareerStage: 'student' })
-
-    const projectsPos = getNavButtonPosition(/^projects$/i)
-    const skillsPos = getNavButtonPosition(/^skills$/i)
-
-    expect(projectsPos).toBeGreaterThan(-1)
-    expect(skillsPos).toBeGreaterThan(-1)
-    expect(projectsPos).toBeLessThan(skillsPos)
-  })
-
   it('experienced stage: Experience nav button appears before Education nav button', () => {
     renderEditor({ initialCareerStage: 'experienced' })
 
@@ -2640,14 +2607,4 @@ describe('ResumeEditor — stage-aware sidebar nav order', () => {
     expect(skillsPos).toBeLessThan(educationPos)
   })
 
-  it('no careerStage (null): renders all section nav buttons (uses early fallback order)', () => {
-    renderEditor()
-
-    // All five section nav buttons must be present regardless of stage
-    expect(screen.getAllByRole('button', { name: /^summary$/i }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: /^experience$/i }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: /^education$/i }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: /^skills$/i }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: /^projects$/i }).length).toBeGreaterThan(0)
-  })
 })

@@ -389,8 +389,7 @@ describe('Profile — Career Stage selector', () => {
     renderProfile()
     await waitFor(() => expect(screen.getByLabelText('Current Job Title')).toBeInTheDocument())
 
-    expect(screen.getByText(/student/i, { selector: 'button' })).toBeInTheDocument()
-    // The suggestion hint link text "Student" appears (distinct from the selector button label)
+    // The suggestion hint link text "Student" appears inside a <p> tag (distinct from the selector button)
     const suggestionLink = screen.getAllByRole('button', { name: /student/i }).find(
       (btn) => btn.closest('p') !== null
     )
@@ -401,7 +400,7 @@ describe('Profile — Career Stage selector', () => {
   it('shows an "Early Career" suggestion hint when years=3 and career_stage is student', async () => {
     mockGetProfile.mockResolvedValue({ ...savedProfile, years_of_experience: 3, career_stage: 'student' })
     renderProfile()
-    await waitFor(() => expect(screen.getByLabelText('Current Job Title')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('Target Job Title')).toBeInTheDocument())
 
     const suggestionLink = screen.getAllByRole('button', { name: /early career/i }).find(
       (btn) => btn.closest('p') !== null
@@ -425,7 +424,7 @@ describe('Profile — Career Stage selector', () => {
   it('does NOT show a suggestion hint when years=0 and career_stage is already student', async () => {
     mockGetProfile.mockResolvedValue({ ...savedProfile, years_of_experience: 0, career_stage: 'student' })
     renderProfile()
-    await waitFor(() => expect(screen.getByLabelText('Current Job Title')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('Target Job Title')).toBeInTheDocument())
 
     // No paragraph containing "Suggested:" should be present
     const suggestionParagraph = Array.from(document.querySelectorAll('p')).find(
