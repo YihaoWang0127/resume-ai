@@ -53,11 +53,12 @@ import { resumeToLines, computeLineDiff } from '@/lib/resumeDiff'
 interface Props {
   initialResume: ResumeSchema
   initialResumeId?: string | null
+  initialCareerStage?: 'student' | 'early' | 'experienced' | null
   onBack: () => void
   onSignUp?: () => void
 }
 
-type Tab = 'contact' | 'summary' | 'experience' | 'education' | 'skills' | 'ats'
+type Tab = 'contact' | 'summary' | 'experience' | 'education' | 'skills' | 'projects' | 'ats'
 
 interface StreamState {
   text: string
@@ -138,11 +139,17 @@ const RESUME_SECTION_DEFS: Array<{ id: Tab; label: string; description: string; 
   { id: 'skills',     label: 'Skills',     description: 'List your technical and soft skills.',                Icon: Zap },
 ]
 
+const SECTION_ORDER_BY_STAGE: Record<string, Array<Exclude<Tab, 'contact' | 'ats'>>> = {
+  student:     ['summary', 'education', 'skills', 'experience'],
+  early:       ['summary', 'experience', 'skills', 'education'],
+  experienced: ['summary', 'experience', 'skills', 'education'],
+}
+
 const REVIEW_TOOL_DEFS: Array<{ id: Tab; label: string; Icon: LucideIcon }> = [
   { id: 'ats', label: 'ATS Score', Icon: Target },
 ]
 
-export default function ResumeEditor({ initialResume, initialResumeId, onBack, onSignUp }: Props) {
+export default function ResumeEditor({ initialResume, initialResumeId, initialCareerStage, onBack, onSignUp }: Props) {
   const { user, isGuest, signOut } = useAuth()
   const navigate = useNavigate()
   const [resume, setResume] = useState<ResumeSchema>(initialResume)
@@ -194,6 +201,9 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const [atsSaved, setAtsSaved] = useState(false)
   const [polishInlineMsg, setPolishInlineMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [enrichTone, setEnrichTone] = useState<'professional' | 'concise' | 'assertive'>('professional')
+  const [careerStage, setCareerStage] = useState<'student' | 'early' | 'experienced' | null>(
+    initialCareerStage ?? null
+  )
   // Job tailoring validation
   const [jobDescValState, setJobDescValState] = useState<JdValState>('idle')
   const [jobDescValError, setJobDescValError] = useState<string | null>(null)
@@ -249,7 +259,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const centerDragRef = useRef<{ startX: number; startW: number } | null>(null)
   const sidebarDragRef = useRef<{ startX: number; startW: number } | null>(null)
   const sectionRefs = useRef<Record<Tab, HTMLDivElement | null>>({
-    contact: null, summary: null, experience: null, education: null, skills: null, ats: null,
+    contact: null, summary: null, experience: null, education: null, skills: null, projects: null, ats: null,
   })
 
   // ── Edit Zone diff ───────────────────────────────────────────────────────
@@ -523,6 +533,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
       if (JSON.stringify(resume.experience) !== JSON.stringify(newResume.experience)) changes.add('experience')
       if (JSON.stringify(resume.education) !== JSON.stringify(newResume.education)) changes.add('education')
       if (JSON.stringify(resume.skills) !== JSON.stringify(newResume.skills)) changes.add('skills')
+      if (JSON.stringify(resume.projects) !== JSON.stringify(newResume.projects)) changes.add('projects')
 
       setResume(newResume)
       setStream(null)
@@ -543,7 +554,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const startEnrich = () => {
     setOriginalResume(resume)
     setEnrichmentState('loading')
-    runStream(() => enrichResume(resume, enrichTone))
+    runStream(() => enrichResume(resume, enrichTone, careerStage ?? undefined))
     // Enrich's loading/comparison UI lives in the right (preview) panel —
     // switch mobile view there so the user sees it (overrides runStream's
     // setMobileViewTab('edit') for the Tailor flow).
@@ -584,6 +595,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
     if (JSON.stringify(originalResume.experience) !== JSON.stringify(enrichedResume.experience)) changes.add('experience')
     if (JSON.stringify(originalResume.education) !== JSON.stringify(enrichedResume.education)) changes.add('education')
     if (JSON.stringify(originalResume.skills) !== JSON.stringify(enrichedResume.skills)) changes.add('skills')
+    if (JSON.stringify(originalResume.projects) !== JSON.stringify(enrichedResume.projects)) changes.add('projects')
 
     setResume(enrichedResume)
     if (changes.size > 0) {
@@ -605,7 +617,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
 
   const handleTailor = () => {
     setTailorOpen(false)
-    runStream(() => tailorResume(resume, jobDesc))
+    runStream(() => tailorResume(resume, jobDesc, careerStage ?? undefined))
   }
 
   const handleGenerateCoverLetterInline = async () => {
@@ -821,7 +833,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         ? { score: atsResult.overallScore, result: atsResult, jobDescription: atsJobDesc }
         : undefined
     try {
-      const saved = await saveResume({ ...resume, detectedIndustry: selectedIndustry }, saveTitle.trim(), atsPayload)
+      const saved = await saveResume({ ...resume, detectedIndustry: selectedIndustry }, saveTitle.trim(), atsPayload, careerStage ?? undefined)
       setCurrentResumeId(saved.id)
       setSaveDialogOpen(false)
       if (atsPayload) setAtsResultSaved(true)
@@ -847,7 +859,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
         ? { score: atsResult.overallScore, result: atsResult, jobDescription: atsJobDesc }
         : undefined
     try {
-      await updateResume(currentResumeId, { ...resume, detectedIndustry: selectedIndustry }, undefined, atsPayload)
+      await updateResume(currentResumeId, { ...resume, detectedIndustry: selectedIndustry }, undefined, atsPayload, careerStage ?? undefined)
       if (atsPayload) setAtsResultSaved(true)
       const tabLabel = reviewDocTab === 'coverletter' ? 'CV' : reviewDocTab === 'ats' ? 'ATS report' : 'Resume'
       showToast(`${tabLabel} updated!`, true)
@@ -1025,14 +1037,22 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
   const isExpComplete = resume.experience.length > 0
   const isEduComplete = resume.education.length > 0
   const isSkillsComplete = resume.skills.length > 0
+  const isProjectsComplete = (resume.projects ?? []).length > 0
   const getSectionComplete = (id: Tab): boolean => {
     if (id === 'contact') return isContactComplete
     if (id === 'summary') return isSummaryComplete
     if (id === 'experience') return isExpComplete
     if (id === 'education') return isEduComplete
     if (id === 'skills') return isSkillsComplete
+    if (id === 'projects') return isProjectsComplete
     return false
   }
+
+  // ── stage-aware section ordering ────────────────────────────────────────────
+  const orderedSectionIds = SECTION_ORDER_BY_STAGE[careerStage ?? 'early'] ?? SECTION_ORDER_BY_STAGE['early']
+  const orderedSections = orderedSectionIds
+    .map(id => RESUME_SECTION_DEFS.find(s => s.id === id))
+    .filter((s): s is typeof RESUME_SECTION_DEFS[number] => Boolean(s))
   const isAtsStale = atsResult !== null && atsResumeSnapshot !== null && JSON.stringify(resume) !== atsResumeSnapshot
   const wordCount = resume.summary?.split(/\s+/).filter(Boolean).length ?? 0
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined
@@ -1306,7 +1326,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                 Resume Sections
               </p>
               <nav>
-                {RESUME_SECTION_DEFS.map((s) => {
+                {[RESUME_SECTION_DEFS.find(s => s.id === 'contact')!, ...orderedSections].map((s) => {
                   const complete = getSectionComplete(s.id)
                   return (
                     <button
@@ -1376,6 +1396,37 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                       AI will review your entire resume and suggest improvements to wording, clarity, impact, grammar, action verbs, and bullet strength — no job description required.
                     </p>
+                  </div>
+                  {/* Career Stage */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">Career Stage</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Helps the AI tailor language and avoid fabricating metrics.
+                    </p>
+                    <div className="flex rounded-lg border border-border overflow-hidden">
+                      {(['student', 'early', 'experienced'] as const).map((stage) => {
+                        const labels: Record<string, string> = { student: 'Student', early: 'Early Career', experienced: 'Experienced' }
+                        const isActive = careerStage === stage
+                        return (
+                          <button
+                            key={stage}
+                            type="button"
+                            onClick={() => setCareerStage(isActive ? null : stage)}
+                            className={cn(
+                              'flex-1 py-2 text-xs font-medium transition-colors min-h-[44px] border-r border-border last:border-r-0',
+                              isActive
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                            )}
+                          >
+                            {labels[stage]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {careerStage === null && (
+                      <p className="text-[11px] text-muted-foreground px-0.5">Auto-detected from your resume if not selected.</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs font-bold text-foreground uppercase tracking-wider">Writing Tone</p>
@@ -1471,6 +1522,37 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
                     <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                       Optimize your resume for the job you want to apply for.
                     </p>
+                  </div>
+                  {/* Career Stage */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">Career Stage</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Helps the AI tailor language and avoid fabricating metrics.
+                    </p>
+                    <div className="flex rounded-lg border border-border overflow-hidden">
+                      {(['student', 'early', 'experienced'] as const).map((stage) => {
+                        const labels: Record<string, string> = { student: 'Student', early: 'Early Career', experienced: 'Experienced' }
+                        const isActive = careerStage === stage
+                        return (
+                          <button
+                            key={stage}
+                            type="button"
+                            onClick={() => setCareerStage(isActive ? null : stage)}
+                            className={cn(
+                              'flex-1 py-2 text-xs font-medium transition-colors min-h-[44px] border-r border-border last:border-r-0',
+                              isActive
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                            )}
+                          >
+                            {labels[stage]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {careerStage === null && (
+                      <p className="text-[11px] text-muted-foreground px-0.5">Auto-detected from your resume if not selected.</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-foreground uppercase tracking-wider">Target Job Description</label>
@@ -1796,7 +1878,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
             <>
           {/* Mobile: horizontal section tab strip */}
           <div className="lg:hidden shrink-0 flex overflow-x-auto scrollbar-none bg-card border-b border-border">
-            {[...RESUME_SECTION_DEFS, ...REVIEW_TOOL_DEFS].map((s) => (
+            {[RESUME_SECTION_DEFS.find(s => s.id === 'contact')!, ...orderedSections, ...REVIEW_TOOL_DEFS].map((s) => (
               <button
                 key={s.id}
                 onClick={() => scrollToSection(s.id)}
@@ -1887,185 +1969,189 @@ export default function ResumeEditor({ initialResume, initialResumeId, onBack, o
               </div>
             </div>
 
-            {/* ── SUMMARY ── */}
-            <div ref={(el) => { sectionRefs.current.summary = el }} className="space-y-3">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">Summary</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">Write a brief professional summary.</p>
-              </div>
-              <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-                <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted">
-                  <select className="text-xs text-foreground bg-background border border-border rounded-md px-2 py-1 mr-1 outline-none focus:ring-1 focus:ring-ring/40">
-                    <option>Paragraph</option>
-                  </select>
-                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                    <Bold className="size-3.5 text-foreground" />
-                  </button>
-                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                    <Italic className="size-3.5 text-foreground" />
-                  </button>
-                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                    <Underline className="size-3.5 text-foreground" />
-                  </button>
-                  <div className="w-px h-4 bg-border mx-0.5" />
-                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                    <List className="size-3.5 text-foreground" />
-                  </button>
-                  <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
-                    <ListOrdered className="size-3.5 text-foreground" />
-                  </button>
-                </div>
-                <div className="relative">
-                  <textarea
-                    rows={8}
-                    className="w-full px-4 py-3 text-sm text-foreground bg-card outline-none resize-none placeholder:text-muted-foreground"
-                    placeholder="A brief professional summary…"
-                    value={resume.summary ?? ''}
-                    onChange={(e) =>
-                      setResume((r: ResumeSchema): ResumeSchema => ({
-                        ...r,
-                        summary: e.target.value || undefined,
-                      }))
-                    }
-                  />
-                  {isSummaryComplete && (
-                    <div className="absolute bottom-2.5 right-2.5 size-2 rounded-full bg-green-500" />
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground px-1">
-                {wordCount} words{atsResult ? ` • ${atsResult.suggestions.length} suggestions available` : ''}
-              </p>
-            </div>
-
-            {/* ── EXPERIENCE ── */}
-            <div ref={(el) => { sectionRefs.current.experience = el }} className="space-y-4">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">Experience</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">Add your work experience and achievements.</p>
-              </div>
-              {resume.experience.map((exp, i) => (
-                <div key={i} className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground leading-tight">{exp.title || 'Job Title'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {exp.company || 'Company'}{exp.startDate ? ` · ${exp.startDate}${exp.current ? ' – Present' : exp.endDate ? ` – ${exp.endDate}` : ''}` : ''}
-                      </p>
-                    </div>
-                    <button onClick={() => removeExp(i)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
-                      <Trash2 className="size-3.5" />
-                    </button>
+            {/* ── STAGE-ORDERED SECTIONS ── */}
+            {orderedSections.map(({ id: sectionId }) => {
+              if (sectionId === 'summary') return (
+                <div key="summary" ref={(el) => { sectionRefs.current.summary = el }} className="space-y-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">Summary</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">Write a brief professional summary.</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-muted-foreground">Job Title</label>
-                      <input className={field} placeholder="Software Engineer" value={exp.title} onChange={(e) => setExp(i, 'title', e.target.value)} />
+                  <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+                    <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted">
+                      <select className="text-xs text-foreground bg-background border border-border rounded-md px-2 py-1 mr-1 outline-none focus:ring-1 focus:ring-ring/40">
+                        <option>Paragraph</option>
+                      </select>
+                      <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                        <Bold className="size-3.5 text-foreground" />
+                      </button>
+                      <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                        <Italic className="size-3.5 text-foreground" />
+                      </button>
+                      <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                        <Underline className="size-3.5 text-foreground" />
+                      </button>
+                      <div className="w-px h-4 bg-border mx-0.5" />
+                      <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                        <List className="size-3.5 text-foreground" />
+                      </button>
+                      <button type="button" className="p-1.5 rounded-md hover:bg-secondary transition-colors min-h-[28px] min-w-[28px] flex items-center justify-center">
+                        <ListOrdered className="size-3.5 text-foreground" />
+                      </button>
                     </div>
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-muted-foreground">Company</label>
-                      <input className={field} placeholder="Company Name" value={exp.company} onChange={(e) => setExp(i, 'company', e.target.value)} />
+                    <div className="relative">
+                      <textarea
+                        rows={8}
+                        className="w-full px-4 py-3 text-sm text-foreground bg-card outline-none resize-none placeholder:text-muted-foreground"
+                        placeholder="A brief professional summary…"
+                        value={resume.summary ?? ''}
+                        onChange={(e) =>
+                          setResume((r: ResumeSchema): ResumeSchema => ({
+                            ...r,
+                            summary: e.target.value || undefined,
+                          }))
+                        }
+                      />
+                      {isSummaryComplete && (
+                        <div className="absolute bottom-2.5 right-2.5 size-2 rounded-full bg-green-500" />
+                      )}
                     </div>
-                    <div className="space-y-1">
-                      <label className="block text-xs font-medium text-muted-foreground">Start Date</label>
-                      <input className={field} placeholder="Jan 2022" value={exp.startDate} onChange={(e) => setExp(i, 'startDate', e.target.value)} />
-                    </div>
-                    {!exp.current && (
-                      <div className="space-y-1">
-                        <label className="block text-xs font-medium text-muted-foreground">End Date</label>
-                        <input className={field} placeholder="Dec 2023" value={exp.endDate ?? ''} onChange={(e) => setExp(i, 'endDate', e.target.value)} />
+                  </div>
+                  <p className="text-xs text-muted-foreground px-1">
+                    {wordCount} words{atsResult ? ` • ${atsResult.suggestions.length} suggestions available` : ''}
+                  </p>
+                </div>
+              )
+              if (sectionId === 'experience') return (
+                <div key="experience" ref={(el) => { sectionRefs.current.experience = el }} className="space-y-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">Experience</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">Add your work experience and achievements.</p>
+                  </div>
+                  {resume.experience.map((exp, i) => (
+                    <div key={i} className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground leading-tight">{exp.title || 'Job Title'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {exp.company || 'Company'}{exp.startDate ? ` · ${exp.startDate}${exp.current ? ' – Present' : exp.endDate ? ` – ${exp.endDate}` : ''}` : ''}
+                          </p>
+                        </div>
+                        <button onClick={() => removeExp(i)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
+                          <Trash2 className="size-3.5" />
+                        </button>
                       </div>
-                    )}
-                    <label className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                      <input type="checkbox" className="accent-primary" checked={exp.current} onChange={(e) => { setExp(i, 'current', e.target.checked); if (e.target.checked) setExp(i, 'endDate', undefined) }} />
-                      Currently working here
-                    </label>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Achievements / Bullets</p>
-                    {exp.bullets.map((b, bi) => (
-                      <div key={bi} className="flex gap-2 items-start">
-                        <span className="mt-2 text-primary text-xs shrink-0">•</span>
-                        <input className={cn(fieldSm, 'flex-1')} placeholder="Achievement or responsibility…" value={b} onChange={(e) => setBullet(i, bi, e.target.value)} />
-                        {exp.bullets.length > 1 && (
-                          <button onClick={() => removeBullet(i, bi)} className="mt-1.5 text-muted-foreground hover:text-destructive rounded p-0.5">
-                            <X className="size-3" />
-                          </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="block text-xs font-medium text-muted-foreground">Job Title</label>
+                          <input className={field} placeholder="Software Engineer" value={exp.title} onChange={(e) => setExp(i, 'title', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-xs font-medium text-muted-foreground">Company</label>
+                          <input className={field} placeholder="Company Name" value={exp.company} onChange={(e) => setExp(i, 'company', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-xs font-medium text-muted-foreground">Start Date</label>
+                          <input className={field} placeholder="Jan 2022" value={exp.startDate} onChange={(e) => setExp(i, 'startDate', e.target.value)} />
+                        </div>
+                        {!exp.current && (
+                          <div className="space-y-1">
+                            <label className="block text-xs font-medium text-muted-foreground">End Date</label>
+                            <input className={field} placeholder="Dec 2023" value={exp.endDate ?? ''} onChange={(e) => setExp(i, 'endDate', e.target.value)} />
+                          </div>
                         )}
+                        <label className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                          <input type="checkbox" className="accent-primary" checked={exp.current} onChange={(e) => { setExp(i, 'current', e.target.checked); if (e.target.checked) setExp(i, 'endDate', undefined) }} />
+                          Currently working here
+                        </label>
                       </div>
-                    ))}
-                    <button onClick={() => addBullet(i)} className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-                      <Plus className="size-3" /> Add bullet
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button onClick={addExp} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-                <Plus className="size-4" /> Add Experience
-              </button>
-            </div>
-
-            {/* ── EDUCATION ── */}
-            <div ref={(el) => { sectionRefs.current.education = el }} className="space-y-4">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">Education</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">Add your educational background.</p>
-              </div>
-              {resume.education.map((edu, i) => (
-                <div key={i} className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-foreground">{edu.institution || 'Institution'}</span>
-                    <button onClick={() => removeEdu(i)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                  <input className={field} placeholder="Institution name" value={edu.institution} onChange={(e) => setEdu(i, 'institution', e.target.value)} />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input className={field} placeholder="Degree (B.S.)" value={edu.degree} onChange={(e) => setEdu(i, 'degree', e.target.value)} />
-                    <input className={field} placeholder="Field of study" value={edu.field} onChange={(e) => setEdu(i, 'field', e.target.value)} />
-                    <input className={cn(field, 'col-span-2')} placeholder="Graduation year (2024)" value={edu.graduationYear} onChange={(e) => setEdu(i, 'graduationYear', e.target.value)} />
-                  </div>
-                </div>
-              ))}
-              <button onClick={addEdu} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-                <Plus className="size-4" /> Add Education
-              </button>
-            </div>
-
-            {/* ── SKILLS ── */}
-            <div ref={(el) => { sectionRefs.current.skills = el }} className="space-y-4">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">Skills</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">List your technical and soft skills.</p>
-              </div>
-              {resume.skills.map((group, gi) => (
-                <div key={gi} className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <input className={cn(field, 'flex-1 font-medium')} placeholder="Category (Languages, Frameworks…)" value={group.category} onChange={(e) => setSkillCat(gi, e.target.value)} />
-                    <button onClick={() => removeSkillGroup(gi)} className="shrink-0 p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {group.items.map((item, ii) => (
-                      <div key={ii} className="flex items-center gap-1 bg-muted border border-border rounded-lg px-2.5 py-1">
-                        <input className="bg-transparent text-xs outline-none w-20 text-foreground placeholder:text-muted-foreground" placeholder="Skill" value={item} onChange={(e) => setSkillItem(gi, ii, e.target.value)} />
-                        {group.items.length > 1 && (
-                          <button onClick={() => removeSkillItem(gi, ii)} className="text-muted-foreground hover:text-destructive"><X className="size-3" /></button>
-                        )}
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Achievements / Bullets</p>
+                        {exp.bullets.map((b, bi) => (
+                          <div key={bi} className="flex gap-2 items-start">
+                            <span className="mt-2 text-primary text-xs shrink-0">•</span>
+                            <input className={cn(fieldSm, 'flex-1')} placeholder="Achievement or responsibility…" value={b} onChange={(e) => setBullet(i, bi, e.target.value)} />
+                            {exp.bullets.length > 1 && (
+                              <button onClick={() => removeBullet(i, bi)} className="mt-1.5 text-muted-foreground hover:text-destructive rounded p-0.5">
+                                <X className="size-3" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button onClick={() => addBullet(i)} className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
+                          <Plus className="size-3" /> Add bullet
+                        </button>
                       </div>
-                    ))}
-                    <button onClick={() => addSkillItem(gi)} className="flex items-center gap-0.5 px-2.5 py-1 text-xs text-primary hover:bg-primary/10 rounded-lg font-medium transition-colors">
-                      <Plus className="size-3" /> Add
-                    </button>
-                  </div>
+                    </div>
+                  ))}
+                  <button onClick={addExp} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                    <Plus className="size-4" /> Add Experience
+                  </button>
                 </div>
-              ))}
-              <button onClick={addSkillGroup} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-                <Plus className="size-4" /> Add Skills
-              </button>
-            </div>
-
+              )
+              if (sectionId === 'education') return (
+                <div key="education" ref={(el) => { sectionRefs.current.education = el }} className="space-y-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">Education</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">Add your educational background.</p>
+                  </div>
+                  {resume.education.map((edu, i) => (
+                    <div key={i} className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">{edu.institution || 'Institution'}</span>
+                        <button onClick={() => removeEdu(i)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                      <input className={field} placeholder="Institution name" value={edu.institution} onChange={(e) => setEdu(i, 'institution', e.target.value)} />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input className={field} placeholder="Degree (B.S.)" value={edu.degree} onChange={(e) => setEdu(i, 'degree', e.target.value)} />
+                        <input className={field} placeholder="Field of study" value={edu.field} onChange={(e) => setEdu(i, 'field', e.target.value)} />
+                        <input className={cn(field, 'col-span-2')} placeholder="Graduation year (2024)" value={edu.graduationYear} onChange={(e) => setEdu(i, 'graduationYear', e.target.value)} />
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={addEdu} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                    <Plus className="size-4" /> Add Education
+                  </button>
+                </div>
+              )
+              if (sectionId === 'skills') return (
+                <div key="skills" ref={(el) => { sectionRefs.current.skills = el }} className="space-y-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">Skills</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">List your technical and soft skills.</p>
+                  </div>
+                  {resume.skills.map((group, gi) => (
+                    <div key={gi} className="bg-card rounded-xl border border-border p-4 space-y-3 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <input className={cn(field, 'flex-1 font-medium')} placeholder="Category (Languages, Frameworks…)" value={group.category} onChange={(e) => setSkillCat(gi, e.target.value)} />
+                        <button onClick={() => removeSkillGroup(gi)} className="shrink-0 p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10">
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.items.map((item, ii) => (
+                          <div key={ii} className="flex items-center gap-1 bg-muted border border-border rounded-lg px-2.5 py-1">
+                            <input className="bg-transparent text-xs outline-none w-20 text-foreground placeholder:text-muted-foreground" placeholder="Skill" value={item} onChange={(e) => setSkillItem(gi, ii, e.target.value)} />
+                            {group.items.length > 1 && (
+                              <button onClick={() => removeSkillItem(gi, ii)} className="text-muted-foreground hover:text-destructive"><X className="size-3" /></button>
+                            )}
+                          </div>
+                        ))}
+                        <button onClick={() => addSkillItem(gi)} className="flex items-center gap-0.5 px-2.5 py-1 text-xs text-primary hover:bg-primary/10 rounded-lg font-medium transition-colors">
+                          <Plus className="size-3" /> Add
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={addSkillGroup} className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                    <Plus className="size-4" /> Add Skills
+                  </button>
+                </div>
+              )
+              return null
+            })}
 
           </div>
           </>

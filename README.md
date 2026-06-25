@@ -20,6 +20,7 @@
 - **ATS Keyword Scoring** — 0-100 keyword-match score with matched/missing chips and AI suggestions; validates job description input; dismissible results panel; tracked per-resume on the Dashboard
 - **AI Usage Tracking** — every AI call logged server-side to `ai_usage_log` (backend writes using the user's JWT); surfaced on `/ai` as total calls, monthly count, and action breakdown
 - **Monthly Quota Enforcement** — free tier capped at 30 AI calls/month; AI routes return HTTP 402 when the limit is reached; a "Monthly Limit Reached" modal surfaces in the UI instead of a generic error
+- **Career Stage Persona Split** — Career Stage selector (Student / Early Career / Experienced) in the AI Enhance step; default is auto-detected from the resume content; enrichment and tailoring prompts are persona-aware based on the selected stage
 
 ### Auth & Storage
 - **Sign in with Google** — OAuth via Supabase; failed redirects show a toast and reopen the auth modal
@@ -104,8 +105,8 @@ Models:
 | Method | Path | Purpose |
 |---|---|---|
 | POST | /api/parse | Upload PDF/DOCX → validated + parsed resume JSON |
-| POST | /api/enrich | Stream-enriched resume; optional `tone` field: `'professional'` (default) \| `'concise'` \| `'assertive'` |
-| POST | /api/tailor | Stream-tailored resume to job description |
+| POST | /api/enrich | Stream-enriched resume; optional `tone` field: `'professional'` (default) \| `'concise'` \| `'assertive'`; optional `career_stage` field: `'student'` \| `'early'` \| `'experienced'` \| `null` (auto-detect) |
+| POST | /api/tailor | Stream-tailored resume to job description; optional `career_stage` field: `'student'` \| `'early'` \| `'experienced'` \| `null` (auto-detect) |
 | POST | /api/export | Export resume as PDF or DOCX |
 | POST | /api/cover-letter | Stream-generated cover letter |
 | POST | /api/cover-letter/export | Export cover letter as PDF/DOCX/TXT |
@@ -129,6 +130,7 @@ CREATE TABLE resumes (
   title TEXT NOT NULL,
   resume_data JSONB NOT NULL,
   detected_industry TEXT DEFAULT 'general',
+  career_stage TEXT CHECK (career_stage IN ('student', 'early', 'experienced')),
   ats_score INTEGER,
   ats_score_updated_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -266,6 +268,7 @@ resume-ai/
 │       │   └── cover_letter.py        # cover letter generation
 │       ├── services/
 │       │   ├── claude.py              # Haiku + Sonnet + validate
+│       │   ├── career_stage.py        # career stage auto-detection (student / early / experienced)
 │       │   ├── parser.py
 │       │   └── exporter.py            # ReportLab + python-docx
 │       ├── models/resume.py
@@ -367,6 +370,7 @@ and `backend` (`pytest -v`) — matching branch protection on `main`.
 - [x] AI usage tracking and model transparency (`/ai` page)
 - [x] Server-side quota enforcement — 30 AI calls/month free tier with 402 response + UI modal
 - [x] Resume editor redesign — 3-column layout, step stepper, section nav, live preview panel
+- [x] Career stage persona split — Student / Early Career / Experienced selector with auto-detection
 - [ ] Mobile responsive editor
 - [ ] Stripe monetization
 - [ ] Resume version history

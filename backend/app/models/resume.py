@@ -59,11 +59,13 @@ class ResumeSchema(BaseModel):
 class TailorRequest(BaseModel):
     resume: ResumeSchema
     job_description: str
+    career_stage: Optional[Literal['student', 'early', 'experienced']] = None
 
 
 class EnrichRequest(BaseModel):
     resume: ResumeSchema
     tone: Optional[Literal['professional', 'concise', 'assertive']] = 'professional'
+    career_stage: Optional[Literal['student', 'early', 'experienced']] = None
 
 
 class ATSScoreRequest(BaseModel):

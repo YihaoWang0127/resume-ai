@@ -29,6 +29,7 @@ const savedProfile: ProfileData = {
   target_job_title: '',
   target_industry: '',
   years_of_experience: 0,
+  career_stage: 'early',
   experience: [
     { company: 'Acme', title: 'Engineer', startDate: 'Jan 2022', endDate: '', current: true, bullets: ['Did things'] },
   ],

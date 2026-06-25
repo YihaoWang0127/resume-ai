@@ -73,6 +73,7 @@ const savedProfile: ProfileData = {
   target_job_title: '',
   target_industry: '',
   years_of_experience: 0,
+  career_stage: 'early',
   experience_bullets: [],
   skills_technical: '',
   skills_tools: '',
@@ -374,6 +375,99 @@ describe('Profile — Personal Info & Experience (loaded with saved data)', () =
 
     const endDateInput = screen.getByPlaceholderText('End') as HTMLInputElement
     expect(endDateInput).toBeDisabled()
+  })
+})
+
+// ── Career Stage ─────────────────────────────────────────────────────────────
+
+describe('Profile — Career Stage selector', () => {
+  // suggestStageFromYears: 0 → 'student', 1-4 → 'early', ≥5 → 'experienced'
+  // When the current career_stage does NOT match the suggestion, a hint is shown.
+
+  it('shows a "Student" suggestion hint when years=0 and career_stage is not student', async () => {
+    mockGetProfile.mockResolvedValue({ ...savedProfile, years_of_experience: 0, career_stage: 'early' })
+    renderProfile()
+    await waitFor(() => expect(screen.getByLabelText('Current Job Title')).toBeInTheDocument())
+
+    expect(screen.getByText(/student/i, { selector: 'button' })).toBeInTheDocument()
+    // The suggestion hint link text "Student" appears (distinct from the selector button label)
+    const suggestionLink = screen.getAllByRole('button', { name: /student/i }).find(
+      (btn) => btn.closest('p') !== null
+    )
+    expect(suggestionLink).toBeInTheDocument()
+    expect(suggestionLink?.closest('p')?.textContent).toMatch(/suggested/i)
+  })
+
+  it('shows an "Early Career" suggestion hint when years=3 and career_stage is student', async () => {
+    mockGetProfile.mockResolvedValue({ ...savedProfile, years_of_experience: 3, career_stage: 'student' })
+    renderProfile()
+    await waitFor(() => expect(screen.getByLabelText('Current Job Title')).toBeInTheDocument())
+
+    const suggestionLink = screen.getAllByRole('button', { name: /early career/i }).find(
+      (btn) => btn.closest('p') !== null
+    )
+    expect(suggestionLink).toBeInTheDocument()
+    expect(suggestionLink?.closest('p')?.textContent).toMatch(/suggested/i)
+  })
+
+  it('shows an "Experienced" suggestion hint when years=7 and career_stage is early', async () => {
+    mockGetProfile.mockResolvedValue({ ...savedProfile, years_of_experience: 7, career_stage: 'early' })
+    renderProfile()
+    await waitFor(() => expect(screen.getByLabelText('Current Job Title')).toBeInTheDocument())
+
+    const suggestionLink = screen.getAllByRole('button', { name: /experienced/i }).find(
+      (btn) => btn.closest('p') !== null
+    )
+    expect(suggestionLink).toBeInTheDocument()
+    expect(suggestionLink?.closest('p')?.textContent).toMatch(/suggested/i)
+  })
+
+  it('does NOT show a suggestion hint when years=0 and career_stage is already student', async () => {
+    mockGetProfile.mockResolvedValue({ ...savedProfile, years_of_experience: 0, career_stage: 'student' })
+    renderProfile()
+    await waitFor(() => expect(screen.getByLabelText('Current Job Title')).toBeInTheDocument())
+
+    // No paragraph containing "Suggested:" should be present
+    const suggestionParagraph = Array.from(document.querySelectorAll('p')).find(
+      (p) => p.textContent?.toLowerCase().includes('suggested')
+    )
+    expect(suggestionParagraph).toBeUndefined()
+  })
+
+  it('renders the "Experienced" selector button as active (primary style) when career_stage is experienced', async () => {
+    mockGetProfile.mockResolvedValue({ ...savedProfile, career_stage: 'experienced' })
+    renderProfile()
+    await waitFor(() => expect(screen.getByLabelText('Current Job Title')).toBeInTheDocument())
+
+    // The active button has bg-primary text-primary-foreground classes
+    const experiencedBtn = screen.getByRole('button', { name: 'Experienced' })
+    expect(experiencedBtn).toBeInTheDocument()
+    expect(experiencedBtn.className).toMatch(/bg-primary/)
+  })
+
+  it('calls upsertProfile with career_stage: student when the Student button is clicked', async () => {
+    mockGetProfile.mockResolvedValue({ ...savedProfile, career_stage: 'early' })
+    mockUpsertProfile.mockResolvedValue({ ...savedProfile, career_stage: 'student' })
+    const user = userEvent.setup()
+    renderProfile()
+    await waitFor(() => expect(screen.getByLabelText('Current Job Title')).toBeInTheDocument())
+
+    // Click the "Student" selector button (the one inside the segmented control, not the suggestion link)
+    const studentBtn = screen.getAllByRole('button', { name: /student/i }).find(
+      (btn) => btn.closest('p') === null
+    ) as HTMLElement
+    await user.click(studentBtn)
+
+    // Now save — the last Save Changes button belongs to the Work Experience card,
+    // but any of the Save Changes buttons in the form will call upsertProfile
+    const saveButtons = screen.getAllByRole('button', { name: /save changes/i })
+    await user.click(saveButtons[saveButtons.length - 1])
+
+    await waitFor(() =>
+      expect(mockUpsertProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ career_stage: 'student' })
+      )
+    )
   })
 })
 

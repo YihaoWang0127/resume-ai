@@ -2557,3 +2557,97 @@ describe('ResumeEditor — ATS save/dismiss state machine', () => {
     ).toBeInTheDocument()
   })
 })
+
+// ── Projects section always rendered ─────────────────────────────────────────
+// The projects section is part of orderedSections and should always render in
+// the center panel at step 1, with its "Add Project" button and section heading.
+
+describe('ResumeEditor — Projects section always rendered', () => {
+  it('renders the Projects section heading at step 1', () => {
+    renderEditor()
+
+    expect(screen.getByRole('heading', { name: /^projects$/i })).toBeInTheDocument()
+  })
+
+  it('renders "Add Project" button at step 1 with no initial projects', () => {
+    renderEditor()
+
+    expect(screen.getByRole('button', { name: /add project/i })).toBeInTheDocument()
+  })
+
+  it('renders "Projects" nav button in the sidebar at step 1', () => {
+    renderEditor()
+
+    expect(screen.getAllByRole('button', { name: /^projects$/i }).length).toBeGreaterThan(0)
+  })
+})
+
+// ── Stage-aware section order in sidebar nav ──────────────────────────────────
+// SECTION_ORDER_BY_STAGE determines nav button order (after Contact):
+//   student:     Summary, Education, Projects, Skills, Experience
+//   experienced: Summary, Experience, Skills, Education, Projects
+// We verify relative DOM order of the nav buttons using compareDocumentPosition.
+
+describe('ResumeEditor — stage-aware sidebar nav order', () => {
+  function getNavButtonPosition(name: RegExp): number {
+    // getAllByRole returns elements in DOM order; find the first sidebar nav button
+    // that matches. The sidebar nav buttons are the ones with border-l-2 class.
+    const allButtons = screen.getAllByRole('button')
+    return allButtons.findIndex((btn) => name.test(btn.textContent ?? ''))
+  }
+
+  it('student stage: Education nav button appears before Experience nav button', () => {
+    renderEditor({ initialCareerStage: 'student' })
+
+    const educationPos = getNavButtonPosition(/^education$/i)
+    const experiencePos = getNavButtonPosition(/^experience$/i)
+
+    expect(educationPos).toBeGreaterThan(-1)
+    expect(experiencePos).toBeGreaterThan(-1)
+    expect(educationPos).toBeLessThan(experiencePos)
+  })
+
+  it('student stage: Projects nav button appears before Skills nav button', () => {
+    renderEditor({ initialCareerStage: 'student' })
+
+    const projectsPos = getNavButtonPosition(/^projects$/i)
+    const skillsPos = getNavButtonPosition(/^skills$/i)
+
+    expect(projectsPos).toBeGreaterThan(-1)
+    expect(skillsPos).toBeGreaterThan(-1)
+    expect(projectsPos).toBeLessThan(skillsPos)
+  })
+
+  it('experienced stage: Experience nav button appears before Education nav button', () => {
+    renderEditor({ initialCareerStage: 'experienced' })
+
+    const experiencePos = getNavButtonPosition(/^experience$/i)
+    const educationPos = getNavButtonPosition(/^education$/i)
+
+    expect(experiencePos).toBeGreaterThan(-1)
+    expect(educationPos).toBeGreaterThan(-1)
+    expect(experiencePos).toBeLessThan(educationPos)
+  })
+
+  it('experienced stage: Skills nav button appears before Education nav button', () => {
+    renderEditor({ initialCareerStage: 'experienced' })
+
+    const skillsPos = getNavButtonPosition(/^skills$/i)
+    const educationPos = getNavButtonPosition(/^education$/i)
+
+    expect(skillsPos).toBeGreaterThan(-1)
+    expect(educationPos).toBeGreaterThan(-1)
+    expect(skillsPos).toBeLessThan(educationPos)
+  })
+
+  it('no careerStage (null): renders all section nav buttons (uses early fallback order)', () => {
+    renderEditor()
+
+    // All five section nav buttons must be present regardless of stage
+    expect(screen.getAllByRole('button', { name: /^summary$/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /^experience$/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /^education$/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /^skills$/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /^projects$/i }).length).toBeGreaterThan(0)
+  })
+})

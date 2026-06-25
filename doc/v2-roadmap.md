@@ -57,18 +57,50 @@ Phases 2 and 5 can slip to a **v2.1** weekend without anything feeling half-done
 ---
 
 ## Phase 3 — Persona split: fresh grad vs. experienced ⭐ _(Day 2–3 — the quality lever)_
-> Highest user-visible value. Pure prompt + light UI work, no new infra.
+> Highest user-visible value. Pure prompt + light UI, no new infra.
+> **The actual feature is the honesty guardrail:** today `ENRICH_SYSTEM` says "quantify where possible,"
+> which makes the model invent metrics a new grad can't defend. Persona-splitting fixes that.
 
-- [ ] Add `career_stage` (`'student' | 'early' | 'experienced'`) to request models;
-      default-derive from existing `user_preferences.job_level`.
-- [ ] Auto-detect stage at parse time (grad year / total years); store it; allow user override.
-- [ ] Branch `build_enrich_prompt` / `build_tailor_prompt` in `backend/app/prompts/resume.py`:
-  - **Student / early:** projects, coursework, internships, transferable skills, potential;
-    no fabricated metrics; entry-level keywords; 1-page guidance.
-  - **Experienced:** quantified impact, scope/scale, leadership, promotions; results-first bullets; 2-page guidance.
-- [ ] UI: segmented stage selector in the editor that re-runs enrich.
-- [ ] Tests: each stage yields its distinct system prompt.
-- [ ] PR + deploy. _(Headline V2 feature — worth a changelog note.)_
+**Stage taxonomy (define precisely — detection and prompts must agree):**
+| Stage | Definition | Emphasis |
+|---|---|---|
+| `student` | In school or graduated <1yr, ~0 full-time roles | Projects, coursework, internships, leadership, potential; GPA/honors shown; **no invented metrics**; 1 page |
+| `early` | 1–4 yrs full-time | Genuine accomplishments, growth, expanding scope; metrics only where real; 1 page |
+| `experienced` | 5+ yrs, or any senior/lead/manager title | Quantified impact, scope/scale, leadership, promotions; results-first; 2 pages OK |
+
+- [ ] **Models** (`backend/app/models/resume.py`): add to **both** `EnrichRequest` and `TailorRequest`:
+      `career_stage: Optional[Literal['student','early','experienced']] = None`
+      (Optional/None → backward compatible; falls back to auto-detect.)
+- [ ] **Detection helper** (`backend/app/services/career_stage.py`) — pure function, **no Claude call**:
+  - Sum experience years from `experience[].start_date/end_date` (tolerant date parser; unknown → 0, never throws).
+  - `senior_title` keyword check (senior/lead/principal/manager/director/head/vp) — **short-circuits before tenure**.
+  - Recent/future `education[].end_date` (within ~1yr) → `student`.
+  - Rules: senior title OR ≥5yrs → `experienced`; <1yr OR recent grad → `student`; else `early`.
+- [ ] **Resolution precedence** in `enrich.py` / `tailor.py`:
+      1. explicit `career_stage` in request (user override) →
+      2. `infer_career_stage(resume)` →
+      3. map from `user_preferences.job_level` (`junior/mid→early`, `senior/executive→experienced`;
+         note: no "student" in prefs, so detection/override is the only path to it).
+- [ ] **Prompts** (`prompts/resume.py`): replace single `ENRICH_SYSTEM` / `TAILOR_SYSTEM` with
+      `*_BY_STAGE` dicts; `build_enrich_prompt` / `build_tailor_prompt` take `career_stage` and select.
+  - **student/early:** projects, internships, transferable skills, entry-level keywords;
+    **CRITICAL line: do NOT invent numbers/percentages/dollar amounts/team sizes**; 1-page guidance.
+  - **experienced:** quantified impact, scope/scale, leadership; results-first; 2-page guidance.
+  - Keep `tone` and `career_stage` **orthogonal** (voice vs. content strategy) — don't merge.
+  - Keep the JSON schema contract **identical** across stages so the diff/compare view is unchanged.
+- [ ] **Persist** resolved `career_stage` onto the `resumes` row (like `detected_industry`) so the UI preselects it.
+- [ ] **UI:** 3-way segmented selector (Student / Early / Experienced) by the Enrich button;
+      preselect from stored/detected value; changing it re-runs enrich. It's an override, not a required step.
+- [ ] **Tests:**
+  - `infer_career_stage`: senior title + 2yrs → `experienced`; 0yrs + recent grad → `student`;
+    3yrs no senior title → `early`; messy/empty dates → no crash.
+  - `build_enrich_prompt(stage='student')` system contains the "do NOT invent" guardrail;
+    `stage='experienced'` mentions "quantified" and omits it.
+  - Precedence: explicit request stage overrides detection.
+  - One route test: `career_stage` flows request → prompt.
+
+**Guardrails:** detection is just a *default* (user can override) — don't rabbit-hole on perfect date
+parsing. Page-length is a prompt hint, not enforcement. The honesty guardrail is the part that matters most.
 
 ---
 
