@@ -15,6 +15,7 @@ export interface SavedResume {
   ats_result?: ATSScoreResult | null
   ats_company_name?: string | null
   ats_job_title?: string | null
+  career_stage?: string | null
 }
 
 export interface AtsMetadata {
@@ -54,6 +55,7 @@ export async function saveResume(
   resume: ResumeSchema,
   title: string,
   ats?: AtsMetadata,
+  careerStage?: string | null,
 ): Promise<SavedResume> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
@@ -72,6 +74,7 @@ export async function saveResume(
     insert.ats_company_name = ats.companyName ?? null
     insert.ats_job_title = ats.jobTitle ?? null
   }
+  if (careerStage) insert.career_stage = careerStage
 
   const { data, error } = await supabase
     .from('resumes')
@@ -89,6 +92,7 @@ export async function updateResume(
   resume: ResumeSchema,
   title?: string,
   ats?: AtsMetadata,
+  careerStage?: string | null,
 ): Promise<SavedResume> {
   const update: Record<string, unknown> = {
     resume_data: resume,
@@ -104,6 +108,7 @@ export async function updateResume(
     update.ats_company_name = ats.companyName ?? null
     update.ats_job_title = ats.jobTitle ?? null
   }
+  if (careerStage !== undefined) update.career_stage = careerStage ?? null
 
   const { data, error } = await supabase
     .from('resumes')

@@ -10,7 +10,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
-import { parseResume, exportResume, scoreATS, enrichResume, QuotaExceededError } from '@/services/api'
+import { parseResume, exportResume, scoreATS, enrichResume, tailorResume, QuotaExceededError, fromBackend } from '@/services/api'
 import type { ResumeSchema } from '@/types/resume'
 
 const BASE = 'http://localhost:8000'
@@ -354,5 +354,220 @@ describe('scoreATS — quota handling', () => {
     )
 
     await expect(scoreATS(mockResume, 'some job description')).rejects.toThrow(QuotaExceededError)
+  })
+})
+
+// ── enrichResume — career_stage payload ──────────────────────────────────────
+
+describe('enrichResume — career_stage payload', () => {
+  function stubEnrich(capturedBody: Record<string, unknown>) {
+    server.use(
+      http.post(`${BASE}/api/enrich`, async ({ request }) => {
+        Object.assign(capturedBody, await request.json())
+        return new HttpResponse('{}', {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' },
+        })
+      }),
+    )
+  }
+
+  it('sends career_stage: "student" when careerStage is "student"', async () => {
+    const body: Record<string, unknown> = {}
+    stubEnrich(body)
+    await enrichResume(mockResume, 'professional', 'student')
+    expect(body.career_stage).toBe('student')
+  })
+
+  it('sends career_stage: "experienced" when careerStage is "experienced"', async () => {
+    const body: Record<string, unknown> = {}
+    stubEnrich(body)
+    await enrichResume(mockResume, 'professional', 'experienced')
+    expect(body.career_stage).toBe('experienced')
+  })
+
+  it('sends career_stage: null when careerStage is omitted', async () => {
+    const body: Record<string, unknown> = {}
+    stubEnrich(body)
+    await enrichResume(mockResume)
+    expect(body.career_stage).toBeNull()
+  })
+
+  it('sends career_stage: "early" when careerStage is "early"', async () => {
+    const body: Record<string, unknown> = {}
+    stubEnrich(body)
+    await enrichResume(mockResume, 'concise', 'early')
+    expect(body.career_stage).toBe('early')
+  })
+})
+
+// ── tailorResume — career_stage payload ──────────────────────────────────────
+
+describe('tailorResume — career_stage payload', () => {
+  const JD = 'We need a senior Python engineer.'
+
+  function stubTailor(capturedBody: Record<string, unknown>) {
+    server.use(
+      http.post(`${BASE}/api/tailor`, async ({ request }) => {
+        Object.assign(capturedBody, await request.json())
+        return new HttpResponse('{}', {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' },
+        })
+      }),
+    )
+  }
+
+  it('sends career_stage: "experienced" when careerStage is "experienced"', async () => {
+    const body: Record<string, unknown> = {}
+    stubTailor(body)
+    await tailorResume(mockResume, JD, 'experienced')
+    expect(body.career_stage).toBe('experienced')
+  })
+
+  it('sends career_stage: "student" when careerStage is "student"', async () => {
+    const body: Record<string, unknown> = {}
+    stubTailor(body)
+    await tailorResume(mockResume, JD, 'student')
+    expect(body.career_stage).toBe('student')
+  })
+
+  it('sends career_stage: null when careerStage is omitted', async () => {
+    const body: Record<string, unknown> = {}
+    stubTailor(body)
+    await tailorResume(mockResume, JD)
+    expect(body.career_stage).toBeNull()
+  })
+
+  it('sends job_description in the request body', async () => {
+    const body: Record<string, unknown> = {}
+    stubTailor(body)
+    await tailorResume(mockResume, JD, 'early')
+    expect(body.job_description).toBe(JD)
+  })
+})
+
+// ── fromBackend — projects mapping ────────────────────────────────────────────
+
+describe('fromBackend — projects mapping', () => {
+  it('maps a projects array from the backend payload to ProjectItem[]', () => {
+    const raw = {
+      metadata: { name: 'Jane Smith', email: 'jane@example.com' },
+      summary: null,
+      experience: [],
+      education: [],
+      skills: [],
+      projects: [
+        {
+          name: 'My App',
+          description: 'A cool app',
+          technologies: ['React', 'TypeScript'],
+          url: 'https://github.com/example/my-app',
+          bullets: ['Built the frontend', 'Deployed to Vercel'],
+        },
+      ],
+      detected_industry: 'tech',
+    }
+
+    const result = fromBackend(raw)
+
+    expect(result.projects).toHaveLength(1)
+    const project = result.projects![0]
+    expect(project.name).toBe('My App')
+    expect(project.description).toBe('A cool app')
+    expect(project.technologies).toEqual(['React', 'TypeScript'])
+    expect(project.url).toBe('https://github.com/example/my-app')
+    expect(project.bullets).toEqual(['Built the frontend', 'Deployed to Vercel'])
+  })
+
+  it('returns an empty projects array when the backend payload has no projects field', () => {
+    const raw = {
+      metadata: { name: 'Jane Smith', email: 'jane@example.com' },
+      summary: null,
+      experience: [],
+      education: [],
+      skills: [],
+      detected_industry: 'general',
+    }
+
+    const result = fromBackend(raw)
+
+    expect(result.projects).toEqual([])
+  })
+
+  it('returns an empty projects array when backend projects field is null', () => {
+    const raw = {
+      metadata: { name: 'Jane Smith', email: 'jane@example.com' },
+      summary: null,
+      experience: [],
+      education: [],
+      skills: [],
+      projects: null,
+      detected_industry: 'general',
+    }
+
+    const result = fromBackend(raw)
+
+    expect(result.projects).toEqual([])
+  })
+})
+
+// ── toBackend (via enrichResume) — projects serialisation ─────────────────────
+
+describe('toBackend (via enrichResume) — projects serialisation', () => {
+  function stubEnrich(capturedBody: Record<string, unknown>) {
+    server.use(
+      http.post(`${BASE}/api/enrich`, async ({ request }) => {
+        Object.assign(capturedBody, await request.json())
+        return new HttpResponse('{}', {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' },
+        })
+      }),
+    )
+  }
+
+  it('serialises projects array into the request body', async () => {
+    const body: Record<string, unknown> = {}
+    stubEnrich(body)
+
+    const resumeWithProjects = {
+      ...mockResume,
+      projects: [
+        {
+          name: 'Portfolio Site',
+          description: 'Personal website',
+          technologies: ['React', 'Tailwind'],
+          url: 'https://example.com',
+          bullets: ['Designed and built from scratch'],
+        },
+      ],
+    }
+
+    await enrichResume(resumeWithProjects)
+
+    const resumeBody = body.resume as Record<string, unknown>
+    expect(Array.isArray(resumeBody.projects)).toBe(true)
+    const projects = resumeBody.projects as Array<Record<string, unknown>>
+    expect(projects).toHaveLength(1)
+    expect(projects[0].name).toBe('Portfolio Site')
+    expect(projects[0].technologies).toEqual(['React', 'Tailwind'])
+    expect(projects[0].bullets).toEqual(['Designed and built from scratch'])
+  })
+
+  it('includes career_stage: null in the request body when careerStage is omitted', async () => {
+    const body: Record<string, unknown> = {}
+    stubEnrich(body)
+
+    const resumeWithProjects = {
+      ...mockResume,
+      projects: [{ name: 'App', description: undefined, technologies: [], url: undefined, bullets: [] }],
+    }
+
+    await enrichResume(resumeWithProjects)
+
+    expect(body.career_stage).toBeNull()
+    const resumeBody = body.resume as Record<string, unknown>
+    expect(Array.isArray(resumeBody.projects)).toBe(true)
   })
 })

@@ -12,6 +12,7 @@ export interface ProfileData {
   target_job_title: string
   target_industry: string
   years_of_experience: number
+  career_stage: 'student' | 'early' | 'experienced'
   experience: ExperienceItem[]
   experience_bullets: string[]
   skills_technical: string
@@ -33,6 +34,7 @@ export const DEFAULT_PROFILE: ProfileInput = {
   target_job_title: '',
   target_industry: '',
   years_of_experience: 0,
+  career_stage: 'early',
   experience: [],
   experience_bullets: [],
   skills_technical: '',

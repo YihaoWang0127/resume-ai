@@ -28,12 +28,21 @@ export interface SkillCategory {
   items: string[]
 }
 
+export interface ProjectItem {
+  name: string
+  description?: string
+  technologies: string[]
+  url?: string
+  bullets: string[]
+}
+
 export interface ResumeSchema {
   metadata: Metadata
   summary?: string
   experience: ExperienceItem[]
   education: EducationItem[]
   skills: SkillCategory[]
+  projects?: ProjectItem[]
   detectedIndustry?: string
 }
 

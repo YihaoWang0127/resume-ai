@@ -70,6 +70,13 @@ export function fromBackend(raw: unknown): ResumeSchema {
       category: str(s.category),
       items: strArr(s.items),
     })),
+    projects: arr(data.projects).map((p) => ({
+      name: str(p.name),
+      description: optStr(p.description),
+      technologies: strArr(p.technologies),
+      url: optStr(p.url),
+      bullets: strArr(p.bullets),
+    })),
     detectedIndustry: optStr(data.detected_industry) || 'general',
   }
 }
@@ -99,6 +106,13 @@ function toBackend(resume: ResumeSchema): object {
       end_date: e.graduationYear,
     })),
     skills: resume.skills,
+    projects: (resume.projects ?? []).map((p) => ({
+      name: p.name,
+      description: p.description ?? null,
+      technologies: p.technologies,
+      url: p.url ?? null,
+      bullets: p.bullets,
+    })),
   }
 }
 
@@ -157,18 +171,25 @@ export async function parseResume(file: File, signal?: AbortSignal): Promise<Res
 export async function enrichResume(
   resume: ResumeSchema,
   tone?: string,
+  careerStage?: 'student' | 'early' | 'experienced',
 ): Promise<ReadableStream<Uint8Array>> {
-  const stream = await fetchStream('/api/enrich', { resume: toBackend(resume), tone: tone ?? 'professional' })
+  const stream = await fetchStream('/api/enrich', {
+    resume: toBackend(resume),
+    tone: tone ?? 'professional',
+    career_stage: careerStage ?? null,
+  })
   return stream
 }
 
 export async function tailorResume(
   resume: ResumeSchema,
   jobDescription: string,
+  careerStage?: 'student' | 'early' | 'experienced',
 ): Promise<ReadableStream<Uint8Array>> {
   const stream = await fetchStream('/api/tailor', {
     resume: toBackend(resume),
     job_description: jobDescription,
+    career_stage: careerStage ?? null,
   })
   return stream
 }

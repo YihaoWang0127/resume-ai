@@ -23,6 +23,12 @@ const YEARS_OPTIONS = [
   { value: 20, label: '15+ years' },
 ]
 
+function suggestStageFromYears(years: number): 'student' | 'early' | 'experienced' {
+  if (years === 0) return 'student'
+  if (years < 5) return 'early'
+  return 'experienced'
+}
+
 const field =
   'h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50'
 
@@ -44,7 +50,7 @@ export interface ProfileSettingsProps {
 
   // Profile data sections
   loading: boolean
-  saving: boolean
+  savingSection: string | null
   info: ProfileInput
   infoDirty: boolean
   onUpdateInfo: <K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) => void
@@ -54,7 +60,7 @@ export interface ProfileSettingsProps {
   onAddBullet: () => void
   onUpdateBullet: (index: number, value: string) => void
   onRemoveBullet: (index: number) => void
-  onSave: () => void
+  onSave: (section: string) => void
 }
 
 export default function ProfileSettings({
@@ -70,7 +76,7 @@ export default function ProfileSettings({
   onAvatarChange,
   onResendVerification,
   loading,
-  saving,
+  savingSection,
   info,
   infoDirty,
   onUpdateInfo,
@@ -271,8 +277,8 @@ export default function ProfileSettings({
             )}
           </CardContent>
           <CardFooter className="justify-end">
-            <Button onClick={onSave} disabled={saving || !infoDirty} className="min-h-[44px]">
-              {saving && <Loader2 className="size-3.5 animate-spin" />}
+            <Button onClick={() => onSave('contact-info')} disabled={savingSection !== null || !infoDirty} className="min-h-[44px]">
+              {savingSection === 'contact-info' && <Loader2 className="size-3.5 animate-spin" />}
               Save Changes
             </Button>
           </CardFooter>
@@ -289,14 +295,79 @@ export default function ProfileSettings({
           <CardContent className="space-y-4">
             {loading ? fieldSkeleton : (
               <div className="space-y-4">
+                {/* Career Stage */}
+                <div className="space-y-2">
+                  <Label>Career Stage</Label>
+                  <div className="flex rounded-lg border border-input overflow-hidden">
+                    {(['student', 'early', 'experienced'] as const).map((stage) => {
+                      const labels: Record<string, string> = {
+                        student: 'Student',
+                        early: 'Early Career',
+                        experienced: 'Experienced',
+                      }
+                      const isActive = info.career_stage === stage
+                      return (
+                        <button
+                          key={stage}
+                          type="button"
+                          onClick={() => onUpdateInfo('career_stage', stage)}
+                          className={cn(
+                            'flex-1 py-2 text-xs font-medium transition-colors min-h-[44px] border-r border-input last:border-r-0',
+                            isActive
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                          )}
+                        >
+                          {labels[stage]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {(() => {
+                    const suggested = suggestStageFromYears(info.years_of_experience)
+                    if (suggested !== info.career_stage) {
+                      const label = suggested === 'student' ? 'Student' : suggested === 'early' ? 'Early Career' : 'Experienced'
+                      return (
+                        <p className="text-xs text-muted-foreground">
+                          Suggested: <button type="button" className="text-primary underline-offset-2 hover:underline" onClick={() => onUpdateInfo('career_stage', suggested)}>{label}</button> based on your years of experience.
+                        </p>
+                      )
+                    }
+                    return null
+                  })()}
+                </div>
+
+                {/* Current Job Title */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="job-title">Current Job Title</Label>
+                  <Label htmlFor="job-title">
+                    {info.career_stage === 'student' ? 'Current Status' : 'Current Job Title'}
+                  </Label>
                   <Input
                     id="job-title"
-                    value={info.job_title}
+                    value={info.career_stage === 'student' ? 'Student' : info.job_title}
                     onChange={(e) => onUpdateInfo('job_title', e.target.value)}
                     placeholder="e.g. Senior Software Engineer"
+                    disabled={info.career_stage === 'student'}
                   />
+                </div>
+
+                {/* Years of Experience */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="years-of-experience">Years of Experience</Label>
+                  <select
+                    id="years-of-experience"
+                    value={info.career_stage === 'student' ? 0 : info.years_of_experience}
+                    onChange={(e) => onUpdateInfo('years_of_experience', Number(e.target.value))}
+                    disabled={info.career_stage === 'student'}
+                    className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {YEARS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  {info.career_stage === 'student' && (
+                    <p className="text-xs text-muted-foreground">Fixed at 0 for Student stage.</p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -318,28 +389,12 @@ export default function ProfileSettings({
                     placeholder="e.g. Software, Healthcare, Finance"
                   />
                 </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="years-of-experience">Years of Experience</Label>
-                  <select
-                    id="years-of-experience"
-                    value={info.years_of_experience}
-                    onChange={(e) => onUpdateInfo('years_of_experience', Number(e.target.value))}
-                    className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
-                  >
-                    {YEARS_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
             )}
           </CardContent>
           <CardFooter className="justify-end">
-            <Button onClick={onSave} disabled={saving || !infoDirty} className="min-h-[44px]">
-              {saving && <Loader2 className="size-3.5 animate-spin" />}
+            <Button onClick={() => onSave('career-profile')} disabled={savingSection !== null || !infoDirty} className="min-h-[44px]">
+              {savingSection === 'career-profile' && <Loader2 className="size-3.5 animate-spin" />}
               Save Changes
             </Button>
           </CardFooter>
@@ -394,8 +449,8 @@ export default function ProfileSettings({
             )}
           </CardContent>
           <CardFooter className="justify-end">
-            <Button onClick={onSave} disabled={saving || !infoDirty} className="min-h-[44px]">
-              {saving && <Loader2 className="size-3.5 animate-spin" />}
+            <Button onClick={() => onSave('experience-bank')} disabled={savingSection !== null || !infoDirty} className="min-h-[44px]">
+              {savingSection === 'experience-bank' && <Loader2 className="size-3.5 animate-spin" />}
               Save Changes
             </Button>
           </CardFooter>
@@ -453,8 +508,8 @@ export default function ProfileSettings({
             )}
           </CardContent>
           <CardFooter className="justify-end">
-            <Button onClick={onSave} disabled={saving || !infoDirty} className="min-h-[44px]">
-              {saving && <Loader2 className="size-3.5 animate-spin" />}
+            <Button onClick={() => onSave('skills-bank')} disabled={savingSection !== null || !infoDirty} className="min-h-[44px]">
+              {savingSection === 'skills-bank' && <Loader2 className="size-3.5 animate-spin" />}
               Save Changes
             </Button>
           </CardFooter>
@@ -560,8 +615,8 @@ export default function ProfileSettings({
             )}
           </CardContent>
           <CardFooter className="justify-end">
-            <Button onClick={onSave} disabled={saving || !infoDirty} className="min-h-[44px]">
-              {saving && <Loader2 className="size-3.5 animate-spin" />}
+            <Button onClick={() => onSave('work-experience')} disabled={savingSection !== null || !infoDirty} className="min-h-[44px]">
+              {savingSection === 'work-experience' && <Loader2 className="size-3.5 animate-spin" />}
               Save Changes
             </Button>
           </CardFooter>

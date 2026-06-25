@@ -190,7 +190,7 @@ describe('ResumeEditor — save dialog', () => {
     await user.click(within(dialog).getByRole('button', { name: /^save$/i }))
 
     await waitFor(() =>
-      expect(mockSaveResume).toHaveBeenCalledWith(mockResume, 'My Custom Title', undefined)
+      expect(mockSaveResume).toHaveBeenCalledWith(mockResume, 'My Custom Title', undefined, undefined)
     )
   })
 
@@ -242,6 +242,7 @@ describe('ResumeEditor — save dialog', () => {
         expect.objectContaining({ detectedIndustry: 'finance' }),
         expect.any(String),
         undefined,
+        undefined,
       )
     )
     const [savedResume] = mockSaveResume.mock.calls[0]
@@ -271,6 +272,7 @@ describe('ResumeEditor — update existing resume', () => {
       expect(mockUpdateResume).toHaveBeenCalledWith(
         'existing-id',
         expect.objectContaining({ detectedIndustry: 'finance' }),
+        undefined,
         undefined,
         undefined,
       )
@@ -1300,7 +1302,7 @@ describe('ResumeEditor — Resume Polish tone selector', () => {
       await Promise.resolve()
     })
 
-    expect(mockEnrichResume).toHaveBeenCalledWith(mockResume, 'assertive')
+    expect(mockEnrichResume).toHaveBeenCalledWith(mockResume, 'assertive', undefined)
   })
 })
 
@@ -2556,4 +2558,53 @@ describe('ResumeEditor — ATS save/dismiss state machine', () => {
       screen.getByText('Your ATS report will appear here after generation.'),
     ).toBeInTheDocument()
   })
+})
+
+// ── Stage-aware section order in sidebar nav ──────────────────────────────────
+// SECTION_ORDER_BY_STAGE determines nav button order (after Contact):
+//   student:     Summary, Education, Projects, Skills, Experience
+//   experienced: Summary, Experience, Skills, Education, Projects
+// We verify relative DOM order of the nav buttons using compareDocumentPosition.
+
+describe('ResumeEditor — stage-aware sidebar nav order', () => {
+  function getNavButtonPosition(name: RegExp): number {
+    // getAllByRole returns elements in DOM order; find the first sidebar nav button
+    // that matches. The sidebar nav buttons are the ones with border-l-2 class.
+    const allButtons = screen.getAllByRole('button')
+    return allButtons.findIndex((btn) => name.test(btn.textContent ?? ''))
+  }
+
+  it('student stage: Education nav button appears before Experience nav button', () => {
+    renderEditor({ initialCareerStage: 'student' })
+
+    const educationPos = getNavButtonPosition(/^education$/i)
+    const experiencePos = getNavButtonPosition(/^experience$/i)
+
+    expect(educationPos).toBeGreaterThan(-1)
+    expect(experiencePos).toBeGreaterThan(-1)
+    expect(educationPos).toBeLessThan(experiencePos)
+  })
+
+  it('experienced stage: Experience nav button appears before Education nav button', () => {
+    renderEditor({ initialCareerStage: 'experienced' })
+
+    const experiencePos = getNavButtonPosition(/^experience$/i)
+    const educationPos = getNavButtonPosition(/^education$/i)
+
+    expect(experiencePos).toBeGreaterThan(-1)
+    expect(educationPos).toBeGreaterThan(-1)
+    expect(experiencePos).toBeLessThan(educationPos)
+  })
+
+  it('experienced stage: Skills nav button appears before Education nav button', () => {
+    renderEditor({ initialCareerStage: 'experienced' })
+
+    const skillsPos = getNavButtonPosition(/^skills$/i)
+    const educationPos = getNavButtonPosition(/^education$/i)
+
+    expect(skillsPos).toBeGreaterThan(-1)
+    expect(educationPos).toBeGreaterThan(-1)
+    expect(skillsPos).toBeLessThan(educationPos)
+  })
+
 })

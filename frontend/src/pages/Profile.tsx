@@ -32,7 +32,7 @@ export default function Profile() {
 
   // --- Profile data state ---
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [savingSection, setSavingSection] = useState<string | null>(null)
   const [initialInfo, setInitialInfo] = useState<ProfileInput>(DEFAULT_PROFILE)
   const [info, setInfo] = useState<ProfileInput>(DEFAULT_PROFILE)
 
@@ -72,6 +72,7 @@ export default function Profile() {
               target_job_title: data.target_job_title ?? '',
               target_industry: data.target_industry ?? '',
               years_of_experience: data.years_of_experience ?? 0,
+              career_stage: data.career_stage ?? 'early',
               experience: data.experience.length > 0 ? data.experience : [],
               experience_bullets: Array.isArray(data.experience_bullets) ? data.experience_bullets : [],
               skills_technical: data.skills_technical ?? '',
@@ -164,7 +165,14 @@ export default function Profile() {
 
   // --- Profile info handlers ---
   const updateInfo = <K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) => {
-    setInfo((prev) => ({ ...prev, [key]: value }))
+    setInfo((prev) => {
+      const next = { ...prev, [key]: value } as ProfileInput
+      if (key === 'career_stage' && value === 'student') {
+        next.job_title = 'Student'
+        next.years_of_experience = 0
+      }
+      return next
+    })
   }
 
   const setExperience = (index: number, patch: Partial<ExperienceItem>) => {
@@ -206,8 +214,8 @@ export default function Profile() {
     }))
   }
 
-  const handleSave = async () => {
-    setSaving(true)
+  const handleSave = async (section: string) => {
+    setSavingSection(section)
     try {
       const saved = await upsertProfile(info)
       const next: ProfileInput = {
@@ -221,6 +229,7 @@ export default function Profile() {
         target_job_title: saved.target_job_title ?? '',
         target_industry: saved.target_industry ?? '',
         years_of_experience: saved.years_of_experience ?? 0,
+        career_stage: saved.career_stage ?? 'early',
         experience: saved.experience,
         experience_bullets: Array.isArray(saved.experience_bullets) ? saved.experience_bullets : [],
         skills_technical: saved.skills_technical ?? '',
@@ -233,7 +242,7 @@ export default function Profile() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save profile')
     } finally {
-      setSaving(false)
+      setSavingSection(null)
     }
   }
 
@@ -268,7 +277,7 @@ export default function Profile() {
             onAvatarChange={handleAvatarChange}
             onResendVerification={handleResendVerification}
             loading={loading}
-            saving={saving}
+            savingSection={savingSection}
             info={info}
             infoDirty={infoDirty}
             onUpdateInfo={updateInfo}

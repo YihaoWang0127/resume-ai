@@ -5,18 +5,44 @@ from app.models.resume import ResumeSchema
 
 PARSE_SYSTEM = """Extract resume data into JSON. Return only valid JSON matching the schema exactly. No markdown, no explanation."""
 
-ENRICH_SYSTEM = """You are a professional resume writer and career coach. Your task is to enhance and improve the provided resume.
-Improve bullet points to be achievement-oriented using the STAR method (Situation, Task, Action, Result).
-Quantify achievements where possible. Use strong action verbs. Remove weak or vague language.
-Return the improved resume as a complete JSON object with the same structure as the input."""
+ENRICH_SYSTEM_BY_STAGE: dict[str, str] = {
+    'student': """You are a professional resume writer specializing in early-career and student resumes.
+Enhance the resume to highlight projects, internships, coursework, leadership, transferable skills, and academic achievements.
+Show GPA and honors prominently if present.
+Use strong action verbs. Write in a way that is honest and authentic.
+CRITICAL: Do NOT invent or fabricate any numbers, percentages, dollar amounts, team sizes, or metrics the candidate cannot verify. If a metric isn't in the original, omit it.
+Target: 1 page. Return the improved resume as a complete JSON object with the same structure as the input.""",
 
-TAILOR_SYSTEM = """You are an expert resume writer specializing in tailoring resumes for specific job postings.
-Analyze the job description and strategically rewrite the resume to:
-- Mirror keywords and terminology from the job description
-- Highlight the most relevant experience and skills
-- Reorder bullet points to lead with the most relevant accomplishments
-- Adjust the summary to speak directly to this role
-Return the tailored resume as a complete JSON object with the same structure as the input."""
+    'early': """You are a professional resume writer specializing in early-career professionals (1–4 years experience).
+Enhance bullet points to be achievement-oriented using strong action verbs. Highlight genuine accomplishments and growth.
+Include real metrics only where they are clearly present in the original — do not invent numbers.
+Show expanding scope and impact. Target: 1 page.
+Return the improved resume as a complete JSON object with the same structure as the input.""",
+
+    'experienced': """You are a professional resume writer specializing in senior and experienced professionals.
+Enhance bullet points to be results-first and quantified — use the STAR method (Situation, Task, Action, Result).
+Emphasize leadership, scope, scale, team size, budget, and measurable business impact where present in the original.
+Use strong achievement verbs. Lead with the most impressive outcomes. 2 pages OK for 10+ years.
+Return the improved resume as a complete JSON object with the same structure as the input.""",
+}
+
+TAILOR_SYSTEM_BY_STAGE: dict[str, str] = {
+    'student': """You are an expert resume writer tailoring a student or new-grad resume for a specific job posting.
+Mirror keywords and terminology from the job description. Highlight the most relevant projects, coursework, and internships.
+Adjust the summary to speak directly to this role.
+CRITICAL: Do NOT invent or fabricate any numbers, percentages, or metrics. Only use information present in the original.
+Return the tailored resume as a complete JSON object with the same structure as the input.""",
+
+    'early': """You are an expert resume writer tailoring an early-career resume for a specific job posting.
+Mirror keywords and terminology from the job description. Reorder bullets to lead with most relevant accomplishments.
+Highlight transferable skills and genuine growth. Do not invent metrics not present in the original.
+Return the tailored resume as a complete JSON object with the same structure as the input.""",
+
+    'experienced': """You are an expert resume writer specializing in tailoring senior-level resumes for specific job postings.
+Mirror keywords and terminology from the job description. Lead with quantified impact, leadership, and scope.
+Reorder bullet points to lead with the most relevant accomplishments. Adjust the summary to speak directly to this role.
+Return the tailored resume as a complete JSON object with the same structure as the input.""",
+}
 
 
 ATS_SCORE_SYSTEM = """You are an expert ATS (Applicant Tracking System) analyst and career coach.
@@ -107,7 +133,7 @@ RESUME:
     return PARSE_SYSTEM, user
 
 
-def build_enrich_prompt(resume: ResumeSchema, tone: str = 'professional') -> tuple[str, str]:
+def build_enrich_prompt(resume: ResumeSchema, tone: str = 'professional', career_stage: str = 'early') -> tuple[str, str]:
     """Returns (system_prompt, user_message) for enrich."""
     tone_instructions = {
         'professional': 'Use formal, polished language with strong action verbs. Balance detail with clarity.',
@@ -116,6 +142,7 @@ def build_enrich_prompt(resume: ResumeSchema, tone: str = 'professional') -> tup
     }
     tone_note = tone_instructions.get(tone, tone_instructions['professional'])
 
+    system = ENRICH_SYSTEM_BY_STAGE.get(career_stage, ENRICH_SYSTEM_BY_STAGE['early'])
     resume_json = resume.model_dump_json(indent=2)
     user = f"""Improve and enrich the following resume. Make bullet points more impactful, achievement-oriented, and quantified where possible.
 
@@ -125,7 +152,7 @@ CURRENT RESUME:
 {resume_json}
 
 Return ONLY the improved resume as valid JSON matching the exact same schema. No markdown fences, no explanation."""
-    return ENRICH_SYSTEM, user
+    return system, user
 
 
 def build_cover_letter_prompt(
@@ -205,8 +232,9 @@ def build_improve_cover_letter_prompt(
     return system, user
 
 
-def build_tailor_prompt(resume: ResumeSchema, job_description: str) -> tuple[str, str]:
+def build_tailor_prompt(resume: ResumeSchema, job_description: str, career_stage: str = 'early') -> tuple[str, str]:
     """Returns (system_prompt, user_message) for tailor."""
+    system = TAILOR_SYSTEM_BY_STAGE.get(career_stage, TAILOR_SYSTEM_BY_STAGE['early'])
     resume_json = resume.model_dump_json(indent=2)
     user = f"""Tailor the following resume for the job description below. Optimize for ATS keyword matching and relevance.
 
@@ -217,7 +245,7 @@ CURRENT RESUME:
 {resume_json}
 
 Return ONLY the tailored resume as valid JSON matching the exact same schema. No markdown fences, no explanation."""
-    return TAILOR_SYSTEM, user
+    return system, user
 
 
 VALIDATE_JD_SYSTEM = """You are a text classifier. Determine if the provided text is a real job description or job posting.
