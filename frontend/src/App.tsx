@@ -9,7 +9,6 @@ import AI from '@/pages/AI'
 import CoverLetterEditor from '@/pages/CoverLetterEditor'
 import Settings from '@/pages/Settings'
 import NotFound from '@/pages/NotFound'
-import ApplyPage from '@/pages/ApplyPage'
 import AuthModal from '@/components/AuthModal'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import EmailVerificationBanner from '@/components/EmailVerificationBanner'
@@ -28,7 +27,6 @@ function AppRoutes() {
         <Route path="/cover-letter/new" element={<CoverLetterEditor />} />
         <Route path="/cover-letter/:id" element={<CoverLetterEditor />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="/apply/:resumeId" element={<ApplyPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AuthModal />

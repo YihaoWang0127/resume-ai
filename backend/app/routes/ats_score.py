@@ -24,7 +24,7 @@ async def ats_score(
     if not body.job_description.strip():
         raise HTTPException(status_code=422, detail="job_description must not be empty.")
 
-    await check_quota(auth.user_id, auth.token, auth.is_anonymous)
+    await check_quota(auth.user_id, auth.token)
     background_tasks.add_task(log_ai_call, auth.user_id, "ats_score", "claude-sonnet-4-6", auth.token)
 
     system, user = build_ats_score_prompt(body.resume, body.job_description)

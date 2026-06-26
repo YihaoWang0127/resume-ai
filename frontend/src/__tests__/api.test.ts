@@ -10,7 +10,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
-import { parseResume, exportResume, scoreATS, enrichResume, tailorResume, applyToJob, QuotaExceededError, fromBackend } from '@/services/api'
+import { parseResume, exportResume, scoreATS, enrichResume, tailorResume, QuotaExceededError, fromBackend } from '@/services/api'
 import type { ResumeSchema } from '@/types/resume'
 
 const BASE = 'http://localhost:8000'
@@ -569,107 +569,5 @@ describe('toBackend (via enrichResume) — projects serialisation', () => {
     expect(body.career_stage).toBeNull()
     const resumeBody = body.resume as Record<string, unknown>
     expect(Array.isArray(resumeBody.projects)).toBe(true)
-  })
-})
-
-// ── applyToJob — request payload ──────────────────────────────────────────────
-
-describe('applyToJob — request payload', () => {
-  const JD = 'We need a senior Python engineer at Acme.'
-  const COMPANY = 'Acme Corp'
-  const ROLE = 'Senior Software Engineer'
-
-  function stubApply(capturedBody: Record<string, unknown>) {
-    server.use(
-      http.post(`${BASE}/api/apply`, async ({ request }) => {
-        Object.assign(capturedBody, await request.json())
-        return new HttpResponse('{"type":"done"}\n', {
-          status: 200,
-          headers: { 'Content-Type': 'text/plain' },
-        })
-      }),
-    )
-  }
-
-  it('sends job_description, company_name, and role in the request body', async () => {
-    const body: Record<string, unknown> = {}
-    stubApply(body)
-
-    await applyToJob(mockResume, JD, COMPANY, ROLE)
-
-    expect(body.job_description).toBe(JD)
-    expect(body.company_name).toBe(COMPANY)
-    expect(body.role).toBe(ROLE)
-  })
-
-  it('sends career_stage: "student" when provided', async () => {
-    const body: Record<string, unknown> = {}
-    stubApply(body)
-
-    await applyToJob(mockResume, JD, COMPANY, ROLE, 'student')
-
-    expect(body.career_stage).toBe('student')
-  })
-
-  it('sends career_stage: "experienced" when provided', async () => {
-    const body: Record<string, unknown> = {}
-    stubApply(body)
-
-    await applyToJob(mockResume, JD, COMPANY, ROLE, 'experienced')
-
-    expect(body.career_stage).toBe('experienced')
-  })
-
-  it('sends career_stage: null when careerStage is omitted', async () => {
-    const body: Record<string, unknown> = {}
-    stubApply(body)
-
-    await applyToJob(mockResume, JD, COMPANY, ROLE)
-
-    expect(body.career_stage).toBeNull()
-  })
-
-  it('sends career_stage: null when careerStage is explicitly null', async () => {
-    const body: Record<string, unknown> = {}
-    stubApply(body)
-
-    await applyToJob(mockResume, JD, COMPANY, ROLE, null)
-
-    expect(body.career_stage).toBeNull()
-  })
-
-  it('serialises resume into the request body with snake_case fields', async () => {
-    const body: Record<string, unknown> = {}
-    stubApply(body)
-
-    await applyToJob(mockResume, JD, COMPANY, ROLE)
-
-    const resumeBody = body.resume as Record<string, unknown>
-    expect(resumeBody).toBeDefined()
-    expect((resumeBody.metadata as Record<string, unknown>)?.name).toBe('Jane Smith')
-  })
-
-  it('throws QuotaExceededError when the server returns 402', async () => {
-    server.use(
-      http.post(`${BASE}/api/apply`, () =>
-        new HttpResponse(null, { status: 402 }),
-      ),
-    )
-
-    await expect(applyToJob(mockResume, JD, COMPANY, ROLE)).rejects.toThrow(QuotaExceededError)
-  })
-
-  it('returns a ReadableStream', async () => {
-    server.use(
-      http.post(`${BASE}/api/apply`, () =>
-        new HttpResponse('{"type":"done"}\n', {
-          status: 200,
-          headers: { 'Content-Type': 'text/plain' },
-        }),
-      ),
-    )
-
-    const stream = await applyToJob(mockResume, JD, COMPANY, ROLE)
-    expect(stream).toBeInstanceOf(ReadableStream)
   })
 })
