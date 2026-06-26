@@ -11,6 +11,7 @@ vi.mock('@/services/resumes', () => ({ listResumes: vi.fn(), deleteResume: vi.fn
 vi.mock('@/services/coverLetters', () => ({ listCoverLetters: vi.fn(), deleteCoverLetter: vi.fn() }))
 vi.mock('@/services/api', () => ({ exportResume: vi.fn(), exportCoverLetter: vi.fn(), scoreATS: vi.fn() }))
 vi.mock('@/services/aiUsage', () => ({ getAiUsageStats: vi.fn() }))
+vi.mock('@/services/applications', () => ({ listApplications: vi.fn(), updateApplicationStatus: vi.fn(), deleteApplication: vi.fn() }))
 vi.mock('@/components/Navbar', () => ({ default: () => <nav data-testid="navbar" /> }))
 vi.mock('@/components/ResumeUploader', () => ({
   default: ({ onParsed }: { onParsed: (r: ResumeSchema) => void }) => (
@@ -27,6 +28,7 @@ import { listResumes, deleteResume, updateAtsScore, clearAtsScore } from '@/serv
 import { listCoverLetters, deleteCoverLetter } from '@/services/coverLetters'
 import { scoreATS } from '@/services/api'
 import { getAiUsageStats } from '@/services/aiUsage'
+import { listApplications } from '@/services/applications'
 import Dashboard from '@/pages/Dashboard'
 
 const mockUseAuth = vi.mocked(useAuth)
@@ -38,6 +40,7 @@ const mockListCoverLetters = vi.mocked(listCoverLetters)
 const mockDeleteCoverLetter = vi.mocked(deleteCoverLetter)
 const mockScoreATS = vi.mocked(scoreATS)
 const mockGetAiUsageStats = vi.mocked(getAiUsageStats)
+const mockListApplications = vi.mocked(listApplications)
 
 // Navigate mock — capture calls
 const mockNavigate = vi.fn()
@@ -135,6 +138,7 @@ beforeEach(() => {
   mockUpdateAtsScore.mockResolvedValue({} as any)
   mockClearAtsScore.mockResolvedValue(undefined)
   mockGetAiUsageStats.mockResolvedValue({ ...emptyUsageStats, callsThisMonth: 3 } as any)
+  mockListApplications.mockResolvedValue([])
 })
 
 // ── section helpers ───────────────────────────────────────────────────────────

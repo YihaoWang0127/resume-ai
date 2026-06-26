@@ -882,9 +882,7 @@ export default function Dashboard() {
                 <EmptyState
                   icon={Briefcase}
                   title="No applications yet"
-                  description="Click the briefcase icon on any resume card to start a one-shot apply: tailor → cover letter → ATS score in one action."
-                  actionLabel="Upload Resume"
-                  onAction={() => setUploadModalOpen(true)}
+                  description="Click the Apply button on any resume card to start a one-shot apply — tailor, cover letter, and ATS score in one action."
                 />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
