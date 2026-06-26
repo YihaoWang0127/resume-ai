@@ -4,7 +4,7 @@ import { Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, FileText
 import Navbar from '@/components/Navbar'
 import ResumePreview from '@/components/ResumePreview'
 import { getResume, updateAtsScore, type SavedResume } from '@/services/resumes'
-import { applyToJob, fromBackend, exportResume, exportCoverLetter, validateJobDescription } from '@/services/api'
+import { applyToJob, fromBackend, exportResume, exportCoverLetter, validateJobDescription, validateRole } from '@/services/api'
 import { saveCoverLetter } from '@/services/coverLetters'
 import { createApplication } from '@/services/applications'
 import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
@@ -33,12 +33,6 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-function getRoleStatus(text: string): 'idle' | 'valid' | 'invalid' {
-  if (!text.trim()) return 'idle'
-  if (text.trim().length < 2) return 'invalid'
-  if (!/[a-zA-Z]/.test(text)) return 'invalid'
-  return 'valid'
-}
 
 function atsScoreColor(score: number): string {
   if (score >= 85) return 'text-green-600'
@@ -226,7 +220,11 @@ export default function ApplyPage() {
   const tailoringRef = useRef('')
   const coverLetterRef = useRef('')
 
-  // JD validation
+  // Field validation — role and JD both use AI via debounce
+  const [roleStatus, setRoleStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle')
+  const [roleInvalidReason, setRoleInvalidReason] = useState('')
+  const roleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const [jdStatus, setJdStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle')
   const [jdInvalidReason, setJdInvalidReason] = useState('')
   const jdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -262,12 +260,29 @@ export default function ApplyPage() {
     return () => clearInterval(id)
   }, [currentStage, completedStages])
 
-  // ── JD validation ─────────────────────────────────────────────────────────
+  // ── Field validation (AI-based, debounced) ────────────────────────────────
+  const handleRoleChange = (text: string) => {
+    setRole(text)
+    setRoleStatus('idle')
+    if (roleTimerRef.current) clearTimeout(roleTimerRef.current)
+    if (!text.trim()) return
+    roleTimerRef.current = setTimeout(async () => {
+      setRoleStatus('validating')
+      try {
+        const result = await validateRole(text)
+        setRoleStatus(result.valid ? 'valid' : 'invalid')
+        if (!result.valid) setRoleInvalidReason(result.reason)
+      } catch {
+        setRoleStatus('idle')
+      }
+    }, 600)
+  }
+
   const handleJdChange = (text: string) => {
     setJobDescription(text)
     setJdStatus('idle')
     if (jdTimerRef.current) clearTimeout(jdTimerRef.current)
-    if (text.trim().length < 50) return
+    if (!text.trim()) return
     jdTimerRef.current = setTimeout(async () => {
       setJdStatus('validating')
       try {
@@ -277,7 +292,7 @@ export default function ApplyPage() {
       } catch {
         setJdStatus('idle')
       }
-    }, 800)
+    }, 600)
   }
 
   // ── load resume ────────────────────────────────────────────────────────────
@@ -455,7 +470,6 @@ export default function ApplyPage() {
 
   // ── derived ─────────────────────────────────────────────────────────────────
   const canGenerate = company.trim() !== '' && role.trim() !== '' && jobDescription.trim() !== ''
-  const roleStatus = getRoleStatus(role)
 
   const getStageStatus = (key: StageKey): StageStatus => {
     if (completedStages.has(key)) return 'done'
@@ -486,28 +500,16 @@ export default function ApplyPage() {
                 </p>
               )}
             </div>
-            {/* Form phase: validation status + Generate button in header */}
+            {/* Form phase: Generate button in header */}
             {phase === 'form' && (
-              <div className="flex items-center gap-3 shrink-0">
-                {jdStatus === 'invalid' && (
-                  <span className="flex items-center gap-1 text-xs text-red-500 whitespace-nowrap">
-                    <AlertCircle className="size-3.5" /> Invalid job description
-                  </span>
-                )}
-                {jdStatus === 'valid' && (
-                  <span className="flex items-center gap-1 text-xs text-green-600 whitespace-nowrap">
-                    <CheckCircle2 className="size-3.5" /> Valid job description
-                  </span>
-                )}
-                <button
-                  type="button"
-                  disabled={!canGenerate}
-                  onClick={handleGenerate}
-                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 min-h-[44px] bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Generate Application
-                </button>
-              </div>
+              <button
+                type="button"
+                disabled={!canGenerate}
+                onClick={handleGenerate}
+                className="shrink-0 flex items-center gap-2 px-5 py-2.5 min-h-[44px] bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Generate Application
+              </button>
             )}
             {/* Done phase: action buttons in header */}
             {phase === 'done' && (
@@ -589,7 +591,7 @@ export default function ApplyPage() {
                 <input
                   type="text"
                   value={role}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(e) => handleRoleChange(e.target.value)}
                   placeholder="e.g. Software Engineer"
                   className={`w-full px-3 py-2.5 min-h-[44px] bg-background border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-colors ${
                     roleStatus === 'invalid'
@@ -599,6 +601,11 @@ export default function ApplyPage() {
                         : 'border-border focus:ring-primary/40 focus:border-primary'
                   }`}
                 />
+                {roleStatus === 'validating' && (
+                  <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="size-3 animate-spin" /> Validating...
+                  </p>
+                )}
                 {roleStatus === 'valid' && (
                   <p className="mt-1.5 flex items-center gap-1.5 text-xs text-green-600">
                     <CheckCircle2 className="size-3" /> Valid role
@@ -606,7 +613,7 @@ export default function ApplyPage() {
                 )}
                 {roleStatus === 'invalid' && (
                   <p className="mt-1.5 flex items-center gap-1.5 text-xs text-red-500">
-                    <AlertCircle className="size-3" /> Please enter a valid job title
+                    <AlertCircle className="size-3" /> {roleInvalidReason || 'Please enter a valid job title'}
                   </p>
                 )}
               </div>
