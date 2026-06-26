@@ -299,3 +299,13 @@ export async function validateJobDescription(
   )
   return data
 }
+
+export async function validateRole(
+  text: string,
+): Promise<{ valid: boolean; reason: string }> {
+  const { data } = await http.post<{ valid: boolean; reason: string }>(
+    '/api/validate-role',
+    { text },
+  )
+  return data
+}

@@ -21,6 +21,7 @@
 - **AI Usage Tracking** — every AI call logged server-side to `ai_usage_log` (backend writes using the user's JWT); surfaced on `/ai` as total calls, monthly count, and action breakdown
 - **Monthly Quota Enforcement** — free tier capped at 30 AI calls/month; AI routes return HTTP 402 when the limit is reached; a "Monthly Limit Reached" modal surfaces in the UI instead of a generic error
 - **Career Stage Persona Split** — Career Stage selector (Student / Early Career / Experienced) in the AI Enhance step; default is auto-detected from the resume content; enrichment and tailoring prompts are persona-aware based on the selected stage
+- **One Click Package Generation** — “One Click Package” button in the Dashboard navbar (registered users only) launches a two-step wizard: enter Company Name, Position/Role + Job Description (Position and JD both AI-validated in real time via `/api/validate-role` and `/api/validate-jd`) → select a saved resume or upload a new one → streams a tailored resume, cover letter, and ATS score in parallel with live progress bars; results appear in a full-screen view with Resume/Cover Letter tabs on the left and a persistent ATS sidebar on the right; Export Resume (PDF), Export CV (PDF), or Save Application Package (saves tailored resume + cover letter to Supabase)
 
 ### Auth & Storage
 - **Sign in with Google** — OAuth via Supabase; failed redirects show a toast and reopen the auth modal
@@ -31,7 +32,7 @@
 - **Auth Modal** — blurred-background overlay, auto-shows after 10s
 - **Save Resumes** — unlimited versions per user
 - **Save Cover Letters** — linked to source resume
-- **Dashboard** — stats bar + tabbed Resumes / Cover Letters / ATS Score view with grid, edit, export, and delete
+- **Dashboard** — stats bar + Resumes / Cover Letters / ATS Score sections with grid cards, edit, export, and delete; “One Click Package” button in the navbar for registered users
 
 ### Export
 - **PDF Export** — ReportLab with industry-matched styling
@@ -112,6 +113,7 @@ Models:
 | POST | /api/cover-letter/export | Export cover letter as PDF/DOCX/TXT |
 | POST | /api/ats-score | Score resume against a job description (keyword match, gaps, suggestions) |
 | POST | /api/validate-jd | Validate that input text is a real job description; returns `{ valid, reason }` |
+| POST | /api/validate-role | Validate that input text is a real position/role name; returns `{ valid, reason }` |
 | GET | /health | Health check |
 
 AI routes (`/api/parse`, `/api/enrich`, `/api/tailor`, `/api/cover-letter`, `/api/cover-letter/improve`, `/api/ats-score`) return HTTP 402 with `{"detail": "Monthly AI limit of 30 calls reached. Upgrade to continue."}` when a user's free quota is exhausted.
@@ -217,8 +219,9 @@ resume-ai/
 │       │   ├── ComparisonView.tsx     # Enrich review: split/unified diff view + accept/discard
 │       │   ├── EmailVerificationBanner.tsx  # global unverified-email banner + resend
 │       │   ├── ErrorBoundary.tsx      # runtime error catch
-│       │   ├── Modal.tsx              # generic centered overlay (used by Settings)
+│       │   ├── Modal.tsx              # generic centered overlay
 │       │   ├── Navbar.tsx             # top nav — avatar/display name, user menu
+│       │   ├── PackageWizard.tsx      # One Click Package Generation multi-step wizard
 │       │   ├── ResumeUploader.tsx     # drag & drop + preview
 │       │   ├── ResumeEditor.tsx       # editor + save + cover letter modal
 │       │   ├── ResumePreview.tsx      # live preview + style switcher + diff highlights
@@ -235,7 +238,7 @@ resume-ai/
 │       ├── pages/
 │       │   ├── Home.tsx               # landing page
 │       │   ├── Editor.tsx             # resume editor
-│       │   ├── Dashboard.tsx          # stats bar + Resumes/Cover Letters/ATS Score tabs
+│       │   ├── Dashboard.tsx          # stats bar + Resumes/Cover Letters/ATS Score sections
 │       │   ├── Profile.tsx            # /profile — account, personal info, work experience
 │       │   ├── AI.tsx                 # /ai — AI preferences, models info, AI usage
 │       │   ├── CoverLetterEditor.tsx  # cover letter editor
@@ -371,6 +374,7 @@ and `backend` (`pytest -v`) — matching branch protection on `main`.
 - [x] Server-side quota enforcement — 30 AI calls/month free tier with 402 response + UI modal
 - [x] Resume editor redesign — 3-column layout, step stepper, section nav, live preview panel
 - [x] Career stage persona split — Student / Early Career / Experienced selector with auto-detection
+- [x] One Click Package Generation — wizard: JD + role (AI-validated) → resume selection → parallel streaming tailor + cover letter + ATS → result view with export and save
 - [ ] Mobile responsive editor
 - [ ] Stripe monetization
 - [ ] Resume version history
