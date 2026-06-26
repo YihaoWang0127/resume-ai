@@ -95,7 +95,7 @@ export default function AccountSidebar() {
   // Dashboard requires a persisted (non-guest) account — Dashboard.tsx
   // redirects guests/signed-out users to "/", so don't show a tab that bounces them out.
   const navItems = !user || isGuest
-    ? ACCOUNT_NAV_ITEMS.filter((item) => item.path !== '/dashboard')
+    ? ACCOUNT_NAV_ITEMS.filter((item) => item.path !== '/dashboard' && item.path !== '/package')
     : ACCOUNT_NAV_ITEMS
 
   const navigateToDashboardTab = (tab: string | null) => {

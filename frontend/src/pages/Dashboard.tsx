@@ -334,30 +334,24 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
                 {/* Card 1 — Total Resumes (emerald) */}
                 <div className="bg-emerald-500/10 dark:bg-emerald-950/60 border border-emerald-500/25 dark:border-emerald-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
-                  <div className="size-9 rounded-lg bg-emerald-500/20 dark:bg-emerald-800/40 flex items-center justify-center shrink-0">
-                    <FileText className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-lg bg-emerald-500/20 dark:bg-emerald-800/40 flex items-center justify-center shrink-0">
+                      <FileText className="size-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <p className="text-4xl font-extrabold text-emerald-700 dark:text-emerald-300 leading-none">{resumes.length}</p>
                   </div>
-                  <div>
-                    <p className="text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 leading-none">{resumes.length}</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-emerald-600/70 dark:text-emerald-500">Total Resumes</p>
-                  </div>
-                  <span className="absolute bottom-4 right-4 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded-full bg-emerald-500/10">
-                    Active
-                  </span>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600/70 dark:text-emerald-500">Total Resumes</p>
                 </div>
 
                 {/* Card 2 — Total Cover Letters (blue) */}
                 <div className="bg-blue-500/10 dark:bg-blue-950/60 border border-blue-500/25 dark:border-blue-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
-                  <div className="size-9 rounded-lg bg-blue-500/20 dark:bg-blue-800/40 flex items-center justify-center shrink-0">
-                    <PenLine className="size-4 text-blue-600 dark:text-blue-400" />
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-lg bg-blue-500/20 dark:bg-blue-800/40 flex items-center justify-center shrink-0">
+                      <PenLine className="size-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <p className="text-4xl font-extrabold text-blue-700 dark:text-blue-300 leading-none">{coverLetters.length}</p>
                   </div>
-                  <div>
-                    <p className="text-3xl font-extrabold text-blue-700 dark:text-blue-300 leading-none">{coverLetters.length}</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-blue-600/70 dark:text-blue-500">Total Cover Letters</p>
-                  </div>
-                  <span className="absolute bottom-4 right-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 border border-blue-500/40 px-2 py-0.5 rounded-full bg-blue-500/10">
-                    Drafting
-                  </span>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600/70 dark:text-blue-500">Total Cover Letters</p>
                 </div>
 
                 {/* Card 3 — Avg ATS Score (violet, half-circle gauge) */}
@@ -394,16 +388,13 @@ export default function Dashboard() {
 
                 {/* Card 4 — AI Actions (rose) */}
                 <div className="bg-rose-500/10 dark:bg-rose-950/60 border border-rose-500/25 dark:border-rose-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
-                  <div className="size-9 rounded-lg bg-rose-500/20 dark:bg-rose-800/40 flex items-center justify-center shrink-0">
-                    <Wand2 className="size-4 text-rose-600 dark:text-rose-400" />
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-lg bg-rose-500/20 dark:bg-rose-800/40 flex items-center justify-center shrink-0">
+                      <Wand2 className="size-4 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <p className="text-4xl font-extrabold text-rose-700 dark:text-rose-300 leading-none">{aiCallsThisMonth ?? 0}</p>
                   </div>
-                  <div>
-                    <p className="text-3xl font-extrabold text-rose-700 dark:text-rose-300 leading-none">{aiCallsThisMonth ?? 0}</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-rose-600/70 dark:text-rose-500">AI Actions Used This Month</p>
-                  </div>
-                  <span className="absolute bottom-4 right-4 text-[10px] font-bold text-rose-600 dark:text-rose-400 border border-rose-500/40 px-2 py-0.5 rounded-full bg-rose-500/10">
-                    This Month
-                  </span>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-rose-600/70 dark:text-rose-500">AI Actions Used This Month</p>
                 </div>
               </div>
             </section>
