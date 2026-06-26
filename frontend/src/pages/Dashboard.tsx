@@ -334,7 +334,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
                 {/* Card 1 — Total Resumes (emerald) */}
                 <div className="bg-emerald-500/10 dark:bg-emerald-950/60 border border-emerald-500/25 dark:border-emerald-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 pt-3">
                     <div className="size-9 rounded-lg bg-emerald-500/20 dark:bg-emerald-800/40 flex items-center justify-center shrink-0">
                       <FileText className="size-4 text-emerald-600 dark:text-emerald-400" />
                     </div>
@@ -345,7 +345,7 @@ export default function Dashboard() {
 
                 {/* Card 2 — Total Cover Letters (blue) */}
                 <div className="bg-blue-500/10 dark:bg-blue-950/60 border border-blue-500/25 dark:border-blue-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 pt-3">
                     <div className="size-9 rounded-lg bg-blue-500/20 dark:bg-blue-800/40 flex items-center justify-center shrink-0">
                       <PenLine className="size-4 text-blue-600 dark:text-blue-400" />
                     </div>
@@ -357,8 +357,8 @@ export default function Dashboard() {
                 {/* Card 3 — Avg ATS Score (violet) */}
                 <div className="bg-violet-500/10 dark:bg-violet-950/60 border border-violet-500/25 dark:border-violet-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-2 min-h-[120px]">
                   {avgAtsScore != null ? (
-                    <div className="flex-1 relative flex flex-col items-center justify-center">
-                      <svg viewBox="0 0 120 68" className="w-full max-w-[110px]">
+                    <div className="relative">
+                      <svg viewBox="0 0 120 68" className="w-full max-w-[110px] mx-auto">
                         {/* Track */}
                         <path d="M 10,65 A 50,50 0 0 1 110,65" fill="none" stroke="#7c3aed" strokeOpacity="0.2" strokeWidth="10" strokeLinecap="round" />
                         {/* Fill */}
@@ -374,16 +374,14 @@ export default function Dashboard() {
                         />
                       </svg>
                       {/* Number overlaid inside the gauge arc */}
-                      <div className="absolute inset-0 flex items-end justify-center pb-2">
-                        <p className="text-2xl font-extrabold text-violet-700 dark:text-violet-300 leading-none">
+                      <div className="absolute inset-0 flex items-end justify-center pb-3">
+                        <p className="text-4xl font-extrabold text-violet-700 dark:text-violet-300 leading-none">
                           {avgAtsScore}
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex-1 flex items-center">
-                      <p className="text-4xl font-extrabold text-muted-foreground leading-none">—</p>
-                    </div>
+                    <p className="text-4xl font-extrabold text-muted-foreground leading-none pt-3">—</p>
                   )}
                   {/* Label at bottom */}
                   <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600/70 dark:text-violet-500">
@@ -393,7 +391,7 @@ export default function Dashboard() {
 
                 {/* Card 4 — AI Actions (rose) */}
                 <div className="bg-rose-500/10 dark:bg-rose-950/60 border border-rose-500/25 dark:border-rose-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 pt-3">
                     <div className="size-9 rounded-lg bg-rose-500/20 dark:bg-rose-800/40 flex items-center justify-center shrink-0">
                       <Wand2 className="size-4 text-rose-600 dark:text-rose-400" />
                     </div>
