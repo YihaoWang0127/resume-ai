@@ -135,8 +135,8 @@ describe('PackageWizard — JD step', () => {
 
   it('shows two step cards — Job Description (active) and Resume Selection', () => {
     renderWizard()
-    expect(screen.getByText('JOB DESCRIPTION')).toBeInTheDocument()
-    expect(screen.getByText('RESUME SELECTION')).toBeInTheDocument()
+    expect(screen.getByText('Job Description', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.getByText('Resume Selection', { selector: 'span' })).toBeInTheDocument()
   })
 
   it('Next button is disabled when all fields are empty', () => {
