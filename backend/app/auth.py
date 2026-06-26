@@ -18,7 +18,6 @@ _bearer = HTTPBearer(auto_error=False)
 class AuthUser:
     user_id: str
     token: str
-    is_anonymous: bool = False
 
 
 @lru_cache(maxsize=1)
@@ -63,5 +62,4 @@ async def get_current_user(
             detail="Token missing sub claim",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    is_anonymous = bool(payload.get("is_anonymous", False))
-    return AuthUser(user_id=user_id, token=token, is_anonymous=is_anonymous)
+    return AuthUser(user_id=user_id, token=token)

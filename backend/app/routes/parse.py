@@ -68,7 +68,7 @@ async def parse_resume(
     except Exception:
         pass  # if validation fails, proceed anyway
 
-    await check_quota(auth.user_id, auth.token, auth.is_anonymous)
+    await check_quota(auth.user_id, auth.token)
     background_tasks.add_task(log_ai_call, auth.user_id, "parse", "claude-haiku-4-5", auth.token)
 
     system, user = build_parse_prompt(raw_text)

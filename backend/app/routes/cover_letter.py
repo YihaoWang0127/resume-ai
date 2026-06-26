@@ -42,7 +42,7 @@ async def generate_cover_letter(
     if not req.company_name.strip():
         raise HTTPException(400, "Company name is required")
 
-    await check_quota(auth.user_id, auth.token, auth.is_anonymous)
+    await check_quota(auth.user_id, auth.token)
     background_tasks.add_task(log_ai_call, auth.user_id, "cover_letter", "claude-sonnet-4-6", auth.token)
 
     resume_json = req.resume.model_dump_json(indent=2)
@@ -67,7 +67,7 @@ async def improve_cover_letter(
     auth: AuthUser = Depends(get_current_user),
     _rate: None = Depends(ai_rate_limit),
 ) -> StreamingResponse:
-    await check_quota(auth.user_id, auth.token, auth.is_anonymous)
+    await check_quota(auth.user_id, auth.token)
     background_tasks.add_task(log_ai_call, auth.user_id, "cover_letter_improve", "claude-sonnet-4-6", auth.token)
 
     resume_json = req.resume.model_dump_json(indent=2) if req.resume else None

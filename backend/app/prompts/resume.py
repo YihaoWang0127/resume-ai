@@ -272,28 +272,6 @@ TEXT:
     return VALIDATE_JD_SYSTEM, user
 
 
-VALIDATE_ROLE_SYSTEM = """You are a text classifier. Determine if the provided text is a real job title or professional role name.
-
-Valid examples: "Software Engineer", "Product Manager", "Data Scientist", "Marketing Director", "UX Designer", "DevOps Engineer", "Sales Representative", "Registered Nurse"
-
-It is NOT a valid role if it:
-- Is random characters, symbols, or numbers only
-- Is a common non-employment word ("test", "hello", "computer", "music", "apple")
-- Is a full sentence, paragraph, or multiple words that form a phrase
-- Is gibberish or test input ("asdf", "qwerty", "test123", "aaaa")
-
-Return ONLY valid JSON with no markdown fences:
-{"valid": true, "reason": "brief reason in one sentence"}"""
-
-
-def build_validate_role_prompt(text: str) -> tuple[str, str]:
-    user = f"""Is this a valid job title or professional role?
-
-TEXT:
-{text[:200]}"""
-    return VALIDATE_ROLE_SYSTEM, user
-
-
 def build_ats_score_prompt(resume: ResumeSchema, job_description: str) -> tuple[str, str]:
     """Returns (system_prompt, user_message) for ATS keyword scoring."""
     resume_json = resume.model_dump_json(indent=2)

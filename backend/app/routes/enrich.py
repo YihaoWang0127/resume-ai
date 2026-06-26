@@ -23,7 +23,7 @@ async def enrich_resume(
     auth: AuthUser = Depends(get_current_user),
     _rate: None = Depends(ai_rate_limit),
 ) -> StreamingResponse:
-    await check_quota(auth.user_id, auth.token, auth.is_anonymous)
+    await check_quota(auth.user_id, auth.token)
     background_tasks.add_task(log_ai_call, auth.user_id, "enrich", "claude-sonnet-4-6", auth.token)
 
     stage = body.career_stage or infer_career_stage(body.resume)

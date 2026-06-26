@@ -4,7 +4,6 @@ import pytest
 from pydantic import ValidationError
 
 from app.models.resume import (
-    ApplyRequest,
     EducationItem,
     ExperienceItem,
     Metadata,
@@ -80,71 +79,3 @@ def test_metadata_all_optional_except_name() -> None:
     assert m.email is None
     assert m.phone is None
     assert m.location is None
-
-
-# ── ApplyRequest ──────────────────────────────────────────────────────────────
-
-def test_apply_request_valid(sample_resume: dict) -> None:
-    req = ApplyRequest.model_validate(
-        {
-            "resume": sample_resume,
-            "job_description": "Senior Python engineer at Acme.",
-            "company_name": "Acme Corp",
-            "role": "Senior Software Engineer",
-        }
-    )
-    assert req.company_name == "Acme Corp"
-    assert req.role == "Senior Software Engineer"
-    assert req.career_stage is None
-
-
-def test_apply_request_with_career_stage(sample_resume: dict) -> None:
-    req = ApplyRequest.model_validate(
-        {
-            "resume": sample_resume,
-            "job_description": "Internship at Acme.",
-            "company_name": "Acme Corp",
-            "role": "Software Intern",
-            "career_stage": "student",
-        }
-    )
-    assert req.career_stage == "student"
-
-
-@pytest.mark.parametrize("missing_field", ["job_description", "company_name", "role"])
-def test_apply_request_missing_required_field_raises(
-    sample_resume: dict, missing_field: str
-) -> None:
-    payload = {
-        "resume": sample_resume,
-        "job_description": "Some JD",
-        "company_name": "Acme Corp",
-        "role": "Engineer",
-    }
-    del payload[missing_field]
-    with pytest.raises(ValidationError):
-        ApplyRequest.model_validate(payload)
-
-
-def test_apply_request_missing_resume_raises() -> None:
-    with pytest.raises(ValidationError):
-        ApplyRequest.model_validate(
-            {
-                "job_description": "Some JD",
-                "company_name": "Acme Corp",
-                "role": "Engineer",
-            }
-        )
-
-
-def test_apply_request_invalid_career_stage(sample_resume: dict) -> None:
-    with pytest.raises(ValidationError):
-        ApplyRequest.model_validate(
-            {
-                "resume": sample_resume,
-                "job_description": "Some JD",
-                "company_name": "Acme Corp",
-                "role": "Engineer",
-                "career_stage": "senior",  # not a valid literal
-            }
-        )

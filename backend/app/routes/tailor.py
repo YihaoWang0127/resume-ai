@@ -26,7 +26,7 @@ async def tailor_resume(
     if not body.job_description.strip():
         raise HTTPException(status_code=422, detail="job_description must not be empty.")
 
-    await check_quota(auth.user_id, auth.token, auth.is_anonymous)
+    await check_quota(auth.user_id, auth.token)
     background_tasks.add_task(log_ai_call, auth.user_id, "tailor", "claude-sonnet-4-6", auth.token)
 
     stage = body.career_stage or infer_career_stage(body.resume)
