@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom'
 import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target, MoreHorizontal, Building2, Briefcase } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { listResumes, deleteResume, updateAtsScore, clearAtsScore, type SavedResume } from '@/services/resumes'
@@ -133,8 +133,9 @@ export default function Dashboard() {
   const [clDeleting, setClDeleting] = useState(false)
   const [clExportOpenId, setClExportOpenId] = useState<string | null>(null)
 
-  // ── tab ──────────────────────────────────────────────────────────────────────
-  const [dashTab, setDashTab] = useState<'dashboard' | 'application'>('dashboard')
+  // ── tab (driven by URL ?tab=application) ────────────────────────────────────
+  const [searchParams] = useSearchParams()
+  const dashTab = searchParams.get('tab') === 'application' ? 'application' : 'dashboard'
 
   // ── applications ─────────────────────────────────────────────────────────────
   const [applications, setApplications] = useState<Application[]>([])
@@ -380,12 +381,15 @@ export default function Dashboard() {
       const resume = cl.resume_id ? resumeMap.get(cl.resume_id) : undefined
       if (!resume) continue
       coveredResumeIds.add(resume.id)
+      // Use application role if this cover letter is linked to an application; fall back to JD extraction
+      const app = applications.find(a => a.cover_letter_id === cl.id)
+      const jobTitle = app?.role || extractJobTitle(cl.job_description)
       const lastUpdated = cl.updated_at > resume.updated_at ? cl.updated_at : resume.updated_at
       rows.push({
         resume,
         coverLetter: cl,
         company: cl.company_name ?? null,
-        jobTitle: extractJobTitle(cl.job_description),
+        jobTitle,
         lastUpdated,
       })
     }
@@ -433,24 +437,6 @@ export default function Dashboard() {
           </>
         ) : (
           <>
-            {/* ── Tab switcher ─────────────────────────────────────────────── */}
-            <div className="flex border-b border-border mb-6">
-              {(['dashboard', 'application'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setDashTab(tab)}
-                  className={`px-5 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px ${
-                    dashTab === tab
-                      ? 'text-foreground border-primary'
-                      : 'text-muted-foreground border-transparent hover:text-foreground'
-                  }`}
-                >
-                  {tab === 'dashboard' ? 'Dashboard' : 'Application'}
-                </button>
-              ))}
-            </div>
-
             {/* ── DASHBOARD TAB ─────────────────────────────────────────────── */}
             {dashTab === 'dashboard' && (
             <>
@@ -941,7 +927,7 @@ export default function Dashboard() {
                   <table className="w-full text-sm border-collapse" style={{ minWidth: '860px' }}>
                     <thead className="sticky top-0 z-10 bg-card">
                       <tr className="border-b border-border">
-                        {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
+                        {['Last Updated', 'Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Actions'].map((col) => (
                           <th key={col} className="py-3 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-card">
                             {col}
                           </th>
@@ -953,6 +939,7 @@ export default function Dashboard() {
                         const scoreInfo = row.resume.ats_score != null ? atsScoreLabel(row.resume.ats_score) : null
                         return (
                           <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
+                            <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">{formatDate(row.lastUpdated)}</td>
                             <td className="py-3 px-4 text-sm font-medium text-foreground min-w-[200px]">{row.resume.title}</td>
                             <td className="py-3 px-4 text-sm text-foreground min-w-[120px] whitespace-nowrap">
                               {row.company ?? <span className="text-muted-foreground">—</span>}
@@ -976,7 +963,6 @@ export default function Dashboard() {
                                 <span className="text-xs text-muted-foreground">Not checked</span>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">{formatDate(row.lastUpdated)}</td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2 flex-nowrap">
                                 <button type="button" onClick={() => setPreviewResume(row.resume)} className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors">View Resume</button>

@@ -11,14 +11,16 @@ import {
   FileText,
   Mail,
   Target,
+  Briefcase,
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 
-const ACCOUNT_NAV_ITEMS: { path: string; label: string; icon: LucideIcon }[] = [
+const ACCOUNT_NAV_ITEMS: { path: string; label: string; icon: LucideIcon; applicationTab?: boolean }[] = [
   { path: '/profile', label: 'Profile', icon: User },
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/dashboard', label: 'Application', icon: Briefcase, applicationTab: true },
   { path: '/ai', label: 'AI', icon: Sparkles },
   { path: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
@@ -127,7 +129,27 @@ export default function AccountSidebar() {
     <nav className="lg:w-56 lg:shrink-0">
       {/* Mobile: horizontal scrollable tab bar */}
       <div className="flex lg:hidden gap-2 overflow-x-auto scrollbar-none -mx-6 px-6 pb-4 mb-2 border-b border-border">
-        {navItems.map(({ path, label, icon: Icon }) => {
+        {navItems.map(({ path, label, icon: Icon, ...rest }) => {
+          const isAppTab = 'applicationTab' in rest && rest.applicationTab
+          if (isAppTab) {
+            const isActive = isDashboard && currentTab === 'application'
+            return (
+              <button
+                key="application-tab"
+                type="button"
+                onClick={() => navigate('/dashboard?tab=application')}
+                className={cn(
+                  'flex shrink-0 items-center gap-2 px-4 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                )}
+              >
+                <Icon className="size-3.5" />
+                {label}
+              </button>
+            )
+          }
           if (path === '/profile') {
             if (isProfile && profileExpanded) {
               // Replace Profile pill with 6 sub-item pills
@@ -224,7 +246,27 @@ export default function AccountSidebar() {
 
       {/* Desktop: vertical sticky sidebar */}
       <div className="hidden lg:flex lg:flex-col lg:gap-1 lg:sticky lg:top-20">
-        {navItems.map(({ path, label, icon: Icon }) => {
+        {navItems.map(({ path, label, icon: Icon, ...rest }) => {
+          const isAppTab = 'applicationTab' in rest && rest.applicationTab
+          if (isAppTab) {
+            const isActive = isDashboard && currentTab === 'application'
+            return (
+              <button
+                key="application-tab"
+                type="button"
+                onClick={() => navigate('/dashboard?tab=application')}
+                className={cn(
+                  'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-colors',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                )}
+              >
+                <Icon className="size-4" />
+                {label}
+              </button>
+            )
+          }
           if (path === '/profile') {
             const isOpen = isProfile && profileExpanded
             const ChevronIcon = isOpen ? ChevronDown : ChevronRight

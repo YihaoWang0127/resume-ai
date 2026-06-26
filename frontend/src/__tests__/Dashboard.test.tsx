@@ -269,9 +269,7 @@ describe('Dashboard — tab switching', () => {
   })
 
   it('shows Application Overview on Application tab', async () => {
-    renderDashboard()
-    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
-    userEvent.click(screen.getByRole('button', { name: /^application$/i }))
+    renderDashboard('application')
     await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
   })
 
@@ -781,9 +779,7 @@ describe('Dashboard — export dropdown', () => {
 
 describe('Dashboard — overview', () => {
   it('renders the Application Overview table on the Application tab', async () => {
-    renderDashboard()
-    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
-    userEvent.click(screen.getByRole('button', { name: /^application$/i }))
+    renderDashboard('application')
     await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
   })
 
@@ -797,18 +793,14 @@ describe('Dashboard — overview', () => {
   })
 
   it('shows cover letter relationships in the Application Overview table', async () => {
-    renderDashboard()
-    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
-    userEvent.click(screen.getByRole('button', { name: /^application$/i }))
+    renderDashboard('application')
     await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
     expect(screen.getAllByText('Software Engineer Resume').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Stripe').length).toBeGreaterThan(0)
   })
 
   it('shows resume rows without cover letters in the Application Overview table', async () => {
-    renderDashboard()
-    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
-    userEvent.click(screen.getByRole('button', { name: /^application$/i }))
+    renderDashboard('application')
     await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
     expect(screen.getAllByText('Product Manager Resume').length).toBeGreaterThan(0)
   })
