@@ -409,20 +409,20 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
     setAtsProgress(0)
     setGenerationError(null)
 
+    // Start animations immediately so progress is visible during the API connection phase
+    const tailorAnimInterval = setInterval(() => {
+      setTailorProgress((p) => Math.min(p + 3, 88))
+    }, 300)
+    const clAnimInterval = setInterval(() => {
+      setClProgress((p) => Math.min(p + 3, 88))
+    }, 300)
+
     try {
       // Start tailor + CL streams in parallel
       const [tailorStream, clStream] = await Promise.all([
         tailorResume(selectedResume.resume_data, jobDesc),
         generateCoverLetter(selectedResume.resume_data, jobDesc, companyName, 'professional'),
       ])
-
-      // Simulated progress animations so percentages ramp visibly regardless of chunk size
-      const tailorAnimInterval = setInterval(() => {
-        setTailorProgress((p) => Math.min(p + 4, 88))
-      }, 350)
-      const clAnimInterval = setInterval(() => {
-        setClProgress((p) => Math.min(p + 4, 88))
-      }, 350)
 
       // Read both streams concurrently
       const clPromise = readStream(clStream)
@@ -455,6 +455,8 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
       setAtsResult(ats)
       setAtsProgress(100)
     } catch (err) {
+      clearInterval(tailorAnimInterval)
+      clearInterval(clAnimInterval)
       setGenerationError('Generation failed. Please try again.')
       console.error(err)
     }
@@ -529,17 +531,7 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
     return (
       <div className="fixed inset-0 z-[60] bg-background flex flex-col">
         {/* ── Page header ─────────────────────────────────────────────────────── */}
-        <div className="shrink-0 border-b border-border px-6 py-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between relative">
-          {/* Red dismiss button top-right */}
-          <button
-            type="button"
-            onClick={handleClose}
-            className="absolute top-3 right-3 flex items-center justify-center size-7 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
-            aria-label="Dismiss"
-          >
-            <X className="size-4" />
-          </button>
-
+        <div className="shrink-0 border-b border-border px-6 py-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -557,39 +549,38 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 shrink-0 mt-3 sm:mt-0 pr-8 sm:pr-0">
+          {/* Action buttons — equal width */}
+          <div className="flex items-center gap-2 shrink-0 mt-3 sm:mt-0">
             <button
               type="button"
               onClick={handleExportResume}
-              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] border border-border text-sm font-medium rounded-lg hover:bg-secondary transition-colors whitespace-nowrap"
+              className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] min-w-[140px] border border-border text-sm font-medium rounded-lg hover:bg-secondary transition-colors whitespace-nowrap"
             >
-              <Download className="size-4" />
+              <Download className="size-4 shrink-0" />
               Export Resume
             </button>
             <button
               type="button"
               onClick={handleExportCoverLetter}
-              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] border border-border text-sm font-medium rounded-lg hover:bg-secondary transition-colors whitespace-nowrap"
+              className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] min-w-[140px] border border-border text-sm font-medium rounded-lg hover:bg-secondary transition-colors whitespace-nowrap"
             >
-              <Download className="size-4" />
+              <Download className="size-4 shrink-0" />
               Export Cover Letter
             </button>
             <button
               type="button"
               onClick={handleSavePackage}
               disabled={saving || saved}
-              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] min-w-[140px] bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
-              {saving ? <Loader2 className="size-4 animate-spin" /> : saved ? <CheckCircle2 className="size-4" /> : null}
+              {saving ? <Loader2 className="size-4 animate-spin shrink-0" /> : saved ? <CheckCircle2 className="size-4 shrink-0" /> : null}
               {saved ? 'Saved' : 'Save Package'}
             </button>
             <button
               type="button"
               onClick={handleClose}
-              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] border border-red-500/50 text-red-500 text-sm font-medium rounded-lg hover:bg-red-500/10 transition-colors whitespace-nowrap"
+              className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] min-w-[140px] border border-red-500/50 text-red-500 text-sm font-medium rounded-lg hover:bg-red-500/10 transition-colors whitespace-nowrap"
             >
-              <X className="size-4" />
               Dismiss Package
             </button>
           </div>
