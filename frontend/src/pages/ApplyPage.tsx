@@ -4,7 +4,7 @@ import { Loader2, CheckCircle2, ChevronDown, ChevronRight, FileText, Mail, Targe
 import Navbar from '@/components/Navbar'
 import ResumePreview from '@/components/ResumePreview'
 import { getResume, type SavedResume } from '@/services/resumes'
-import { applyToJob, fromBackend, exportResume, exportCoverLetter } from '@/services/api'
+import { applyToJob, fromBackend, exportResume, exportCoverLetter, validateJobDescription } from '@/services/api'
 import { saveCoverLetter } from '@/services/coverLetters'
 import { createApplication } from '@/services/applications'
 import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
@@ -218,36 +218,60 @@ export default function ApplyPage() {
   // refs — accumulate without stale closures
   const tailoringRef = useRef('')
   const coverLetterRef = useRef('')
-  // progress ref: chunks increment this; 80ms interval syncs → state (smooth animation)
-  const progressRef = useRef<Record<StageKey, number>>({ tailoring: 0, cover_letter: 0, ats: 0 })
+
+  // JD validation
+  const [jdStatus, setJdStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle')
+  const [jdInvalidReason, setJdInvalidReason] = useState('')
+  const jdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── progress animation ─────────────────────────────────────────────────────
+  // Pure time-based animation per stage — avoids React 18 batching issues.
+  // Each interval fires at the browser level independently of async chunk loops.
 
-  // 80ms interval syncs progressRef → state for smooth visual animation.
-  // React 18 batches state updates inside async loops, so direct setStageProgress
-  // in chunk handlers would produce a single jump; the ref avoids that.
+  // Tailoring: +1% / 150ms → reaches 90% in ~13.5s
   useEffect(() => {
-    if (phase !== 'generating') return
+    if (currentStage !== 'tailoring' || completedStages.has('tailoring')) return
     const id = setInterval(() => {
-      setStageProgress((prev) => {
-        const t = progressRef.current.tailoring
-        const cl = progressRef.current.cover_letter
-        const a = progressRef.current.ats
-        if (t === prev.tailoring && cl === prev.cover_letter && a === prev.ats) return prev
-        return { tailoring: t, cover_letter: cl, ats: a }
-      })
-    }, 80)
+      setStageProgress((prev) => prev.tailoring >= 90 ? prev : { ...prev, tailoring: prev.tailoring + 1 })
+    }, 150)
     return () => clearInterval(id)
-  }, [phase])
+  }, [currentStage, completedStages])
 
-  // ATS is a single non-streaming API call (~3-8s) — simulate with interval
+  // Cover letter: +1% / 150ms — same rate as tailoring
   useEffect(() => {
-    if (currentStage !== 'ats') return
+    if (currentStage !== 'cover_letter' || completedStages.has('cover_letter')) return
     const id = setInterval(() => {
-      progressRef.current.ats = Math.min(progressRef.current.ats + 6, 90)
+      setStageProgress((prev) => prev.cover_letter >= 90 ? prev : { ...prev, cover_letter: prev.cover_letter + 1 })
+    }, 150)
+    return () => clearInterval(id)
+  }, [currentStage, completedStages])
+
+  // ATS: +6% / 250ms → reaches 90% in ~3.75s (single non-streaming call)
+  useEffect(() => {
+    if (currentStage !== 'ats' || completedStages.has('ats')) return
+    const id = setInterval(() => {
+      setStageProgress((prev) => prev.ats >= 90 ? prev : { ...prev, ats: prev.ats + 6 })
     }, 250)
     return () => clearInterval(id)
-  }, [currentStage])
+  }, [currentStage, completedStages])
+
+  // ── JD validation ─────────────────────────────────────────────────────────
+  const handleJdChange = (text: string) => {
+    setJobDescription(text)
+    setJdStatus('idle')
+    if (jdTimerRef.current) clearTimeout(jdTimerRef.current)
+    if (text.trim().length < 50) return
+    jdTimerRef.current = setTimeout(async () => {
+      setJdStatus('validating')
+      try {
+        const result = await validateJobDescription(text)
+        setJdStatus(result.valid ? 'valid' : 'invalid')
+        if (!result.valid) setJdInvalidReason(result.reason)
+      } catch {
+        setJdStatus('idle')
+      }
+    }, 800)
+  }
 
   // ── load resume ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -270,7 +294,6 @@ export default function ApplyPage() {
 
     tailoringRef.current = ''
     coverLetterRef.current = ''
-    progressRef.current = { tailoring: 0, cover_letter: 0, ats: 0 }
     setCoverLetterText('')
     setTailoredResume(null)
     setAtsResult(null)
@@ -312,11 +335,9 @@ export default function ApplyPage() {
             if (event.type === 'progress' && event.stage) {
               // Snap previous stage to 100% before advancing
               if (event.stage === 'cover_letter') {
-                progressRef.current.tailoring = 100
                 setStageProgress((prev) => ({ ...prev, tailoring: 100 }))
                 setCompletedStages((prev) => new Set([...prev, 'tailoring']))
               } else if (event.stage === 'ats') {
-                progressRef.current.cover_letter = 100
                 setStageProgress((prev) => ({ ...prev, cover_letter: 100 }))
                 setCompletedStages((prev) => new Set([...prev, 'tailoring', 'cover_letter']))
               }
@@ -324,12 +345,9 @@ export default function ApplyPage() {
 
             } else if (event.type === 'chunk' && event.stage === 'tailoring' && event.text) {
               tailoringRef.current += event.text
-              // Increment ref — the 80ms interval will pick this up for smooth display
-              progressRef.current.tailoring = Math.min(progressRef.current.tailoring + 2, 90)
 
             } else if (event.type === 'chunk' && event.stage === 'cover_letter' && event.text) {
               coverLetterRef.current += event.text
-              progressRef.current.cover_letter = Math.min(progressRef.current.cover_letter + 2, 90)
 
             } else if (event.type === 'result' && event.stage === 'ats' && event.data) {
               const d = event.data
@@ -340,11 +358,9 @@ export default function ApplyPage() {
                 suggestions: Array.isArray(d.suggestions) ? (d.suggestions as string[]) : [],
                 summary: typeof d.summary === 'string' ? d.summary : '',
               })
-              progressRef.current.ats = 100
               setStageProgress((prev) => ({ ...prev, ats: 100 }))
 
             } else if (event.type === 'done') {
-              progressRef.current = { tailoring: 100, cover_letter: 100, ats: 100 }
               setStageProgress({ tailoring: 100, cover_letter: 100, ats: 100 })
               setCompletedStages(new Set(['tailoring', 'cover_letter', 'ats']))
 
@@ -449,6 +465,17 @@ export default function ApplyPage() {
                 </p>
               )}
             </div>
+            {/* Form phase: Generate button in header */}
+            {phase === 'form' && (
+              <button
+                type="button"
+                disabled={!canGenerate}
+                onClick={handleGenerate}
+                className="shrink-0 flex items-center gap-2 px-5 py-2.5 min-h-[44px] bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Generate Application
+              </button>
+            )}
             {/* Done phase: action buttons in header */}
             {phase === 'done' && (
               <div className="flex items-center gap-2 flex-wrap shrink-0">
@@ -516,18 +543,7 @@ export default function ApplyPage() {
         {/* ── Form phase ── */}
         {phase === 'form' && (
           <div className="bg-card rounded-xl border border-border shadow-sm p-6 max-w-2xl">
-            {/* Card header with Generate button */}
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-foreground">Job details</h2>
-              <button
-                type="button"
-                disabled={!canGenerate}
-                onClick={handleGenerate}
-                className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Generate Application
-              </button>
-            </div>
+            <h2 className="text-base font-semibold text-foreground mb-5">Job details</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
@@ -552,9 +568,32 @@ export default function ApplyPage() {
 
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Job Description <span className="text-red-500">*</span></label>
-              <textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)}
-                placeholder="Paste the full job description here..." rows={8}
-                className="w-full px-3 py-2.5 min-h-40 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors resize-y" />
+              <textarea
+                value={jobDescription}
+                onChange={(e) => handleJdChange(e.target.value)}
+                placeholder="Paste the full job description here..."
+                rows={8}
+                className={`w-full px-3 py-2.5 min-h-40 bg-background border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-colors resize-y ${
+                  jdStatus === 'invalid'
+                    ? 'border-red-500/50 focus:ring-red-400/40 focus:border-red-500'
+                    : jdStatus === 'valid'
+                      ? 'border-green-500/50 focus:ring-green-400/40 focus:border-green-500'
+                      : 'border-border focus:ring-primary/40 focus:border-primary'
+                }`}
+              />
+              {jdStatus === 'validating' && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" /> Validating job description...
+                </p>
+              )}
+              {jdStatus === 'valid' && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-green-600">
+                  <CheckCircle2 className="size-3" /> Valid job description
+                </p>
+              )}
+              {jdStatus === 'invalid' && (
+                <p className="mt-1.5 text-xs text-red-500">{jdInvalidReason || 'This does not appear to be a job description.'}</p>
+              )}
             </div>
           </div>
         )}
