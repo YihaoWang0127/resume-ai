@@ -1,9 +1,9 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Loader2, CheckCircle2, ChevronDown, ChevronRight, FileText, Mail, Target } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, FileText, Mail, Target } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import ResumePreview from '@/components/ResumePreview'
-import { getResume, type SavedResume } from '@/services/resumes'
+import { getResume, updateAtsScore, type SavedResume } from '@/services/resumes'
 import { applyToJob, fromBackend, exportResume, exportCoverLetter, validateJobDescription } from '@/services/api'
 import { saveCoverLetter } from '@/services/coverLetters'
 import { createApplication } from '@/services/applications'
@@ -31,6 +31,13 @@ function triggerDownload(blob: Blob, filename: string) {
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+
+function getRoleStatus(text: string): 'idle' | 'valid' | 'invalid' {
+  if (!text.trim()) return 'idle'
+  if (text.trim().length < 2) return 'invalid'
+  if (!/[a-zA-Z]/.test(text)) return 'invalid'
+  return 'valid'
 }
 
 function atsScoreColor(score: number): string {
@@ -408,6 +415,19 @@ export default function ApplyPage() {
         job_description: jobDescription,
         ats_score: atsResult?.overallScore,
       })
+      // Also persist ATS score to the resume record so it appears in the ATS Scores section
+      if (atsResult) {
+        try {
+          await updateAtsScore(resumeId, atsResult.overallScore, {
+            jobDescription,
+            result: atsResult,
+            companyName: company || undefined,
+            jobTitle: role || undefined,
+          })
+        } catch (err) {
+          console.error('Failed to save ATS score to resume:', err)
+        }
+      }
       setSaved(true)
     } catch (err: unknown) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save. Please try again.')
@@ -435,6 +455,7 @@ export default function ApplyPage() {
 
   // ── derived ─────────────────────────────────────────────────────────────────
   const canGenerate = company.trim() !== '' && role.trim() !== '' && jobDescription.trim() !== ''
+  const roleStatus = getRoleStatus(role)
 
   const getStageStatus = (key: StageKey): StageStatus => {
     if (completedStages.has(key)) return 'done'
@@ -465,16 +486,28 @@ export default function ApplyPage() {
                 </p>
               )}
             </div>
-            {/* Form phase: Generate button in header */}
+            {/* Form phase: validation status + Generate button in header */}
             {phase === 'form' && (
-              <button
-                type="button"
-                disabled={!canGenerate}
-                onClick={handleGenerate}
-                className="shrink-0 flex items-center gap-2 px-5 py-2.5 min-h-[44px] bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Generate Application
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                {jdStatus === 'invalid' && (
+                  <span className="flex items-center gap-1 text-xs text-red-500 whitespace-nowrap">
+                    <AlertCircle className="size-3.5" /> Invalid job description
+                  </span>
+                )}
+                {jdStatus === 'valid' && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 whitespace-nowrap">
+                    <CheckCircle2 className="size-3.5" /> Valid job description
+                  </span>
+                )}
+                <button
+                  type="button"
+                  disabled={!canGenerate}
+                  onClick={handleGenerate}
+                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 min-h-[44px] bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Generate Application
+                </button>
+              </div>
             )}
             {/* Done phase: action buttons in header */}
             {phase === 'done' && (
@@ -542,7 +575,7 @@ export default function ApplyPage() {
 
         {/* ── Form phase ── */}
         {phase === 'form' && (
-          <div className="bg-card rounded-xl border border-border shadow-sm p-6 max-w-2xl">
+          <div className="bg-card rounded-xl border border-border shadow-sm p-6 max-w-2xl mx-auto">
             <h2 className="text-base font-semibold text-foreground mb-5">Job details</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -553,8 +586,29 @@ export default function ApplyPage() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Role <span className="text-red-500">*</span></label>
-                <input type="text" value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Software Engineer"
-                  className="w-full px-3 py-2.5 min-h-[44px] bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors" />
+                <input
+                  type="text"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="e.g. Software Engineer"
+                  className={`w-full px-3 py-2.5 min-h-[44px] bg-background border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-colors ${
+                    roleStatus === 'invalid'
+                      ? 'border-red-500/50 focus:ring-red-400/40 focus:border-red-500'
+                      : roleStatus === 'valid'
+                        ? 'border-green-500/50 focus:ring-green-400/40 focus:border-green-500'
+                        : 'border-border focus:ring-primary/40 focus:border-primary'
+                  }`}
+                />
+                {roleStatus === 'valid' && (
+                  <p className="mt-1.5 flex items-center gap-1.5 text-xs text-green-600">
+                    <CheckCircle2 className="size-3" /> Valid role
+                  </p>
+                )}
+                {roleStatus === 'invalid' && (
+                  <p className="mt-1.5 flex items-center gap-1.5 text-xs text-red-500">
+                    <AlertCircle className="size-3" /> Please enter a valid job title
+                  </p>
+                )}
               </div>
             </div>
 
