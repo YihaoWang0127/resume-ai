@@ -360,10 +360,10 @@ export default function Dashboard() {
                     <div className="relative">
                       <svg viewBox="0 0 120 68" className="w-full max-w-[110px] mx-auto">
                         {/* Track */}
-                        <path d="M 10,65 A 50,50 0 0 1 110,65" fill="none" stroke="#7c3aed" strokeOpacity="0.2" strokeWidth="10" strokeLinecap="round" />
+                        <path d="M 10,55 A 50,50 0 0 1 110,55" fill="none" stroke="#7c3aed" strokeOpacity="0.2" strokeWidth="10" strokeLinecap="round" />
                         {/* Fill */}
                         <path
-                          d="M 10,65 A 50,50 0 0 1 110,65"
+                          d="M 10,55 A 50,50 0 0 1 110,55"
                           fill="none"
                           stroke="#7c3aed"
                           strokeWidth="10"
