@@ -355,22 +355,41 @@ export default function Dashboard() {
                 </div>
 
                 {/* Card 3 — Avg ATS Score (violet) */}
-                <div className="bg-violet-500/10 dark:bg-violet-950/60 border border-violet-500/25 dark:border-violet-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
-                  <div className="flex items-center gap-3">
-                    <div className="size-9 rounded-lg bg-violet-500/20 dark:bg-violet-800/40 flex items-center justify-center shrink-0">
-                      <Target className="size-4 text-violet-600 dark:text-violet-400" />
-                    </div>
-                    <div className="flex flex-col">
-                      <p className="text-4xl font-extrabold text-violet-700 dark:text-violet-300 leading-none">
-                        {avgAtsScore ?? '—'}
+                <div className="bg-violet-500/10 dark:bg-violet-950/60 border border-violet-500/25 dark:border-violet-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-2 min-h-[120px]">
+                  {/* Score number at top — same level as other cards' numbers */}
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-4xl font-extrabold text-violet-700 dark:text-violet-300 leading-none">
+                      {avgAtsScore ?? '—'}
+                    </p>
+                    {avgAtsScore != null && (
+                      <p className="text-[10px] font-semibold text-violet-500/80 dark:text-violet-400/70">
+                        {atsScoreLabel(avgAtsScore).label}
                       </p>
-                      {avgAtsScore != null && (
-                        <p className="text-[10px] font-semibold text-violet-500/80 dark:text-violet-400/70 mt-0.5">
-                          {atsScoreLabel(avgAtsScore).label}
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </div>
+
+                  {/* Half-circle gauge — instrument panel decoration */}
+                  {avgAtsScore != null && (
+                    <div className="flex justify-center -mt-1">
+                      <svg viewBox="0 0 120 55" className="w-full max-w-[90px]">
+                        {/* Track */}
+                        <path d="M 15,52 A 45,45 0 0 1 105,52" fill="none" stroke="#7c3aed" strokeOpacity="0.2" strokeWidth="9" strokeLinecap="round" />
+                        {/* Fill */}
+                        <path
+                          d="M 15,52 A 45,45 0 0 1 105,52"
+                          fill="none"
+                          stroke="#7c3aed"
+                          strokeWidth="9"
+                          strokeLinecap="round"
+                          strokeDasharray="141"
+                          strokeDashoffset={Math.max(0, 141 - (avgAtsScore / 100) * 141)}
+                          className="transition-all duration-700"
+                        />
+                      </svg>
+                    </div>
+                  )}
+
+                  {/* Label at bottom */}
                   <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600/70 dark:text-violet-500">
                     Avg ATS Score
                   </p>
