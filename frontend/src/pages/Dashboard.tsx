@@ -358,12 +358,12 @@ export default function Dashboard() {
                 <div className="bg-violet-500/10 dark:bg-violet-950/60 border border-violet-500/25 dark:border-violet-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-2 min-h-[120px]">
                   {avgAtsScore != null ? (
                     <div className="relative">
-                      <svg viewBox="0 0 120 68" className="w-full max-w-[110px] mx-auto">
+                      <svg viewBox="0 0 120 68" className="w-full max-w-[110px] mx-auto" overflow="visible">
                         {/* Track */}
-                        <path d="M 10,55 A 50,50 0 0 1 110,55" fill="none" stroke="#7c3aed" strokeOpacity="0.2" strokeWidth="10" strokeLinecap="round" />
+                        <path d="M 10,48 A 50,50 0 0 1 110,48" fill="none" stroke="#7c3aed" strokeOpacity="0.2" strokeWidth="10" strokeLinecap="round" />
                         {/* Fill */}
                         <path
-                          d="M 10,55 A 50,50 0 0 1 110,55"
+                          d="M 10,48 A 50,50 0 0 1 110,48"
                           fill="none"
                           stroke="#7c3aed"
                           strokeWidth="10"
