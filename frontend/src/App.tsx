@@ -7,6 +7,7 @@ import Dashboard from '@/pages/Dashboard'
 import Profile from '@/pages/Profile'
 import AI from '@/pages/AI'
 import CoverLetterEditor from '@/pages/CoverLetterEditor'
+import Package from '@/pages/Package'
 import Settings from '@/pages/Settings'
 import NotFound from '@/pages/NotFound'
 import AuthModal from '@/components/AuthModal'
@@ -22,6 +23,7 @@ function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/editor" element={<Editor />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/package" element={<Package />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/ai" element={<AI />} />
         <Route path="/cover-letter/new" element={<CoverLetterEditor />} />

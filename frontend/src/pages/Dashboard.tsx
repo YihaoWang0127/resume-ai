@@ -15,14 +15,6 @@ import EmptyState from '@/components/EmptyState'
 import ResumePreview from '@/components/ResumePreview'
 import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
 
-type RelationshipRow = {
-  resume: SavedResume
-  coverLetter: CoverLetter | null
-  company: string | null
-  jobTitle: string | null
-  lastUpdated: string
-}
-
 function extractJobTitle(jobDescription: string | null): string | null {
   if (!jobDescription) return null
   const firstLine = jobDescription.trim().split('\n')[0].trim()
@@ -59,43 +51,17 @@ function SkeletonCards() {
 
 function SkeletonOverview() {
   return (
-    <>
-      {/* Stat card skeletons */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="bg-card border border-border rounded-xl p-5 animate-pulse min-h-[120px] flex flex-col gap-3">
+          <div className="size-9 rounded-lg bg-muted" />
+          <div>
             <div className="h-7 w-10 bg-muted rounded mb-2" />
             <div className="h-3 w-20 bg-muted rounded" />
           </div>
-        ))}
-      </div>
-      {/* Table skeleton rows */}
-      <div className="h-7 w-48 bg-muted rounded animate-pulse mb-6" />
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-border">
-              {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
-                <th key={col} className="py-3 px-4 text-left">
-                  <div className="h-3 w-16 bg-muted rounded animate-pulse" />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[0, 1, 2].map((i) => (
-              <tr key={i} className="border-b border-border">
-                {[0, 1, 2, 3, 4, 5, 6].map((j) => (
-                  <td key={j} className="py-3 px-4">
-                    <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -331,42 +297,6 @@ export default function Dashboard() {
     return Math.round(sum / scored.length)
   })()
 
-  // ── Overview relationship rows ────────────────────────────────────────────────
-  const relationshipRows = (() => {
-    const resumeMap = new Map(resumes.map(r => [r.id, r]))
-    const coveredResumeIds = new Set<string>()
-    const rows: RelationshipRow[] = []
-
-    for (const cl of coverLetters) {
-      const resume = cl.resume_id ? resumeMap.get(cl.resume_id) : undefined
-      if (!resume) continue
-      coveredResumeIds.add(resume.id)
-      const lastUpdated = cl.updated_at > resume.updated_at ? cl.updated_at : resume.updated_at
-      rows.push({
-        resume,
-        coverLetter: cl,
-        company: cl.company_name ?? null,
-        jobTitle: extractJobTitle(cl.job_description),
-        lastUpdated,
-      })
-    }
-
-    for (const r of resumes) {
-      if (!coveredResumeIds.has(r.id)) {
-        rows.push({
-          resume: r,
-          coverLetter: null,
-          company: r.ats_company_name ?? null,
-          jobTitle: r.ats_job_title ?? null,
-          lastUpdated: r.updated_at,
-        })
-      }
-    }
-
-    return rows
-  })()
-
-
   return (
     <div className="min-h-screen lg:h-screen bg-background flex flex-col">
       <Navbar onBack={() => navigate('/')} />
@@ -402,124 +332,80 @@ export default function Dashboard() {
 
               {/* Stats bar */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-                <div className="bg-card border border-border rounded-xl p-4">
-                  <p className="text-2xl font-bold text-foreground">{resumes.length}</p>
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Resumes</p>
+                {/* Card 1 — Total Resumes (emerald) */}
+                <div className="bg-emerald-500/10 dark:bg-emerald-950/60 border border-emerald-500/25 dark:border-emerald-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
+                  <div className="size-9 rounded-lg bg-emerald-500/20 dark:bg-emerald-800/40 flex items-center justify-center shrink-0">
+                    <FileText className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 leading-none">{resumes.length}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-emerald-600/70 dark:text-emerald-500">Total Resumes</p>
+                  </div>
+                  <span className="absolute bottom-4 right-4 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded-full bg-emerald-500/10">
+                    Active
+                  </span>
                 </div>
-                <div className="bg-card border border-border rounded-xl p-4">
-                  <p className="text-2xl font-bold text-foreground">{coverLetters.length}</p>
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Cover Letters</p>
+
+                {/* Card 2 — Total Cover Letters (blue) */}
+                <div className="bg-blue-500/10 dark:bg-blue-950/60 border border-blue-500/25 dark:border-blue-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
+                  <div className="size-9 rounded-lg bg-blue-500/20 dark:bg-blue-800/40 flex items-center justify-center shrink-0">
+                    <PenLine className="size-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-extrabold text-blue-700 dark:text-blue-300 leading-none">{coverLetters.length}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-blue-600/70 dark:text-blue-500">Total Cover Letters</p>
+                  </div>
+                  <span className="absolute bottom-4 right-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 border border-blue-500/40 px-2 py-0.5 rounded-full bg-blue-500/10">
+                    Drafting
+                  </span>
                 </div>
-                <div className="bg-card border border-border rounded-xl p-4">
-                  <p className="text-2xl font-bold text-foreground">{avgAtsScore ?? '—'}</p>
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Avg ATS Score</p>
+
+                {/* Card 3 — Avg ATS Score (violet, half-circle gauge) */}
+                <div className="bg-violet-500/10 dark:bg-violet-950/60 border border-violet-500/25 dark:border-violet-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-1 min-h-[120px]">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600/70 dark:text-violet-500">Avg ATS Score</p>
+                  {avgAtsScore != null ? (
+                    <div className="relative flex flex-col items-center">
+                      <svg viewBox="0 0 120 68" className="w-full max-w-[110px]">
+                        <path d="M 10,65 A 50,50 0 0 1 110,65" fill="none" stroke="#7c3aed" strokeOpacity="0.2" strokeWidth="10" strokeLinecap="round" />
+                        <path
+                          d="M 10,65 A 50,50 0 0 1 110,65"
+                          fill="none"
+                          stroke="#7c3aed"
+                          strokeWidth="10"
+                          strokeLinecap="round"
+                          strokeDasharray="157"
+                          strokeDashoffset={Math.max(0, 157 - (avgAtsScore / 100) * 157)}
+                          className="transition-all duration-700"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-end justify-center pb-1">
+                        <p className="text-2xl font-extrabold text-violet-700 dark:text-violet-300 leading-none">{avgAtsScore}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-3xl font-extrabold text-muted-foreground">—</p>
+                  )}
+                  {avgAtsScore != null && (
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600/70 dark:text-violet-500 text-center -mt-1">
+                      {atsScoreLabel(avgAtsScore).label}
+                    </p>
+                  )}
                 </div>
-                <div className="bg-card border border-border rounded-xl p-4">
-                  <p className="text-2xl font-bold text-foreground">{aiCallsThisMonth ?? 0}</p>
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">AI Actions Used This Month</p>
+
+                {/* Card 4 — AI Actions (rose) */}
+                <div className="bg-rose-500/10 dark:bg-rose-950/60 border border-rose-500/25 dark:border-rose-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
+                  <div className="size-9 rounded-lg bg-rose-500/20 dark:bg-rose-800/40 flex items-center justify-center shrink-0">
+                    <Wand2 className="size-4 text-rose-600 dark:text-rose-400" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-extrabold text-rose-700 dark:text-rose-300 leading-none">{aiCallsThisMonth ?? 0}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-rose-600/70 dark:text-rose-500">AI Actions Used This Month</p>
+                  </div>
+                  <span className="absolute bottom-4 right-4 text-[10px] font-bold text-rose-600 dark:text-rose-400 border border-rose-500/40 px-2 py-0.5 rounded-full bg-rose-500/10">
+                    This Month
+                  </span>
                 </div>
               </div>
-
-              {/* Application Overview table */}
-              <h3 className="text-base font-bold uppercase tracking-wider text-foreground mb-4">
-                Application Overview
-              </h3>
-
-              {relationshipRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No documents yet. Upload a resume to get started.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse" style={{ minWidth: '860px' }}>
-                    <thead>
-                      <tr className="border-b border-border">
-                        {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
-                          <th
-                            key={col}
-                            className="py-3 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
-                          >
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {relationshipRows.map((row, idx) => {
-                        const scoreInfo = row.resume.ats_score != null ? atsScoreLabel(row.resume.ats_score) : null
-                        return (
-                          <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
-                            {/* Resume */}
-                            <td className="py-3 px-4 text-sm font-medium text-foreground min-w-[200px]">
-                              {row.resume.title}
-                            </td>
-                            {/* Company */}
-                            <td className="py-3 px-4 text-sm text-foreground min-w-[120px] whitespace-nowrap">
-                              {row.company ?? <span className="text-muted-foreground">—</span>}
-                            </td>
-                            {/* Job Title */}
-                            <td className="py-3 px-4 text-sm text-foreground min-w-[160px]">
-                              {row.jobTitle ?? <span className="text-muted-foreground">—</span>}
-                            </td>
-                            {/* Cover Letter */}
-                            <td className="py-3 px-4 whitespace-nowrap">
-                              {row.coverLetter ? (
-                                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border bg-green-500/10 text-green-600 border-green-500/30">
-                                  Generated
-                                </span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">Not generated</span>
-                              )}
-                            </td>
-                            {/* ATS Score */}
-                            <td className="py-3 px-4 whitespace-nowrap">
-                              {row.resume.ats_score != null && scoreInfo ? (
-                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${scoreInfo.className}`}>
-                                  {row.resume.ats_score} {scoreInfo.label}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">Not checked</span>
-                              )}
-                            </td>
-                            {/* Last Updated */}
-                            <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">
-                              {formatDate(row.lastUpdated)}
-                            </td>
-                            {/* Actions */}
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2 flex-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => setPreviewResume(row.resume)}
-                                  className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                >
-                                  View Resume
-                                </button>
-                                {row.coverLetter && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate(`/cover-letter/${row.coverLetter!.id}`, { state: { from: '/dashboard' } })}
-                                    className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                  >
-                                    View Cover Letter
-                                  </button>
-                                )}
-                                {row.resume.ats_score != null && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openAtsDetail(row.resume)}
-                                    className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                  >
-                                    View ATS
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </section>
 
             {/* ── MY RESUMES ─────────────────────────────────────────────────── */}
