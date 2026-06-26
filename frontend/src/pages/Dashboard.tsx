@@ -133,6 +133,9 @@ export default function Dashboard() {
   const [clDeleting, setClDeleting] = useState(false)
   const [clExportOpenId, setClExportOpenId] = useState<string | null>(null)
 
+  // ── tab ──────────────────────────────────────────────────────────────────────
+  const [dashTab, setDashTab] = useState<'dashboard' | 'application'>('dashboard')
+
   // ── applications ─────────────────────────────────────────────────────────────
   const [applications, setApplications] = useState<Application[]>([])
   const [appStatusUpdating, setAppStatusUpdating] = useState<string | null>(null)
@@ -430,6 +433,27 @@ export default function Dashboard() {
           </>
         ) : (
           <>
+            {/* ── Tab switcher ─────────────────────────────────────────────── */}
+            <div className="flex border-b border-border mb-6">
+              {(['dashboard', 'application'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setDashTab(tab)}
+                  className={`px-5 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px ${
+                    dashTab === tab
+                      ? 'text-foreground border-primary'
+                      : 'text-muted-foreground border-transparent hover:text-foreground'
+                  }`}
+                >
+                  {tab === 'dashboard' ? 'Dashboard' : 'Application'}
+                </button>
+              ))}
+            </div>
+
+            {/* ── DASHBOARD TAB ─────────────────────────────────────────────── */}
+            {dashTab === 'dashboard' && (
+            <>
             {/* ── OVERVIEW ──────────────────────────────────────────────────── */}
             <section id="overview" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
               <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground mb-6">
@@ -456,106 +480,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Application Overview table */}
-              <h3 className="text-base font-bold uppercase tracking-wider text-foreground mb-4">
-                Application Overview
-              </h3>
-
-              {relationshipRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No documents yet. Upload a resume to get started.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse" style={{ minWidth: '860px' }}>
-                    <thead>
-                      <tr className="border-b border-border">
-                        {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
-                          <th
-                            key={col}
-                            className="py-3 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
-                          >
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {relationshipRows.map((row, idx) => {
-                        const scoreInfo = row.resume.ats_score != null ? atsScoreLabel(row.resume.ats_score) : null
-                        return (
-                          <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
-                            {/* Resume */}
-                            <td className="py-3 px-4 text-sm font-medium text-foreground min-w-[200px]">
-                              {row.resume.title}
-                            </td>
-                            {/* Company */}
-                            <td className="py-3 px-4 text-sm text-foreground min-w-[120px] whitespace-nowrap">
-                              {row.company ?? <span className="text-muted-foreground">—</span>}
-                            </td>
-                            {/* Job Title */}
-                            <td className="py-3 px-4 text-sm text-foreground min-w-[160px]">
-                              {row.jobTitle ?? <span className="text-muted-foreground">—</span>}
-                            </td>
-                            {/* Cover Letter */}
-                            <td className="py-3 px-4 whitespace-nowrap">
-                              {row.coverLetter ? (
-                                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border bg-green-500/10 text-green-600 border-green-500/30">
-                                  Generated
-                                </span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">Not generated</span>
-                              )}
-                            </td>
-                            {/* ATS Score */}
-                            <td className="py-3 px-4 whitespace-nowrap">
-                              {row.resume.ats_score != null && scoreInfo ? (
-                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${scoreInfo.className}`}>
-                                  {row.resume.ats_score} {scoreInfo.label}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">Not checked</span>
-                              )}
-                            </td>
-                            {/* Last Updated */}
-                            <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">
-                              {formatDate(row.lastUpdated)}
-                            </td>
-                            {/* Actions */}
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2 flex-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => setPreviewResume(row.resume)}
-                                  className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                >
-                                  View Resume
-                                </button>
-                                {row.coverLetter && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate(`/cover-letter/${row.coverLetter!.id}`, { state: { from: '/dashboard' } })}
-                                    className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                  >
-                                    View Cover Letter
-                                  </button>
-                                )}
-                                {row.resume.ats_score != null && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openAtsDetail(row.resume)}
-                                    className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                  >
-                                    View ATS
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </section>
 
             {/* ── MY RESUMES ─────────────────────────────────────────────────── */}
@@ -867,79 +791,6 @@ export default function Dashboard() {
               )}
             </section>
 
-            {/* ── APPLICATIONS ────────────────────────────────────────────────── */}
-            <section id="applications" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
-              <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">
-                  Applications
-                </h2>
-                <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 rounded-full">
-                  {applications.length}
-                </span>
-              </div>
-
-              {applications.length === 0 ? (
-                <EmptyState
-                  icon={Briefcase}
-                  title="No applications yet"
-                  description="Click the Apply button on any resume card to start a one-shot apply — tailor, cover letter, and ATS score in one action."
-                />
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {applications.map((app) => {
-                    const statusColors: Record<Application['status'], string> = {
-                      applied:      'bg-primary/10 text-primary border-primary/30',
-                      interviewing: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30',
-                      offer:        'bg-green-500/10 text-green-600 border-green-500/30',
-                      rejected:     'bg-red-500/10 text-red-500 border-red-500/30',
-                    }
-                    const resume = resumes.find(r => r.id === app.resume_id)
-                    return (
-                      <div key={app.id} className="bg-card border border-border rounded-xl p-5 flex flex-col min-h-[180px] hover:border-primary/30 hover:shadow-sm transition-all">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground text-base truncate">{app.company || '—'}</p>
-                          <p className="text-sm text-muted-foreground truncate">{app.role || '—'}</p>
-                          {resume && (
-                            <p className="text-[11px] text-muted-foreground mt-1 truncate">Resume: {resume.title}</p>
-                          )}
-                          {app.ats_score != null && (
-                            <p className="text-[11px] text-muted-foreground mt-0.5">ATS Score: {app.ats_score}/100</p>
-                          )}
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Applied {formatDate(app.applied_at)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-border">
-                          {/* Status selector */}
-                          <select
-                            value={app.status}
-                            disabled={appStatusUpdating === app.id}
-                            onChange={(e) => handleAppStatusChange(app, e.target.value as Application['status'])}
-                            className={`flex-1 min-h-[44px] px-2 text-[10px] font-bold uppercase tracking-wider border rounded transition-colors bg-transparent cursor-pointer disabled:opacity-50 ${statusColors[app.status]}`}
-                          >
-                            <option value="applied">Applied</option>
-                            <option value="interviewing">Interviewing</option>
-                            <option value="offer">Offer</option>
-                            <option value="rejected">Rejected</option>
-                          </select>
-                          {/* Delete */}
-                          <div className="relative">
-                            <button
-                              aria-label="More options"
-                              onClick={() => setAppDeleteTarget(app)}
-                              className="w-9 min-h-[44px] flex items-center justify-center text-muted-foreground border border-border hover:border-red-500/30 hover:text-red-500 rounded transition-colors shrink-0"
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
-
             {/* ── ATS SCORE ───────────────────────────────────────────────────── */}
             <section id="ats-scores" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
               <div className="flex items-center gap-3 mb-6">
@@ -1066,6 +917,146 @@ export default function Dashboard() {
               </div>
               )}
             </section>
+            </>
+            )}
+
+            {/* ── APPLICATION TAB ───────────────────────────────────────────── */}
+            {dashTab === 'application' && (
+            <>
+            {/* ── APPLICATION OVERVIEW TABLE ───────────────────────────────── */}
+            <section id="application-overview" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">
+                  Application Overview
+                </h2>
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 rounded-full">
+                  {relationshipRows.length}
+                </span>
+              </div>
+
+              {relationshipRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No documents yet. Upload a resume and apply to a job to see your overview.</p>
+              ) : (
+                <div className="overflow-x-auto overflow-y-auto max-h-[280px] rounded border border-border">
+                  <table className="w-full text-sm border-collapse" style={{ minWidth: '860px' }}>
+                    <thead className="sticky top-0 z-10 bg-card">
+                      <tr className="border-b border-border">
+                        {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
+                          <th key={col} className="py-3 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-card">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {relationshipRows.map((row, idx) => {
+                        const scoreInfo = row.resume.ats_score != null ? atsScoreLabel(row.resume.ats_score) : null
+                        return (
+                          <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
+                            <td className="py-3 px-4 text-sm font-medium text-foreground min-w-[200px]">{row.resume.title}</td>
+                            <td className="py-3 px-4 text-sm text-foreground min-w-[120px] whitespace-nowrap">
+                              {row.company ?? <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-foreground min-w-[160px]">
+                              {row.jobTitle ?? <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              {row.coverLetter ? (
+                                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border bg-green-500/10 text-green-600 border-green-500/30">Generated</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not generated</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              {row.resume.ats_score != null && scoreInfo ? (
+                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${scoreInfo.className}`}>
+                                  {row.resume.ats_score} {scoreInfo.label}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not checked</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">{formatDate(row.lastUpdated)}</td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2 flex-nowrap">
+                                <button type="button" onClick={() => setPreviewResume(row.resume)} className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors">View Resume</button>
+                                {row.coverLetter && (
+                                  <button type="button" onClick={() => navigate(`/cover-letter/${row.coverLetter!.id}`, { state: { from: '/dashboard' } })} className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors">View Cover Letter</button>
+                                )}
+                                {row.resume.ats_score != null && (
+                                  <button type="button" onClick={() => openAtsDetail(row.resume)} className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors">View ATS</button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            {/* ── APPLICATIONS CARDS ───────────────────────────────────────── */}
+            <section id="applications" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
+              <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">Applications</h2>
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 rounded-full">{applications.length}</span>
+              </div>
+
+              {applications.length === 0 ? (
+                <EmptyState
+                  icon={Briefcase}
+                  title="No applications yet"
+                  description="Click the Apply button on any resume card to start a one-shot apply — tailor, cover letter, and ATS score in one action."
+                />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {applications.map((app) => {
+                    const statusColors: Record<Application['status'], string> = {
+                      applied:      'bg-primary/10 text-primary border-primary/30',
+                      interviewing: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30',
+                      offer:        'bg-green-500/10 text-green-600 border-green-500/30',
+                      rejected:     'bg-red-500/10 text-red-500 border-red-500/30',
+                    }
+                    const resume = resumes.find(r => r.id === app.resume_id)
+                    return (
+                      <div key={app.id} className="bg-card border border-border rounded-xl p-5 flex flex-col min-h-[180px] hover:border-primary/30 hover:shadow-sm transition-all">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground text-base truncate">{app.company || '—'}</p>
+                          <p className="text-sm text-muted-foreground truncate">{app.role || '—'}</p>
+                          {resume && <p className="text-[11px] text-muted-foreground mt-1 truncate">Resume: {resume.title}</p>}
+                          {app.ats_score != null && <p className="text-[11px] text-muted-foreground mt-0.5">ATS Score: {app.ats_score}/100</p>}
+                          <p className="text-[11px] text-muted-foreground mt-0.5">Applied {formatDate(app.applied_at)}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-border">
+                          <select
+                            value={app.status}
+                            disabled={appStatusUpdating === app.id}
+                            onChange={(e) => handleAppStatusChange(app, e.target.value as Application['status'])}
+                            className={`flex-1 min-h-[44px] px-2 text-[10px] font-bold uppercase tracking-wider border rounded transition-colors bg-transparent cursor-pointer disabled:opacity-50 ${statusColors[app.status]}`}
+                          >
+                            <option value="applied">Applied</option>
+                            <option value="interviewing">Interviewing</option>
+                            <option value="offer">Offer</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                          <button
+                            aria-label="Delete application"
+                            onClick={() => setAppDeleteTarget(app)}
+                            className="w-9 min-h-[44px] flex items-center justify-center text-muted-foreground border border-border hover:border-red-500/30 hover:text-red-500 rounded transition-colors shrink-0"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+            </>
+            )}
           </>
         )}
         </div>

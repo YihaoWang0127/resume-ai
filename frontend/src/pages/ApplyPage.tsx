@@ -242,27 +242,15 @@ export default function ApplyPage() {
 
   // ── progress animation ─────────────────────────────────────────────────────
 
-  // Increment active stage progress
+  // ATS is a single non-streaming call (~3-8s) — simulate progress with interval
   useEffect(() => {
-    if (!currentStage || completedStages.has(currentStage)) return
+    if (currentStage !== 'ats') return
     const id = setInterval(() => {
-      setStageProgress((prev) => ({
-        ...prev,
-        [currentStage]: Math.min(prev[currentStage] + Math.random() * 4 + 1, 93),
-      }))
-    }, 350)
+      setStageProgress((prev) => ({ ...prev, ats: Math.min(prev.ats + 6, 90) }))
+    }, 250)
     return () => clearInterval(id)
-  }, [currentStage, completedStages])
-
-  // Snap completed stages to 100%
-  useEffect(() => {
-    if (completedStages.size === 0) return
-    setStageProgress((prev) => {
-      const next = { ...prev }
-      completedStages.forEach((s) => { next[s as StageKey] = 100 })
-      return next
-    })
-  }, [completedStages])
+  }, [currentStage])
+  // Tailor + cover_letter progress is driven by chunks (see chunk handlers below)
 
   // ── load resume ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -338,9 +326,12 @@ export default function ApplyPage() {
               setCurrentStage(event.stage as StageKey)
             } else if (event.type === 'chunk' && event.stage === 'tailoring' && event.text) {
               tailoringRef.current += event.text
+              // Each chunk = ~2% progress toward 90% cap
+              setStageProgress((prev) => ({ ...prev, tailoring: Math.min(prev.tailoring + 2, 90) }))
             } else if (event.type === 'chunk' && event.stage === 'cover_letter' && event.text) {
               coverLetterRef.current += event.text
               setCoverLetterText(coverLetterRef.current)
+              setStageProgress((prev) => ({ ...prev, cover_letter: Math.min(prev.cover_letter + 2, 90) }))
             } else if (event.type === 'result' && event.stage === 'ats' && event.data) {
               // Backend sends snake_case — map to camelCase ATSScoreResult
               const d = event.data
@@ -351,8 +342,10 @@ export default function ApplyPage() {
                 suggestions: Array.isArray(d.suggestions) ? (d.suggestions as string[]) : [],
                 summary: typeof d.summary === 'string' ? d.summary : '',
               })
+              setStageProgress((prev) => ({ ...prev, ats: 100 }))
             } else if (event.type === 'done') {
               setCompletedStages(new Set(['tailoring', 'cover_letter', 'ats']))
+              setStageProgress({ tailoring: 100, cover_letter: 100, ats: 100 })
             } else if (event.type === 'error' && event.message) {
               setStreamError(event.message)
             }
@@ -476,6 +469,43 @@ export default function ApplyPage() {
               >
                 Generate Application
               </button>
+            )}
+            {phase === 'done' && (
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <button
+                  type="button"
+                  disabled={saving || saved}
+                  onClick={handleSave}
+                  className={`flex items-center justify-center gap-2 px-4 py-2 min-h-[44px] rounded-lg text-sm font-semibold transition-colors ${
+                    saved
+                      ? 'bg-green-500/10 text-green-700 border border-green-500/30 cursor-default'
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed'
+                  }`}
+                >
+                  {saving ? (
+                    <><Loader2 className="size-4 animate-spin" /> Saving...</>
+                  ) : saved ? (
+                    <><CheckCircle2 className="size-4" /> Saved</>
+                  ) : (
+                    'Save to Applications'
+                  )}
+                </button>
+                {tailoredResume && (
+                  <ExportDropdown
+                    label="Export Resume"
+                    formats={[{ value: 'pdf', label: 'PDF' }, { value: 'docx', label: 'Word (.docx)' }]}
+                    onExport={handleExportResume}
+                  />
+                )}
+                {coverLetterText && (
+                  <ExportDropdown
+                    label="Export Cover Letter"
+                    formats={[{ value: 'pdf', label: 'PDF' }, { value: 'docx', label: 'Word (.docx)' }, { value: 'txt', label: 'Plain Text (.txt)' }]}
+                    onExport={handleExportCoverLetter}
+                  />
+                )}
+                {saveError && <p className="text-sm text-red-500">{saveError}</p>}
+              </div>
             )}
           </div>
         )}
@@ -771,70 +801,14 @@ export default function ApplyPage() {
               )}
             </div>
 
-            {/* Action bar */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                type="button"
-                disabled={saving || saved}
-                onClick={handleSave}
-                className={`flex items-center justify-center gap-2 px-5 py-2.5 min-h-[44px] rounded-lg text-sm font-semibold transition-colors ${
-                  saved
-                    ? 'bg-green-500/10 text-green-700 border border-green-500/30 cursor-default'
-                    : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed'
-                }`}
-              >
-                {saving ? (
-                  <><Loader2 className="size-4 animate-spin" /> Saving...</>
-                ) : saved ? (
-                  <><CheckCircle2 className="size-4" /> Saved to Applications</>
-                ) : (
-                  'Save to Applications'
-                )}
-              </button>
-
-              {saved && (
-                <button
-                  type="button"
-                  onClick={() => navigate('/dashboard')}
-                  className="text-sm font-semibold text-primary hover:underline"
-                >
+            {saved && (
+              <p className="text-xs text-green-700 text-right">
+                Saved!{' '}
+                <button type="button" onClick={() => navigate('/dashboard')} className="font-semibold underline">
                   View in Dashboard
                 </button>
-              )}
-
-              {saveError && <p className="text-sm text-red-500">{saveError}</p>}
-
-              {tailoredResume && (
-                <ExportDropdown
-                  label="Export Resume"
-                  formats={[
-                    { value: 'pdf', label: 'PDF' },
-                    { value: 'docx', label: 'Word (.docx)' },
-                  ]}
-                  onExport={handleExportResume}
-                />
-              )}
-
-              {coverLetterText && (
-                <ExportDropdown
-                  label="Export Cover Letter"
-                  formats={[
-                    { value: 'pdf', label: 'PDF' },
-                    { value: 'docx', label: 'Word (.docx)' },
-                    { value: 'txt', label: 'Plain Text (.txt)' },
-                  ]}
-                  onExport={handleExportCoverLetter}
-                />
-              )}
-
-              <button
-                type="button"
-                onClick={() => navigate('/dashboard')}
-                className="ml-auto text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Back to Dashboard
-              </button>
-            </div>
+              </p>
+            )}
           </div>
         )}
 
