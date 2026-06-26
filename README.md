@@ -21,6 +21,7 @@
 - **AI Usage Tracking** — every AI call logged server-side to `ai_usage_log` (backend writes using the user's JWT); surfaced on `/ai` as total calls, monthly count, and action breakdown
 - **Monthly Quota Enforcement** — free tier capped at 30 AI calls/month; AI routes return HTTP 402 when the limit is reached; a "Monthly Limit Reached" modal surfaces in the UI instead of a generic error
 - **Career Stage Persona Split** — Career Stage selector (Student / Early Career / Experienced) in the AI Enhance step; default is auto-detected from the resume content; enrichment and tailoring prompts are persona-aware based on the selected stage
+- **Apply to This Job** — one-shot "Apply" flow from any saved resume: enter job details → streams tailor + cover letter + ATS score in a single request; results in a tabbed Resume/Cover Letter view with persistent ATS sidebar; saves an application record with status tracking (Applied / Interviewing / Offer / Rejected)
 
 ### Auth & Storage
 - **Sign in with Google** — OAuth via Supabase; failed redirects show a toast and reopen the auth modal
@@ -31,7 +32,7 @@
 - **Auth Modal** — blurred-background overlay, auto-shows after 10s
 - **Save Resumes** — unlimited versions per user
 - **Save Cover Letters** — linked to source resume
-- **Dashboard** — stats bar + tabbed Resumes / Cover Letters / ATS Score view with grid, edit, export, and delete
+- **Dashboard** — stats bar + tabbed Resumes / Cover Letters / ATS Score view with grid, edit, export, and delete; briefcase button on each resume card launches the Apply flow; Applications section shows saved applications with a status tracking board
 
 ### Export
 - **PDF Export** — ReportLab with industry-matched styling
@@ -110,11 +111,12 @@ Models:
 | POST | /api/export | Export resume as PDF or DOCX |
 | POST | /api/cover-letter | Stream-generated cover letter |
 | POST | /api/cover-letter/export | Export cover letter as PDF/DOCX/TXT |
+| POST | /api/apply | One-shot apply orchestration: tailor → cover letter → ATS score; streams NDJSON; body: `{resume, job_description, company_name, role, career_stage?}` |
 | POST | /api/ats-score | Score resume against a job description (keyword match, gaps, suggestions) |
 | POST | /api/validate-jd | Validate that input text is a real job description; returns `{ valid, reason }` |
 | GET | /health | Health check |
 
-AI routes (`/api/parse`, `/api/enrich`, `/api/tailor`, `/api/cover-letter`, `/api/cover-letter/improve`, `/api/ats-score`) return HTTP 402 with `{"detail": "Monthly AI limit of 30 calls reached. Upgrade to continue."}` when a user's free quota is exhausted.
+AI routes (`/api/parse`, `/api/enrich`, `/api/tailor`, `/api/cover-letter`, `/api/cover-letter/improve`, `/api/ats-score`, `/api/apply`) return HTTP 402 with `{"detail": "Monthly AI limit of 30 calls reached. Upgrade to continue."}` when a user's free quota is exhausted.
 
 Frontend uses Supabase JS directly for all CRUD operations (save/load/list/delete).
 
@@ -183,6 +185,25 @@ CREATE TABLE profiles (
 );
 -- RLS enabled — users can only read/write their own row
 
+-- Applications table (Apply flow → job application tracking)
+CREATE TABLE applications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  resume_id UUID REFERENCES resumes(id) ON DELETE SET NULL,
+  cover_letter_id UUID REFERENCES cover_letters(id) ON DELETE SET NULL,
+  company TEXT NOT NULL,
+  role TEXT NOT NULL,
+  job_url TEXT,
+  job_description TEXT,
+  ats_score INTEGER,
+  status TEXT NOT NULL DEFAULT 'applied'
+    CHECK (status IN ('applied', 'interviewing', 'offer', 'rejected')),
+  applied_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- RLS enabled — users can only read/write their own rows
+
 -- AI Usage Log table (AI page → AI Usage)
 CREATE TABLE ai_usage_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -235,7 +256,8 @@ resume-ai/
 │       ├── pages/
 │       │   ├── Home.tsx               # landing page
 │       │   ├── Editor.tsx             # resume editor
-│       │   ├── Dashboard.tsx          # stats bar + Resumes/Cover Letters/ATS Score tabs
+│       │   ├── Dashboard.tsx          # stats bar + Resumes/Cover Letters/ATS Score/Applications tabs
+│       │   ├── ApplyPage.tsx          # /apply/:resumeId — job apply flow (form → stream → results)
 │       │   ├── Profile.tsx            # /profile — account, personal info, work experience
 │       │   ├── AI.tsx                 # /ai — AI preferences, models info, AI usage
 │       │   ├── CoverLetterEditor.tsx  # cover letter editor
@@ -246,6 +268,7 @@ resume-ai/
 │       │   ├── api.ts                 # FastAPI calls + AI usage logging
 │       │   ├── resumes.ts             # Supabase resume CRUD + ATS score updates
 │       │   ├── coverLetters.ts        # Supabase cover letter CRUD
+│       │   ├── applications.ts        # Supabase applications CRUD
 │       │   ├── preferences.ts         # Supabase user_preferences CRUD
 │       │   ├── profile.ts             # Supabase profiles CRUD
 │       │   └── aiUsage.ts             # Supabase ai_usage_log CRUD + stats
@@ -261,6 +284,7 @@ resume-ai/
 │   └── app/
 │       ├── main.py
 │       ├── routes/
+│       │   ├── apply.py               # one-shot tailor + cover letter + ATS score stream
 │       │   ├── parse.py               # + Claude validation
 │       │   ├── enrich.py
 │       │   ├── tailor.py
@@ -371,6 +395,7 @@ and `backend` (`pytest -v`) — matching branch protection on `main`.
 - [x] Server-side quota enforcement — 30 AI calls/month free tier with 402 response + UI modal
 - [x] Resume editor redesign — 3-column layout, step stepper, section nav, live preview panel
 - [x] Career stage persona split — Student / Early Career / Experienced selector with auto-detection
+- [x] Apply to job — one-shot tailor + cover letter + ATS score with application status tracking
 - [ ] Mobile responsive editor
 - [ ] Stripe monetization
 - [ ] Resume version history

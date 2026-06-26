@@ -4,8 +4,8 @@ interface EmptyStateProps {
   icon: LucideIcon
   title: string
   description: string
-  actionLabel: string
-  onAction: () => void
+  actionLabel?: string
+  onAction?: () => void
 }
 
 export default function EmptyState({ icon: Icon, title, description, actionLabel, onAction }: EmptyStateProps) {
@@ -16,14 +16,16 @@ export default function EmptyState({ icon: Icon, title, description, actionLabel
       </div>
       <p className="font-bold text-foreground text-sm uppercase tracking-wide mb-1.5">{title}</p>
       <p className="text-xs text-muted-foreground max-w-sm mb-5">{description}</p>
-      <button
-        type="button"
-        onClick={onAction}
-        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-primary/90 transition-colors"
-      >
-        <Plus className="size-3.5" />
-        {actionLabel}
-      </button>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="size-3.5" />
+          {actionLabel}
+        </button>
+      )}
     </div>
   )
 }

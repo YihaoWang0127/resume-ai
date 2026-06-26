@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
-import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target, MoreHorizontal, Building2 } from 'lucide-react'
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom'
+import { FileText, Plus, Trash2, Edit, Download, Loader2, ChevronDown, X, Mail, Wand2, PenLine, ArrowLeft, Target, MoreHorizontal, Building2, Briefcase } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { listResumes, deleteResume, updateAtsScore, clearAtsScore, type SavedResume } from '@/services/resumes'
 import { listCoverLetters, deleteCoverLetter, type CoverLetter } from '@/services/coverLetters'
 import { exportResume, exportCoverLetter, scoreATS } from '@/services/api'
 import { getAiUsageStats } from '@/services/aiUsage'
+import { listApplications, updateApplicationStatus, deleteApplication, type Application } from '@/services/applications'
 import Navbar from '@/components/Navbar'
 import AccountSidebar from '@/components/AccountSidebar'
 import ResumeUploader from '@/components/ResumeUploader'
@@ -132,6 +133,16 @@ export default function Dashboard() {
   const [clDeleting, setClDeleting] = useState(false)
   const [clExportOpenId, setClExportOpenId] = useState<string | null>(null)
 
+  // ── tab (driven by URL ?tab=application) ────────────────────────────────────
+  const [searchParams] = useSearchParams()
+  const dashTab = searchParams.get('tab') === 'application' ? 'application' : 'dashboard'
+
+  // ── applications ─────────────────────────────────────────────────────────────
+  const [applications, setApplications] = useState<Application[]>([])
+  const [appStatusUpdating, setAppStatusUpdating] = useState<string | null>(null)
+  const [appDeleteTarget, setAppDeleteTarget] = useState<Application | null>(null)
+  const [appDeleting, setAppDeleting] = useState(false)
+
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
 
   // ── More menu state ──────────────────────────────────────────────────────────
@@ -166,10 +177,12 @@ export default function Dashboard() {
       listResumes().catch(() => [] as SavedResume[]),
       listCoverLetters().catch(() => [] as CoverLetter[]),
       getAiUsageStats().catch(() => null),
-    ]).then(([res, cls, usage]) => {
+      listApplications().catch(() => [] as Application[]),
+    ]).then(([res, cls, usage, apps]) => {
       setResumes(res)
       setCoverLetters(cls)
       setAiCallsThisMonth(usage?.callsThisMonth ?? 0)
+      setApplications(apps)
     }).finally(() => setFetching(false))
   }, [user, isGuest])
 
@@ -232,6 +245,33 @@ export default function Dashboard() {
       console.error('Delete failed:', err)
     } finally {
       setClDeleting(false)
+    }
+  }
+
+  // ── application actions ──────────────────────────────────────────────────────
+  const handleAppStatusChange = async (app: Application, status: Application['status']) => {
+    setAppStatusUpdating(app.id)
+    try {
+      const updated = await updateApplicationStatus(app.id, status)
+      setApplications(prev => prev.map(a => a.id === app.id ? updated : a))
+    } catch (err) {
+      console.error('Failed to update status:', err)
+    } finally {
+      setAppStatusUpdating(null)
+    }
+  }
+
+  const handleAppDeleteConfirm = async () => {
+    if (!appDeleteTarget) return
+    setAppDeleting(true)
+    try {
+      await deleteApplication(appDeleteTarget.id)
+      setApplications(prev => prev.filter(a => a.id !== appDeleteTarget.id))
+      setAppDeleteTarget(null)
+    } catch (err) {
+      console.error('Delete failed:', err)
+    } finally {
+      setAppDeleting(false)
     }
   }
 
@@ -341,12 +381,15 @@ export default function Dashboard() {
       const resume = cl.resume_id ? resumeMap.get(cl.resume_id) : undefined
       if (!resume) continue
       coveredResumeIds.add(resume.id)
+      // Use application role if this cover letter is linked to an application; fall back to JD extraction
+      const app = applications.find(a => a.cover_letter_id === cl.id)
+      const jobTitle = app?.role || extractJobTitle(cl.job_description)
       const lastUpdated = cl.updated_at > resume.updated_at ? cl.updated_at : resume.updated_at
       rows.push({
         resume,
         coverLetter: cl,
         company: cl.company_name ?? null,
-        jobTitle: extractJobTitle(cl.job_description),
+        jobTitle,
         lastUpdated,
       })
     }
@@ -394,6 +437,9 @@ export default function Dashboard() {
           </>
         ) : (
           <>
+            {/* ── DASHBOARD TAB ─────────────────────────────────────────────── */}
+            {dashTab === 'dashboard' && (
+            <>
             {/* ── OVERVIEW ──────────────────────────────────────────────────── */}
             <section id="overview" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
               <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground mb-6">
@@ -420,106 +466,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Application Overview table */}
-              <h3 className="text-base font-bold uppercase tracking-wider text-foreground mb-4">
-                Application Overview
-              </h3>
-
-              {relationshipRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No documents yet. Upload a resume to get started.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse" style={{ minWidth: '860px' }}>
-                    <thead>
-                      <tr className="border-b border-border">
-                        {['Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Last Updated', 'Actions'].map((col) => (
-                          <th
-                            key={col}
-                            className="py-3 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
-                          >
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {relationshipRows.map((row, idx) => {
-                        const scoreInfo = row.resume.ats_score != null ? atsScoreLabel(row.resume.ats_score) : null
-                        return (
-                          <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
-                            {/* Resume */}
-                            <td className="py-3 px-4 text-sm font-medium text-foreground min-w-[200px]">
-                              {row.resume.title}
-                            </td>
-                            {/* Company */}
-                            <td className="py-3 px-4 text-sm text-foreground min-w-[120px] whitespace-nowrap">
-                              {row.company ?? <span className="text-muted-foreground">—</span>}
-                            </td>
-                            {/* Job Title */}
-                            <td className="py-3 px-4 text-sm text-foreground min-w-[160px]">
-                              {row.jobTitle ?? <span className="text-muted-foreground">—</span>}
-                            </td>
-                            {/* Cover Letter */}
-                            <td className="py-3 px-4 whitespace-nowrap">
-                              {row.coverLetter ? (
-                                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border bg-green-500/10 text-green-600 border-green-500/30">
-                                  Generated
-                                </span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">Not generated</span>
-                              )}
-                            </td>
-                            {/* ATS Score */}
-                            <td className="py-3 px-4 whitespace-nowrap">
-                              {row.resume.ats_score != null && scoreInfo ? (
-                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${scoreInfo.className}`}>
-                                  {row.resume.ats_score} {scoreInfo.label}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">Not checked</span>
-                              )}
-                            </td>
-                            {/* Last Updated */}
-                            <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">
-                              {formatDate(row.lastUpdated)}
-                            </td>
-                            {/* Actions */}
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2 flex-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => setPreviewResume(row.resume)}
-                                  className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                >
-                                  View Resume
-                                </button>
-                                {row.coverLetter && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate(`/cover-letter/${row.coverLetter!.id}`, { state: { from: '/dashboard' } })}
-                                    className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                  >
-                                    View Cover Letter
-                                  </button>
-                                )}
-                                {row.resume.ats_score != null && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openAtsDetail(row.resume)}
-                                    className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors"
-                                  >
-                                    View ATS
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </section>
 
             {/* ── MY RESUMES ─────────────────────────────────────────────────── */}
@@ -565,12 +511,21 @@ export default function Dashboard() {
                           </button>
                         )}
                       </div>
-                      <p className="mt-2.5 text-xs text-muted-foreground">
-                        Updated {formatDate(r.updated_at)}
-                      </p>
-                      <span className="text-[11px] text-muted-foreground mt-1 block">
-                        {coverLetters.filter(cl => cl.resume_id === r.id).length} cover letter · {r.ats_score != null ? 1 : 0} ATS check
-                      </span>
+                      <div className="mt-2.5 flex items-end justify-between gap-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Updated {formatDate(r.updated_at)}</p>
+                          <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                            {coverLetters.filter(cl => cl.resume_id === r.id).length} cover letter · {r.ats_score != null ? 1 : 0} ATS check
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => navigate(`/apply/${r.id}`)}
+                          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-green-600 hover:bg-green-500 text-white rounded transition-colors min-h-[36px]"
+                        >
+                          <Briefcase className="size-3" />
+                          Apply
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex gap-1.5 mt-5 pt-4 border-t border-border w-full">
@@ -948,6 +903,146 @@ export default function Dashboard() {
               </div>
               )}
             </section>
+            </>
+            )}
+
+            {/* ── APPLICATION TAB ───────────────────────────────────────────── */}
+            {dashTab === 'application' && (
+            <>
+            {/* ── APPLICATION OVERVIEW TABLE ───────────────────────────────── */}
+            <section id="application-overview" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">
+                  Application Overview
+                </h2>
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 rounded-full">
+                  {relationshipRows.length}
+                </span>
+              </div>
+
+              {relationshipRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No documents yet. Upload a resume and apply to a job to see your overview.</p>
+              ) : (
+                <div className="overflow-x-auto overflow-y-auto max-h-[280px] rounded border border-border">
+                  <table className="w-full text-sm border-collapse" style={{ minWidth: '860px' }}>
+                    <thead className="sticky top-0 z-10 bg-card">
+                      <tr className="border-b border-border">
+                        {['Last Updated', 'Resume', 'Company', 'Job Title', 'Cover Letter', 'ATS Score', 'Actions'].map((col) => (
+                          <th key={col} className="py-3 px-4 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-card">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {relationshipRows.map((row, idx) => {
+                        const scoreInfo = row.resume.ats_score != null ? atsScoreLabel(row.resume.ats_score) : null
+                        return (
+                          <tr key={idx} className="border-b border-border hover:bg-muted/30 transition-colors">
+                            <td className="py-3 px-4 text-sm text-muted-foreground whitespace-nowrap">{formatDate(row.lastUpdated)}</td>
+                            <td className="py-3 px-4 text-sm font-medium text-foreground min-w-[200px]">{row.resume.title}</td>
+                            <td className="py-3 px-4 text-sm text-foreground min-w-[120px] whitespace-nowrap">
+                              {row.company ?? <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-foreground min-w-[160px]">
+                              {row.jobTitle ?? <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              {row.coverLetter ? (
+                                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border bg-green-500/10 text-green-600 border-green-500/30">Generated</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not generated</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              {row.resume.ats_score != null && scoreInfo ? (
+                                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${scoreInfo.className}`}>
+                                  {row.resume.ats_score} {scoreInfo.label}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not checked</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2 flex-nowrap">
+                                <button type="button" onClick={() => setPreviewResume(row.resume)} className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors">View Resume</button>
+                                {row.coverLetter && (
+                                  <button type="button" onClick={() => navigate(`/cover-letter/${row.coverLetter!.id}`, { state: { from: '/dashboard' } })} className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors">View Cover Letter</button>
+                                )}
+                                {row.resume.ats_score != null && (
+                                  <button type="button" onClick={() => openAtsDetail(row.resume)} className="text-xs font-medium text-primary hover:text-primary/80 min-h-[36px] whitespace-nowrap transition-colors">View ATS</button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            {/* ── APPLICATIONS CARDS ───────────────────────────────────────── */}
+            <section id="applications" className="bg-card rounded-xl border border-border shadow-sm p-6 mb-6 scroll-mt-4">
+              <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">Applications</h2>
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 rounded-full">{applications.length}</span>
+              </div>
+
+              {applications.length === 0 ? (
+                <EmptyState
+                  icon={Briefcase}
+                  title="No applications yet"
+                  description="Click the Apply button on any resume card to start a one-shot apply — tailor, cover letter, and ATS score in one action."
+                />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {applications.map((app) => {
+                    const statusColors: Record<Application['status'], string> = {
+                      applied:      'bg-primary/10 text-primary border-primary/30',
+                      interviewing: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30',
+                      offer:        'bg-green-500/10 text-green-600 border-green-500/30',
+                      rejected:     'bg-red-500/10 text-red-500 border-red-500/30',
+                    }
+                    const resume = resumes.find(r => r.id === app.resume_id)
+                    return (
+                      <div key={app.id} className="bg-card border border-border rounded-xl p-5 flex flex-col min-h-[180px] hover:border-primary/30 hover:shadow-sm transition-all">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground text-base truncate">{app.company || '—'}</p>
+                          <p className="text-sm text-muted-foreground truncate">{app.role || '—'}</p>
+                          {resume && <p className="text-[11px] text-muted-foreground mt-1 truncate">Resume: {resume.title}</p>}
+                          {app.ats_score != null && <p className="text-[11px] text-muted-foreground mt-0.5">ATS Score: {app.ats_score}/100</p>}
+                          <p className="text-[11px] text-muted-foreground mt-0.5">Applied {formatDate(app.applied_at)}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-border">
+                          <select
+                            value={app.status}
+                            disabled={appStatusUpdating === app.id}
+                            onChange={(e) => handleAppStatusChange(app, e.target.value as Application['status'])}
+                            className={`flex-1 min-h-[44px] px-2 text-[10px] font-bold uppercase tracking-wider border rounded transition-colors bg-transparent cursor-pointer disabled:opacity-50 ${statusColors[app.status]}`}
+                          >
+                            <option value="applied">Applied</option>
+                            <option value="interviewing">Interviewing</option>
+                            <option value="offer">Offer</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                          <button
+                            aria-label="Delete application"
+                            onClick={() => setAppDeleteTarget(app)}
+                            className="w-9 min-h-[44px] flex items-center justify-center text-muted-foreground border border-border hover:border-red-500/30 hover:text-red-500 rounded transition-colors shrink-0"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+            </>
+            )}
           </>
         )}
         </div>
@@ -999,6 +1094,25 @@ export default function Dashboard() {
                 className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wide transition-colors disabled:opacity-50"
               >
                 {isDeleting && <Loader2 className="size-3.5 animate-spin" />}
+                Delete
+              </button>
+            </div>
+      </Modal>
+
+      {/* ── Delete Application confirmation ─────────────────────────────────── */}
+      <Modal open={!!appDeleteTarget} className="max-w-sm p-6">
+            <h2 className="text-base font-bold text-foreground uppercase tracking-wide mb-2">Delete Application</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Remove the application to <span className="text-foreground font-medium">"{appDeleteTarget?.company}"</span> from your tracker?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setAppDeleteTarget(null)} disabled={appDeleting}
+                className="px-4 py-2 border border-border text-xs font-bold text-muted-foreground hover:bg-secondary uppercase tracking-wide transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+              <button onClick={handleAppDeleteConfirm} disabled={appDeleting}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wide transition-colors disabled:opacity-50">
+                {appDeleting && <Loader2 className="size-3.5 animate-spin" />}
                 Delete
               </button>
             </div>

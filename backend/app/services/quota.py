@@ -19,12 +19,16 @@ def _headers(token: str) -> dict[str, str]:
     }
 
 
-async def check_quota(user_id: str, token: str) -> None:
-    """Raise HTTP 402 if the user has used >= _FREE_QUOTA AI calls this month.
+async def check_quota(user_id: str, token: str, is_anonymous: bool = False) -> None:
+    """Raise HTTP 402 if a guest user has used >= _FREE_QUOTA AI calls this month.
 
-    Fails open (returns without blocking) if Supabase env vars are unset or the
-    HTTP call fails — ensures dev/test environments are unaffected.
+    Regular logged-in users have no monthly limit.  Only anonymous (guest) sessions
+    are quota-gated.  Fails open if Supabase env vars are unset or the HTTP call
+    fails — ensures dev/test environments are unaffected.
     """
+    if not is_anonymous:
+        return  # no quota limit for authenticated (non-guest) users
+
     if not _SUPABASE_URL or not _SUPABASE_ANON_KEY:
         return
 
