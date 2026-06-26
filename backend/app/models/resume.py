@@ -81,6 +81,14 @@ class ATSScoreResponse(BaseModel):
     summary: str = ""
 
 
+class ApplyRequest(BaseModel):
+    resume: ResumeSchema
+    job_description: str
+    company_name: str
+    role: str
+    career_stage: Optional[Literal['student', 'early', 'experienced']] = None
+
+
 class ValidateJdRequest(BaseModel):
     text: str
 

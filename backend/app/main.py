@@ -7,7 +7,7 @@ load_dotenv()  # must run before any app.* imports read env vars at module level
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import ats_score, cover_letter, enrich, export, parse, tailor, validate_jd
+from app.routes import apply, ats_score, cover_letter, enrich, export, parse, tailor, validate_jd
 
 app = FastAPI(title="Resume AI", version="0.1.0")
 
@@ -22,6 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(apply.router, prefix="/api")
 app.include_router(parse.router, prefix="/api")
 app.include_router(enrich.router, prefix="/api")
 app.include_router(tailor.router, prefix="/api")

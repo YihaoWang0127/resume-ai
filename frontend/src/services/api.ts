@@ -299,3 +299,19 @@ export async function validateJobDescription(
   )
   return data
 }
+
+export async function applyToJob(
+  resume: ResumeSchema,
+  jobDescription: string,
+  companyName: string,
+  role: string,
+  careerStage?: 'student' | 'early' | 'experienced' | null,
+): Promise<ReadableStream<Uint8Array>> {
+  return fetchStream('/api/apply', {
+    resume: toBackend(resume),
+    job_description: jobDescription,
+    company_name: companyName,
+    role,
+    career_stage: careerStage ?? null,
+  })
+}
