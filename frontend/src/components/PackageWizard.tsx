@@ -30,11 +30,7 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-async function readStreamWithProgress(
-  stream: ReadableStream<Uint8Array>,
-  setProgress: (v: number) => void,
-  estimatedChars: number,
-): Promise<string> {
+async function readStream(stream: ReadableStream<Uint8Array>): Promise<string> {
   const reader = stream.getReader()
   const decoder = new TextDecoder()
   let text = ''
@@ -42,9 +38,7 @@ async function readStreamWithProgress(
     const { done, value } = await reader.read()
     if (done) break
     text += decoder.decode(value, { stream: true })
-    setProgress(Math.min(95, Math.round((text.length / estimatedChars) * 100)))
   }
-  setProgress(100)
   return text
 }
 
@@ -422,11 +416,20 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
         generateCoverLetter(selectedResume.resume_data, jobDesc, companyName, 'professional'),
       ])
 
-      // Read CL concurrently with tailor
-      const clPromise = readStreamWithProgress(clStream, setClProgress, 2500)
+      // Simulated progress animations so percentages ramp visibly regardless of chunk size
+      const tailorAnimInterval = setInterval(() => {
+        setTailorProgress((p) => Math.min(p + 4, 88))
+      }, 350)
+      const clAnimInterval = setInterval(() => {
+        setClProgress((p) => Math.min(p + 4, 88))
+      }, 350)
 
-      // Read tailor stream
-      const tailorText = await readStreamWithProgress(tailorStream, setTailorProgress, 4000)
+      // Read both streams concurrently
+      const clPromise = readStream(clStream)
+      const tailorText = await readStream(tailorStream)
+
+      clearInterval(tailorAnimInterval)
+      setTailorProgress(100)
 
       let parsed: ResumeSchema = selectedResume.resume_data
       try {
@@ -444,6 +447,8 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
       }, 800)
 
       const [clText, ats] = await Promise.all([clPromise, scoreATS(parsed, jobDesc)])
+      clearInterval(clAnimInterval)
+      setClProgress(100)
       clearInterval(atsAnimInterval)
 
       setCoverLetterText(clText)
@@ -524,7 +529,17 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
     return (
       <div className="fixed inset-0 z-[60] bg-background flex flex-col">
         {/* ── Page header ─────────────────────────────────────────────────────── */}
-        <div className="shrink-0 border-b border-border px-6 py-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="shrink-0 border-b border-border px-6 py-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between relative">
+          {/* Red dismiss button top-right */}
+          <button
+            type="button"
+            onClick={handleClose}
+            className="absolute top-3 right-3 flex items-center justify-center size-7 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="size-4" />
+          </button>
+
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -543,16 +558,7 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2 shrink-0 mt-3 sm:mt-0">
-            <button
-              type="button"
-              onClick={handleSavePackage}
-              disabled={saving || saved}
-              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {saving ? <Loader2 className="size-4 animate-spin" /> : saved ? <CheckCircle2 className="size-4" /> : null}
-              {saved ? 'Saved' : 'Save to Applications'}
-            </button>
+          <div className="flex items-center gap-2 shrink-0 mt-3 sm:mt-0 pr-8 sm:pr-0">
             <button
               type="button"
               onClick={handleExportResume}
@@ -568,6 +574,23 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
             >
               <Download className="size-4" />
               Export Cover Letter
+            </button>
+            <button
+              type="button"
+              onClick={handleSavePackage}
+              disabled={saving || saved}
+              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {saving ? <Loader2 className="size-4 animate-spin" /> : saved ? <CheckCircle2 className="size-4" /> : null}
+              {saved ? 'Saved' : 'Save Package'}
+            </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] border border-red-500/50 text-red-500 text-sm font-medium rounded-lg hover:bg-red-500/10 transition-colors whitespace-nowrap"
+            >
+              <X className="size-4" />
+              Dismiss Package
             </button>
           </div>
         </div>
@@ -681,7 +704,7 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
               {/* Header row */}
               <div className="flex items-start justify-between mb-8">
                 <div>
-                  <h2 className="text-xl font-bold text-white">Generating your application...</h2>
+                  <h2 className="text-xl font-bold text-white">Generate your application package</h2>
                   <p className="mt-1 text-sm text-white/50">
                     Tailoring for{' '}
                     <span className="font-bold text-white">{position}</span>
@@ -710,7 +733,7 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
                   ----→
                 </div>
 
-                <StageCard label="Scoring ATS" progress={atsProgress} color="blue" />
+                <StageCard label="Scoring ATS" progress={atsProgress} color={atsProgress === 100 ? 'green' : 'blue'} />
               </div>
 
               {/* Bottom overall progress bar + status */}
