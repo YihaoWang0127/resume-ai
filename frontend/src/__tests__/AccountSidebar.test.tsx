@@ -27,6 +27,7 @@ function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
 const NAV_ITEMS = [
   { label: 'Profile', path: '/profile' },
   { label: 'Dashboard', path: '/dashboard' },
+  { label: 'Package', path: '/package' },
   { label: 'AI', path: '/ai' },
   { label: 'Settings', path: '/settings' },
 ]
@@ -47,7 +48,7 @@ beforeEach(() => {
 })
 
 describe('AccountSidebar — nav links', () => {
-  it('renders all 4 nav links', () => {
+  it('renders all 5 nav links', () => {
     renderSidebar('/profile')
 
     for (const { label } of NAV_ITEMS) {
@@ -77,15 +78,15 @@ describe('AccountSidebar — nav links', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/profile')
   })
 
-  it('renders nav links in Profile, Dashboard, AI, Settings order on desktop when not on /dashboard', () => {
+  it('renders nav links in Profile, Dashboard, Package, AI, Settings order on desktop when not on /dashboard', () => {
     const { container } = renderSidebar('/ai')
 
     // Desktop sidebar is the second nav group in the DOM (mobile pill bar is first)
     const desktopNav = container.querySelectorAll('nav > div')[1]
     const labels = Array.from(desktopNav.querySelectorAll('button')).map((btn) => btn.textContent?.trim())
 
-    // Expect the four top-level items to appear in order (no sub-items when not on /dashboard or /profile)
-    expect(labels).toEqual(['Profile', 'Dashboard', 'AI', 'Settings'])
+    // Expect the five top-level items to appear in order (no sub-items when not on /dashboard or /profile)
+    expect(labels).toEqual(['Profile', 'Dashboard', 'Package', 'AI', 'Settings'])
   })
 
   it('renders Profile, Dashboard, AI, Settings top-level items on /dashboard (sub-items follow Dashboard)', () => {

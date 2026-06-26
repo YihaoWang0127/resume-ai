@@ -213,7 +213,7 @@ describe('Dashboard — rendering', () => {
 describe('Dashboard — stats bar', () => {
   it('shows resume count, cover letter count, avg ATS score, and AI actions on the overview view', async () => {
     renderDashboard()
-    await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
 
     expect(screen.getByText('Total Resumes')).toBeInTheDocument()
     expect(screen.getByText('Total Cover Letters')).toBeInTheDocument()
@@ -224,7 +224,7 @@ describe('Dashboard — stats bar', () => {
 
   it('shows a placeholder for Avg ATS Score when no resume has been scored', async () => {
     renderDashboard()
-    await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 
@@ -234,7 +234,7 @@ describe('Dashboard — stats bar', () => {
       { ...savedResume2, ats_score: 60 },
     ] as any)
     renderDashboard()
-    await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
     expect(screen.getByText('70')).toBeInTheDocument()
   })
 
@@ -257,10 +257,10 @@ describe('Dashboard — stats bar', () => {
 // ── tab switching ────────────────────────────────────────────────────────────
 
 describe('Dashboard — tab switching', () => {
-  it('shows the Overview view by default (Application Overview heading present)', async () => {
+  it('shows the Overview view by default', async () => {
     renderDashboard()
     await waitFor(() =>
-      expect(screen.getByText('Application Overview')).toBeInTheDocument()
+      expect(screen.getAllByText('Overview').length).toBeGreaterThan(0)
     )
     // All sections are always rendered now — headings for all sections are present
     expect(screen.getByRole('heading', { name: /my resumes/i })).toBeInTheDocument()
@@ -274,7 +274,6 @@ describe('Dashboard — tab switching', () => {
     )
     // All sections are always rendered — other section headings are also present
     expect(screen.getByRole('heading', { name: /my cover letters/i })).toBeInTheDocument()
-    expect(screen.getByText('Application Overview')).toBeInTheDocument()
   })
 
   it('shows cover letters view when tab=cover-letters', async () => {
@@ -774,36 +773,35 @@ describe('Dashboard — export dropdown', () => {
 // ── Overview view ─────────────────────────────────────────────────────────────
 
 describe('Dashboard — overview', () => {
-  it('renders the Application Overview table by default', async () => {
+  it('renders the Overview section with stat cards by default', async () => {
     renderDashboard()
     await waitFor(() =>
-      expect(screen.getByText('Application Overview')).toBeInTheDocument()
+      expect(screen.getByText('Total Resumes')).toBeInTheDocument()
     )
   })
 
   it('shows stat cards on the overview view', async () => {
     renderDashboard()
-    await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
     expect(screen.getByText('Total Resumes')).toBeInTheDocument()
     expect(screen.getByText('Total Cover Letters')).toBeInTheDocument()
     expect(screen.getByText('Avg ATS Score')).toBeInTheDocument()
     expect(screen.getByText('AI Actions Used This Month')).toBeInTheDocument()
   })
 
-  it('shows cover letter relationships in the table', async () => {
+  it('shows cover letter data in the overview section', async () => {
     renderDashboard()
-    await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
     // savedCoverLetter1 is linked to savedResume1, company_name is 'Stripe'
-    // Resume titles appear in both the Overview table and the My Resumes section
+    // Resume titles appear in the My Resumes section
     expect(screen.getAllByText('Software Engineer Resume').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Stripe').length).toBeGreaterThan(0)
   })
 
-  it('shows resume rows without cover letters', async () => {
+  it('shows resume data in the overview section', async () => {
     renderDashboard()
-    await waitFor(() => expect(screen.getByText('Application Overview')).toBeInTheDocument())
-    // savedResume2 has no cover letter — it should still appear as its own row
-    // Title appears in both Overview table and My Resumes section
+    await waitFor(() => expect(screen.getByText('Total Resumes')).toBeInTheDocument())
+    // savedResume2 has no cover letter — it should still appear in My Resumes section
     expect(screen.getAllByText('Product Manager Resume').length).toBeGreaterThan(0)
   })
 })

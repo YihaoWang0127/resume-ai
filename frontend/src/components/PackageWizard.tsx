@@ -248,14 +248,22 @@ type WizardStep = 'jd' | 'resume' | 'generating' | 'result'
 type ValidationState = 'idle' | 'validating' | 'valid' | 'invalid'
 type ResultTab = 'resume' | 'cv'
 
+export interface PackageViewData {
+  resume: SavedResume
+  coverLetterText: string
+  companyName: string
+  position: string
+}
+
 interface PackageWizardProps {
   open: boolean
   onClose: () => void
+  viewData?: PackageViewData
 }
 
 // ── main component ────────────────────────────────────────────────────────────
 
-export default function PackageWizard({ open, onClose }: PackageWizardProps) {
+export default function PackageWizard({ open, onClose, viewData }: PackageWizardProps) {
   // ── step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState<WizardStep>('jd')
 
@@ -288,6 +296,7 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
   const [activeTab, setActiveTab] = useState<ResultTab>('resume')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [isViewMode, setIsViewMode] = useState(false)
 
   // ── debounce refs ────────────────────────────────────────────────────────────
   const positionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -349,6 +358,23 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
     }
   }, [jobDesc])
 
+  // ── view mode: jump to result when pre-loaded data is provided ───────────────
+  useEffect(() => {
+    if (open && viewData) {
+      setTailoredResume(viewData.resume.resume_data)
+      setCoverLetterText(viewData.coverLetterText)
+      setAtsResult(viewData.resume.ats_result ?? null)
+      setCompanyName(viewData.companyName)
+      setPosition(viewData.position)
+      setSelectedResume(viewData.resume)
+      setIsViewMode(true)
+      setStep('result')
+    }
+    if (!open) {
+      setIsViewMode(false)
+    }
+  }, [open, viewData])
+
   // ── reset ────────────────────────────────────────────────────────────────────
   const resetWizard = () => {
     setStep('jd')
@@ -371,6 +397,7 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
     setGenerationError(null)
     setSaved(false)
     setActiveTab('resume')
+    setIsViewMode(false)
   }
 
   const handleClose = () => {
@@ -567,15 +594,17 @@ export default function PackageWizard({ open, onClose }: PackageWizardProps) {
               <Download className="size-4 shrink-0" />
               Export Cover Letter
             </button>
-            <button
-              type="button"
-              onClick={handleSavePackage}
-              disabled={saving || saved}
-              className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] min-w-[140px] bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {saving ? <Loader2 className="size-4 animate-spin shrink-0" /> : saved ? <CheckCircle2 className="size-4 shrink-0" /> : null}
-              {saved ? 'Saved' : 'Save Package'}
-            </button>
+            {!isViewMode && (
+              <button
+                type="button"
+                onClick={handleSavePackage}
+                disabled={saving || saved}
+                className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 min-h-[44px] min-w-[140px] bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {saving ? <Loader2 className="size-4 animate-spin shrink-0" /> : saved ? <CheckCircle2 className="size-4 shrink-0" /> : null}
+                {saved ? 'Saved' : 'Save Package'}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleClose}
