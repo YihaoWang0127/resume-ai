@@ -354,36 +354,26 @@ export default function Dashboard() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600/70 dark:text-blue-500">Total Cover Letters</p>
                 </div>
 
-                {/* Card 3 — Avg ATS Score (violet, half-circle gauge) */}
-                <div className="bg-violet-500/10 dark:bg-violet-950/60 border border-violet-500/25 dark:border-violet-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-1 min-h-[120px]">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600/70 dark:text-violet-500">Avg ATS Score</p>
-                  {avgAtsScore != null ? (
-                    <div className="relative flex flex-col items-center">
-                      <svg viewBox="0 0 120 68" className="w-full max-w-[110px]">
-                        <path d="M 10,65 A 50,50 0 0 1 110,65" fill="none" stroke="#7c3aed" strokeOpacity="0.2" strokeWidth="10" strokeLinecap="round" />
-                        <path
-                          d="M 10,65 A 50,50 0 0 1 110,65"
-                          fill="none"
-                          stroke="#7c3aed"
-                          strokeWidth="10"
-                          strokeLinecap="round"
-                          strokeDasharray="157"
-                          strokeDashoffset={Math.max(0, 157 - (avgAtsScore / 100) * 157)}
-                          className="transition-all duration-700"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex items-end justify-center pb-1">
-                        <p className="text-2xl font-extrabold text-violet-700 dark:text-violet-300 leading-none">{avgAtsScore}</p>
-                      </div>
+                {/* Card 3 — Avg ATS Score (violet) */}
+                <div className="bg-violet-500/10 dark:bg-violet-950/60 border border-violet-500/25 dark:border-violet-700/40 rounded-xl p-5 relative overflow-hidden flex flex-col gap-3 min-h-[120px]">
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-lg bg-violet-500/20 dark:bg-violet-800/40 flex items-center justify-center shrink-0">
+                      <Target className="size-4 text-violet-600 dark:text-violet-400" />
                     </div>
-                  ) : (
-                    <p className="text-3xl font-extrabold text-muted-foreground">—</p>
-                  )}
-                  {avgAtsScore != null && (
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600/70 dark:text-violet-500 text-center -mt-1">
-                      {atsScoreLabel(avgAtsScore).label}
-                    </p>
-                  )}
+                    <div className="flex flex-col">
+                      <p className="text-4xl font-extrabold text-violet-700 dark:text-violet-300 leading-none">
+                        {avgAtsScore ?? '—'}
+                      </p>
+                      {avgAtsScore != null && (
+                        <p className="text-[10px] font-semibold text-violet-500/80 dark:text-violet-400/70 mt-0.5">
+                          {atsScoreLabel(avgAtsScore).label}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600/70 dark:text-violet-500">
+                    Avg ATS Score
+                  </p>
                 </div>
 
                 {/* Card 4 — AI Actions (rose) */}
