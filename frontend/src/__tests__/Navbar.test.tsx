@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import Navbar from '@/components/Navbar'
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+vi.mock('@/components/PackageWizard', () => ({ default: () => null }))
 
 // Navigate mock — capture calls
 const mockNavigate = vi.fn()

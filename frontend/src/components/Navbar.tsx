@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings, Menu, X, Sparkles, Zap, CheckSquare, FileText, Download, Upload, BookOpen } from 'lucide-react'
+import { ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings, Menu, X, Sparkles, Zap, CheckSquare, FileText, Download, Upload, BookOpen, Package } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { cn, getInitials } from '@/lib/utils'
+import PackageWizard from '@/components/PackageWizard'
 
 interface Props {
   onBack?: () => void
@@ -152,6 +153,7 @@ export default function Navbar({ onBack, children }: Props) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeNav, setActiveNav] = useState<NavLabel | null>(null)
+  const [packageOpen, setPackageOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLDivElement>(null)
 
@@ -261,6 +263,29 @@ export default function Navbar({ onBack, children }: Props) {
           >
             {children}
           </div>
+        )}
+        {/* Package button — shown when any session exists */}
+        {!loading && (user || isGuest) && (
+          isGuest ? (
+            <button
+              type="button"
+              disabled
+              title="Sign in to use One Click Package Generation"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] bg-muted text-muted-foreground text-xs font-bold uppercase tracking-wider rounded-lg cursor-not-allowed opacity-60 whitespace-nowrap border border-border"
+            >
+              <Package className="size-3.5" />
+              <span>One Click Package</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPackageOpen(true)}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap"
+            >
+              <Package className="size-3.5" />
+              <span>One Click Package</span>
+            </button>
+          )
         )}
         {!loading && (
           isGuest ? (
@@ -398,6 +423,7 @@ export default function Navbar({ onBack, children }: Props) {
           </button>
         )}
       </div>
+      <PackageWizard open={packageOpen} onClose={() => setPackageOpen(false)} />
     </nav>
   )
 }

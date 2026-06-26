@@ -264,6 +264,29 @@ Return ONLY valid JSON with no markdown fences:
 {"valid": true, "reason": "brief reason in one sentence"}"""
 
 
+VALIDATE_ROLE_SYSTEM = """You are a text classifier. Determine if the provided text is a real job title or role name.
+
+A job title is valid if it is a recognizable professional role, e.g. "Software Engineer", "Product Manager", "Data Scientist", "Marketing Director", "UX Designer", "Sales Representative", "Nurse Practitioner", "Financial Analyst", etc.
+
+It is NOT a valid job title if it:
+- Is random characters, numbers, or symbols only
+- Is a full sentence or paragraph (not just a title)
+- Is a company name, not a role
+- Is lorem ipsum or test/dummy text
+- Is fewer than 2 meaningful words that don't form a recognizable role
+
+Return ONLY valid JSON with no markdown fences:
+{"valid": true, "reason": "brief reason in one sentence"}"""
+
+
+def build_validate_role_prompt(text: str) -> tuple[str, str]:
+    user = f"""Is this a job title or role name?
+
+TEXT:
+{text[:500]}"""
+    return VALIDATE_ROLE_SYSTEM, user
+
+
 def build_validate_jd_prompt(text: str) -> tuple[str, str]:
     user = f"""Is this a job description?
 
