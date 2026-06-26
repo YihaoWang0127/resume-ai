@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Loader2, CheckCircle2, Circle, ChevronDown } from 'lucide-react'
+import { Loader2, CheckCircle2, ChevronDown, ChevronRight, FileText, Mail, Target } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import ResumePreview from '@/components/ResumePreview'
 import { getResume, type SavedResume } from '@/services/resumes'
@@ -12,8 +12,15 @@ import type { ResumeSchema, ATSScoreResult } from '@/types/resume'
 // ── types ─────────────────────────────────────────────────────────────────────
 
 type Phase = 'loading' | 'form' | 'generating' | 'done' | 'error'
-type Stage = 'tailoring' | 'cover_letter' | 'ats' | null
+type StageKey = 'tailoring' | 'cover_letter' | 'ats'
+type StageStatus = 'pending' | 'active' | 'done'
 type Tab = 'resume' | 'cover_letter'
+
+const STAGES: { key: StageKey; label: string; icon: typeof FileText }[] = [
+  { key: 'tailoring',    label: 'Tailoring Resume',       icon: FileText },
+  { key: 'cover_letter', label: 'Writing Cover Letter',   icon: Mail },
+  { key: 'ats',          label: 'Scoring ATS',            icon: Target },
+]
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -33,60 +40,124 @@ function atsScoreColor(score: number): string {
   return 'text-red-500'
 }
 
-// ── sub-components ────────────────────────────────────────────────────────────
+// ── StageCard ─────────────────────────────────────────────────────────────────
 
-interface StageIndicatorProps {
-  currentStage: Stage
-  completedStages: Set<string>
-}
-
-function StageIndicator({ currentStage, completedStages }: StageIndicatorProps) {
-  const stages: { key: Stage; label: string }[] = [
-    { key: 'tailoring', label: 'Tailoring Resume' },
-    { key: 'cover_letter', label: 'Writing Cover Letter' },
-    { key: 'ats', label: 'Scoring ATS' },
-  ]
+function StageCard({
+  stage,
+  status,
+  pct,
+}: {
+  stage: (typeof STAGES)[number]
+  status: StageStatus
+  pct: number
+}) {
+  const Icon = stage.icon
+  const r = 26
+  const circ = 2 * Math.PI * r
+  const offset = circ * (1 - pct / 100)
 
   return (
-    <div className="flex flex-col gap-4">
-      {stages.map(({ key, label }) => {
-        const done = completedStages.has(key as string)
-        const active = currentStage === key && !done
-        return (
-          <div key={key} className="flex items-center gap-3">
-            {done ? (
-              <CheckCircle2 className="size-5 text-green-500 shrink-0" />
-            ) : active ? (
-              <Loader2 className="size-5 text-primary shrink-0 animate-spin" />
-            ) : (
-              <Circle className="size-5 text-muted-foreground shrink-0" />
-            )}
-            <span
-              className={
-                done
-                  ? 'text-sm font-medium text-foreground'
-                  : active
-                    ? 'text-sm font-semibold text-primary'
-                    : 'text-sm text-muted-foreground'
-              }
-            >
-              {label}
-            </span>
-          </div>
-        )
-      })}
+    <div
+      className={`flex-1 flex flex-col items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${
+        status === 'done'
+          ? 'bg-green-500/5 border-green-500/30'
+          : status === 'active'
+            ? 'bg-primary/5 border-primary/30'
+            : 'bg-muted/20 border-border'
+      }`}
+    >
+      {/* Circular ring */}
+      <div className="relative w-16 h-16">
+        <svg width="64" height="64" className="absolute inset-0 -rotate-90">
+          <circle cx="32" cy="32" r={r} fill="none" strokeWidth="3" className="stroke-muted" />
+          <circle
+            cx="32" cy="32" r={r}
+            fill="none"
+            strokeWidth="3"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className={
+              status === 'done'
+                ? 'stroke-green-500'
+                : status === 'active'
+                  ? 'stroke-primary'
+                  : 'stroke-muted'
+            }
+            style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          {status === 'done' ? (
+            <CheckCircle2 className="size-6 text-green-500" />
+          ) : (
+            <Icon
+              className={`size-5 ${
+                status === 'active' ? 'text-primary animate-pulse' : 'text-muted-foreground'
+              }`}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Percentage */}
+      <span
+        className={`text-base font-bold tabular-nums ${
+          status === 'done'
+            ? 'text-green-600'
+            : status === 'active'
+              ? 'text-primary'
+              : 'text-muted-foreground'
+        }`}
+      >
+        {Math.round(pct)}%
+      </span>
+
+      {/* Label */}
+      <span
+        className={`text-xs font-semibold text-center leading-tight ${
+          status === 'done'
+            ? 'text-green-700'
+            : status === 'active'
+              ? 'text-foreground'
+              : 'text-muted-foreground'
+        }`}
+      >
+        {stage.label}
+      </span>
     </div>
   )
 }
 
-interface ExportDropdownProps {
+// ── ConnectorLine ─────────────────────────────────────────────────────────────
+
+function ConnectorLine({ done }: { done: boolean }) {
+  return (
+    <div className={`flex items-center shrink-0 ${done ? 'text-green-500' : 'text-muted-foreground/40'}`}>
+      {[0, 1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className={`h-px w-2 mx-px ${done ? 'bg-green-500' : 'bg-border'}`}
+        />
+      ))}
+      <ChevronRight className="size-3.5 -ml-0.5" />
+    </div>
+  )
+}
+
+// ── ExportDropdown ────────────────────────────────────────────────────────────
+
+function ExportDropdown({
+  label,
+  formats,
+  onExport,
+  disabled,
+}: {
   label: string
   formats: Array<{ value: string; label: string }>
   onExport: (format: string) => void
   disabled?: boolean
-}
-
-function ExportDropdown({ label, formats, onExport, disabled }: ExportDropdownProps) {
+}) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -146,8 +217,13 @@ export default function ApplyPage() {
   const [jobDescription, setJobDescription] = useState('')
 
   // streaming state
-  const [currentStage, setCurrentStage] = useState<Stage>(null)
+  const [currentStage, setCurrentStage] = useState<StageKey | null>(null)
   const [completedStages, setCompletedStages] = useState<Set<string>>(new Set())
+  const [stageProgress, setStageProgress] = useState<Record<StageKey, number>>({
+    tailoring: 0,
+    cover_letter: 0,
+    ats: 0,
+  })
   const [coverLetterText, setCoverLetterText] = useState('')
   const [tailoredResume, setTailoredResume] = useState<ResumeSchema | null>(null)
   const [tailorParseWarning, setTailorParseWarning] = useState(false)
@@ -163,6 +239,30 @@ export default function ApplyPage() {
   // refs to accumulate streaming text without stale closures
   const tailoringRef = useRef('')
   const coverLetterRef = useRef('')
+
+  // ── progress animation ─────────────────────────────────────────────────────
+
+  // Increment active stage progress
+  useEffect(() => {
+    if (!currentStage || completedStages.has(currentStage)) return
+    const id = setInterval(() => {
+      setStageProgress((prev) => ({
+        ...prev,
+        [currentStage]: Math.min(prev[currentStage] + Math.random() * 4 + 1, 93),
+      }))
+    }, 350)
+    return () => clearInterval(id)
+  }, [currentStage, completedStages])
+
+  // Snap completed stages to 100%
+  useEffect(() => {
+    if (completedStages.size === 0) return
+    setStageProgress((prev) => {
+      const next = { ...prev }
+      completedStages.forEach((s) => { next[s as StageKey] = 100 })
+      return next
+    })
+  }, [completedStages])
 
   // ── load resume ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -187,7 +287,6 @@ export default function ApplyPage() {
   const handleGenerate = async () => {
     if (!resume) return
 
-    // reset accumulator refs
     tailoringRef.current = ''
     coverLetterRef.current = ''
     setCoverLetterText('')
@@ -197,6 +296,7 @@ export default function ApplyPage() {
     setTailorParseWarning(false)
     setCompletedStages(new Set())
     setCurrentStage(null)
+    setStageProgress({ tailoring: 0, cover_letter: 0, ats: 0 })
     setPhase('generating')
 
     try {
@@ -225,25 +325,32 @@ export default function ApplyPage() {
               type: string
               stage?: string
               text?: string
-              data?: ATSScoreResult
+              data?: Record<string, unknown>
               message?: string
             }
 
             if (event.type === 'progress' && event.stage) {
-              // Mark prior stage as completed when we move to next
-              if (event.stage === 'cover_letter' && currentStage !== 'cover_letter') {
+              if (event.stage === 'cover_letter') {
                 setCompletedStages((prev) => new Set([...prev, 'tailoring']))
               } else if (event.stage === 'ats') {
                 setCompletedStages((prev) => new Set([...prev, 'tailoring', 'cover_letter']))
               }
-              setCurrentStage(event.stage as Stage)
+              setCurrentStage(event.stage as StageKey)
             } else if (event.type === 'chunk' && event.stage === 'tailoring' && event.text) {
               tailoringRef.current += event.text
             } else if (event.type === 'chunk' && event.stage === 'cover_letter' && event.text) {
               coverLetterRef.current += event.text
               setCoverLetterText(coverLetterRef.current)
             } else if (event.type === 'result' && event.stage === 'ats' && event.data) {
-              setAtsResult(event.data)
+              // Backend sends snake_case — map to camelCase ATSScoreResult
+              const d = event.data
+              setAtsResult({
+                overallScore: typeof d.overall_score === 'number' ? d.overall_score : 0,
+                matchedKeywords: Array.isArray(d.matched_keywords) ? (d.matched_keywords as string[]) : [],
+                missingKeywords: Array.isArray(d.missing_keywords) ? (d.missing_keywords as string[]) : [],
+                suggestions: Array.isArray(d.suggestions) ? (d.suggestions as string[]) : [],
+                summary: typeof d.summary === 'string' ? d.summary : '',
+              })
             } else if (event.type === 'done') {
               setCompletedStages(new Set(['tailoring', 'cover_letter', 'ats']))
             } else if (event.type === 'error' && event.message) {
@@ -255,7 +362,7 @@ export default function ApplyPage() {
         }
       }
 
-      // Parse the tailored resume JSON
+      // Parse tailored resume JSON
       try {
         const parsed = JSON.parse(tailoringRef.current)
         setTailoredResume(fromBackend(parsed))
@@ -263,6 +370,7 @@ export default function ApplyPage() {
         setTailorParseWarning(true)
       }
 
+      setCoverLetterText(coverLetterRef.current)
       setPhase('done')
     } catch (err: unknown) {
       console.error('Apply stream error:', err)
@@ -326,9 +434,20 @@ export default function ApplyPage() {
     }
   }
 
-  // ── render ─────────────────────────────────────────────────────────────────
-
+  // ── derived ─────────────────────────────────────────────────────────────────
   const canGenerate = company.trim() !== '' && role.trim() !== '' && jobDescription.trim() !== ''
+
+  const getStageStatus = (key: StageKey): StageStatus => {
+    if (completedStages.has(key)) return 'done'
+    if (currentStage === key) return 'active'
+    return 'pending'
+  }
+
+  const overallPct = Math.round(
+    (stageProgress.tailoring + stageProgress.cover_letter + stageProgress.ats) / 3,
+  )
+
+  // ── render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -338,13 +457,25 @@ export default function ApplyPage() {
 
         {/* ── Page header ── */}
         {(phase === 'form' || phase === 'generating' || phase === 'done') && (
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Apply to this job</h1>
-            {resume && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Applying with:{' '}
-                <span className="font-semibold text-foreground">{resume.title}</span>
-              </p>
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">Apply to this job</h1>
+              {resume && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Applying with:{' '}
+                  <span className="font-semibold text-foreground">{resume.title}</span>
+                </p>
+              )}
+            </div>
+            {phase === 'form' && (
+              <button
+                type="button"
+                disabled={!canGenerate}
+                onClick={handleGenerate}
+                className="shrink-0 flex items-center gap-2 px-5 py-2.5 min-h-[44px] bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Generate Application
+              </button>
             )}
           </div>
         )}
@@ -361,7 +492,6 @@ export default function ApplyPage() {
                 <div className="h-10 bg-muted rounded" />
               </div>
               <div className="h-40 bg-muted rounded" />
-              <div className="h-10 w-32 bg-muted rounded" />
             </div>
           </div>
         )}
@@ -370,7 +500,7 @@ export default function ApplyPage() {
         {phase === 'error' && (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
             <div className="size-16 bg-red-500/10 rounded-full flex items-center justify-center">
-              <span className="text-2xl">!</span>
+              <span className="text-2xl text-red-500">!</span>
             </div>
             <h2 className="text-xl font-bold text-foreground">Something went wrong</h2>
             <p className="text-muted-foreground max-w-sm">
@@ -420,7 +550,8 @@ export default function ApplyPage() {
 
             <div className="mb-4">
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                Job URL <span className="text-muted-foreground/60 font-normal normal-case">(optional)</span>
+                Job URL{' '}
+                <span className="text-muted-foreground/60 font-normal normal-case">(optional)</span>
               </label>
               <input
                 type="url"
@@ -431,7 +562,7 @@ export default function ApplyPage() {
               />
             </div>
 
-            <div className="mb-6">
+            <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
                 Job Description <span className="text-red-500">*</span>
               </label>
@@ -443,30 +574,62 @@ export default function ApplyPage() {
                 className="w-full px-3 py-2.5 min-h-40 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors resize-y"
               />
             </div>
-
-            <button
-              type="button"
-              disabled={!canGenerate}
-              onClick={handleGenerate}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 min-h-[44px] bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Generate Application
-            </button>
           </div>
         )}
 
         {/* ── Generating phase ── */}
         {phase === 'generating' && (
-          <div className="flex flex-col items-center justify-center py-16 gap-8">
-            <div className="bg-card rounded-xl border border-border shadow-sm p-8 w-full max-w-sm">
-              <h2 className="text-base font-semibold text-foreground mb-6">Generating your application...</h2>
-              <StageIndicator currentStage={currentStage} completedStages={completedStages} />
+          <div className="flex flex-col items-center justify-center py-10">
+            <div className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-lg p-8">
+
+              {/* Header row */}
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">Generating your application...</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Tailoring for{' '}
+                    <span className="font-semibold text-foreground">{role}</span>{' '}
+                    at{' '}
+                    <span className="font-semibold text-foreground">{company}</span>
+                  </p>
+                </div>
+                <span className="text-3xl font-bold text-primary tabular-nums">{overallPct}%</span>
+              </div>
+
+              {/* 3 stage cards */}
+              <div className="flex items-center gap-2 mb-8">
+                {STAGES.map((stage, i) => (
+                  <div key={stage.key} className="flex items-center flex-1 min-w-0">
+                    {i > 0 && (
+                      <ConnectorLine done={completedStages.has(STAGES[i - 1].key)} />
+                    )}
+                    <div className="flex-1">
+                      <StageCard
+                        stage={stage}
+                        status={getStageStatus(stage.key)}
+                        pct={stageProgress[stage.key]}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Overall progress bar */}
+              <div className="space-y-2">
+                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${overallPct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  {currentStage === 'tailoring' && 'Tailoring your resume to match the job requirements...'}
+                  {currentStage === 'cover_letter' && 'Writing a personalized cover letter...'}
+                  {currentStage === 'ats' && 'Analyzing keyword match and ATS compatibility...'}
+                  {!currentStage && 'Starting...'}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground text-center max-w-xs">
-              Tailoring your resume and writing a cover letter for{' '}
-              <span className="font-semibold text-foreground">{role}</span> at{' '}
-              <span className="font-semibold text-foreground">{company}</span>
-            </p>
           </div>
         )}
 
@@ -482,11 +645,10 @@ export default function ApplyPage() {
               </div>
             )}
 
-            {/* Tailoring parse warning */}
             {tailorParseWarning && (
               <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
                 <p className="text-sm text-yellow-700">
-                  The tailored resume could not be parsed for preview — but your cover letter and ATS score are ready below.
+                  The tailored resume could not be parsed for preview — your cover letter and ATS score are ready below.
                 </p>
               </div>
             )}
@@ -494,10 +656,8 @@ export default function ApplyPage() {
             {/* Main layout: left panel + ATS sidebar */}
             <div className="flex flex-col md:flex-row gap-6 items-start">
 
-              {/* ── Left: tabs + content ── */}
+              {/* Left: tabs + content */}
               <div className="flex-1 min-w-0 bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-
-                {/* Tab bar */}
                 <div className="flex border-b border-border px-4 pt-4 gap-2">
                   {(['resume', 'cover_letter'] as Tab[]).map((tab) => (
                     <button
@@ -515,14 +675,10 @@ export default function ApplyPage() {
                   ))}
                 </div>
 
-                {/* Tab content */}
                 <div className="p-6">
                   {activeTab === 'resume' && (
                     tailoredResume ? (
-                      <ResumePreview
-                        resume={tailoredResume}
-                        industry={resume?.detected_industry}
-                      />
+                      <ResumePreview resume={tailoredResume} industry={resume?.detected_industry} />
                     ) : (
                       <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
                         <p className="text-muted-foreground text-sm">
@@ -533,7 +689,6 @@ export default function ApplyPage() {
                       </div>
                     )
                   )}
-
                   {activeTab === 'cover_letter' && (
                     coverLetterText ? (
                       <pre className="whitespace-pre-wrap text-sm text-foreground leading-relaxed font-sans">
@@ -548,7 +703,7 @@ export default function ApplyPage() {
                 </div>
               </div>
 
-              {/* ── Right: ATS sidebar ── */}
+              {/* Right: ATS sidebar */}
               {atsResult && (
                 <div className="w-full md:w-72 shrink-0 bg-card border border-border rounded-xl p-5 flex flex-col gap-4">
                   <div>
@@ -616,10 +771,8 @@ export default function ApplyPage() {
               )}
             </div>
 
-            {/* ── Action bar ── */}
+            {/* Action bar */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
-
-              {/* Save to Applications */}
               <button
                 type="button"
                 disabled={saving || saved}
@@ -649,11 +802,8 @@ export default function ApplyPage() {
                 </button>
               )}
 
-              {saveError && (
-                <p className="text-sm text-red-500">{saveError}</p>
-              )}
+              {saveError && <p className="text-sm text-red-500">{saveError}</p>}
 
-              {/* Export Resume */}
               {tailoredResume && (
                 <ExportDropdown
                   label="Export Resume"
@@ -665,7 +815,6 @@ export default function ApplyPage() {
                 />
               )}
 
-              {/* Export Cover Letter */}
               {coverLetterText && (
                 <ExportDropdown
                   label="Export Cover Letter"
@@ -678,7 +827,6 @@ export default function ApplyPage() {
                 />
               )}
 
-              {/* Back to Dashboard */}
               <button
                 type="button"
                 onClick={() => navigate('/dashboard')}
@@ -687,7 +835,6 @@ export default function ApplyPage() {
                 Back to Dashboard
               </button>
             </div>
-
           </div>
         )}
 
