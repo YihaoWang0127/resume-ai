@@ -10,11 +10,16 @@ generates cover letters, and exports as PDF/DOCX/TXT. Supabase handles auth and 
 - API: https://resume-ai-helper-jrqf.onrender.com
 - DB: Supabase (resume-ai-helper project)
 
-## Current V1 Architecture
+## Current Architecture
 
 **Claude Models**
 - Haiku 4.5: validation + parsing (fast, cheap)
 - Sonnet 4.6: enrichment, tailoring, cover letters (quality)
+
+**Backend Security**
+- All AI routes are JWT-secured (PyJWT ES256 + Supabase JWKS); frontend attaches the Supabase JWT as Bearer token on every AI API call
+- Rate-limited via slowapi; server-side quota enforcement (30 AI calls/month free tier) returns HTTP 402 when the limit is reached
+- Backend remains stateless for CRUD — all Supabase reads/writes go through the frontend client directly
 
 Tech stack, key files, API routes, and database schema are documented once, in `README.md`
 (§Tech Stack, §Project Structure, §API Endpoints, §Database) — treat README as the source of
@@ -127,12 +132,13 @@ tests-only changes, agent instruction-only changes.
 
 ## V2 Notes
 
-Do not implement any of the following now — noted as future direction only:
+The following are still deferred — do not implement now:
 
-- Supabase JWT verification on the backend (currently stateless)
-- Server-side AI usage logging and quota enforcement
-- Billing enforcement at the API layer
-- Dedicated agents for auth, billing, quota, or privacy concerns
+- Stripe actual billing integration (payment collection, subscription management)
+- Dedicated specialist agents for auth, billing, quota, or privacy concerns
+- Resume version history
+- Generate resume from scratch using Profile work experience
 
-V2 may move persistence and auth concerns partially into the backend. For now, the frontend
-handles all Supabase interactions directly.
+Already shipped (no longer deferred): JWT backend auth, slowapi rate limiting, server-side quota
+enforcement with 402 responses, career stage persona split, One Click Package wizard, AI usage
+logging and monthly quota modal.

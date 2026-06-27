@@ -1214,7 +1214,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
       )}
 
       {/* Mobile Edit / Preview toggle */}
-      <div className="lg:hidden shrink-0 border-b border-border flex bg-card">
+      <div className={cn('lg:hidden shrink-0 border-b border-border flex bg-card', currentStep === 3 && 'hidden')}>
         <button
           type="button"
           onClick={() => setMobileViewTab('edit')}
@@ -1240,6 +1240,28 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
           Preview
         </button>
       </div>
+
+      {/* Mobile AI Tool Selector — step 2 only, mobile only */}
+      {currentStep === 2 && (
+        <div aria-hidden="true" className="lg:hidden shrink-0 border-b border-border bg-card overflow-x-auto flex">
+          {AI_TOOL_DEFS.map((tool) => (
+            <button
+              key={tool.id}
+              type="button"
+              onClick={() => setAiTool(tool.id)}
+              className={cn(
+                'shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap min-h-[44px] transition-colors',
+                aiTool === tool.id
+                  ? 'border-primary text-primary bg-primary/5'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <tool.Icon className="size-3.5 shrink-0" />
+              {tool.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── MAIN ──────────────────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
@@ -2569,6 +2591,32 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
         {/* ── REVIEW & EXPORT STEP 3 ──────────────────────────────────────────── */}
         {currentStep === 3 && (
           <div className="flex flex-col flex-1 overflow-hidden">
+
+            {/* Mobile Document Tab Bar — step 3 only, mobile only */}
+            <div aria-hidden="true" className="lg:hidden shrink-0 border-b border-border bg-card flex overflow-x-auto">
+              {(
+                [
+                  { id: 'resume', label: 'Resume', Icon: FileText },
+                  { id: 'coverletter', label: 'Cover Letter', Icon: Mail },
+                  { id: 'ats', label: 'ATS Report', Icon: Target },
+                ] as const
+              ).map((doc) => (
+                <button
+                  key={doc.id}
+                  type="button"
+                  onClick={() => setReviewDocTab(doc.id)}
+                  className={cn(
+                    'shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap min-h-[44px] transition-colors',
+                    reviewDocTab === doc.id
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <doc.Icon className="size-3.5 shrink-0" />
+                  {doc.label}
+                </button>
+              ))}
+            </div>
 
             {/* Step 3 Toolbar */}
             <div className="shrink-0 h-12 border-b border-border bg-card flex items-center px-4 gap-2">
