@@ -16,19 +16,19 @@ $ARGUMENTS
 
 ## Agent Roster
 
-| Agent | File | Owns |
+| Agent | Subagent | Owns |
 |---|---|---|
-| ui-agent | ui-agent.md | `Home.tsx`, `Navbar.tsx`, `AuthModal.tsx`, `Modal.tsx`, `ResumeUploader.tsx` |
-| editor-agent | editor-agent.md | `Editor.tsx`, `ResumeEditor.tsx`, `ResumePreview.tsx`, `StreamingOutput.tsx`, `CoverLetterEditor.tsx` |
-| dashboard-agent | dashboard-agent.md | `Dashboard.tsx` |
-| settings-agent | settings-agent.md | `Settings.tsx`, `components/settings/*` |
-| shared-agent | shared-agent.md | `App.tsx`, `index.css`, `AuthContext`, `lib/supabase.ts`, `services/*.ts`, `ExportMenu`, `EmptyState`, `ErrorBoundary`, `NotFound`, `ServerError` |
-| backend-agent | backend-agent.md | `backend/app/**` |
-| test-enricher-agent | test-enricher-agent.md | Adds new targeted tests when behavior changed (conditional, runs in closing pipeline) |
-| test-agent | test-agent.md | Runs + fixes the full existing suite (only when user explicitly says "run tests") |
-| qa-agent | qa-agent.md | Scoped TypeScript/build/import validation |
-| readme-agent | readme-agent.md | README.md updates (conditional) |
-| pr-agent | pr-agent.md | Branch, commit, push, PR (runs last) |
+| ui-agent | ui-agent | `Home.tsx`, `Navbar.tsx`, `AuthModal.tsx`, `Modal.tsx`, `ResumeUploader.tsx` |
+| editor-agent | editor-agent | `Editor.tsx`, `ResumeEditor.tsx`, `ResumePreview.tsx`, `StreamingOutput.tsx`, `CoverLetterEditor.tsx` |
+| dashboard-agent | dashboard-agent | `Dashboard.tsx` |
+| settings-agent | settings-agent | `Settings.tsx`, `components/settings/*` |
+| shared-agent | shared-agent | `App.tsx`, `index.css`, `AuthContext`, `lib/supabase.ts`, `services/*.ts`, `ExportMenu`, `EmptyState`, `ErrorBoundary`, `NotFound`, `ServerError` |
+| backend-agent | backend-agent | `backend/app/**` |
+| test-enricher-agent | test-enricher-agent | Adds new targeted tests when behavior changed (conditional, runs in closing pipeline) |
+| test-agent | test-agent | Runs + fixes the full existing suite (only when user explicitly says "run tests") |
+| qa-agent | qa-agent | Scoped TypeScript/build/import validation |
+| readme-agent | readme-agent | README.md updates (conditional) |
+| pr-agent | pr-agent | Branch, commit, push, PR (runs last) |
 
 ## Routing Table
 
@@ -95,10 +95,11 @@ If the task is a pure question with no code change, answer it directly — dispa
 ### Step 3 — Dispatch
 
 For each specialist in a wave:
-- Read `.claude/commands/<agent>.md` in full.
-- Call the Agent tool with `subagent_type: "general-purpose"`, description = agent name, and a
-  prompt built from: that file's full content + a `## Current Task` section containing only the
+- Call the Agent tool with `subagent_type: "<agent-name>"` (e.g. `subagent_type: "ui-agent"`),
+  description = agent name, and a prompt containing only a `## Current Task` section with the
   slice of the task relevant to that agent (plus any contract changes from Wave 1).
+  Claude Code loads each agent's own definition as its system prompt automatically — do not
+  re-read the agent file or inline its content in the prompt.
 - Issue all calls for a wave in a single message (parallel). Wait for the wave to finish before starting the next.
 
 ### Step 4 — Closing pipeline (conditional)
