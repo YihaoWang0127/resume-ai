@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from 'next-themes'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -16,6 +17,10 @@ import EmailVerificationBanner from '@/components/EmailVerificationBanner'
 import { Toaster } from '@/components/ui/sonner'
 
 function AppRoutes() {
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL}/health`).catch(() => {})
+  }, [])
+
   return (
     <>
       <EmailVerificationBanner />

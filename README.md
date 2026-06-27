@@ -55,6 +55,7 @@
 - **Three-State Navbar Auth Area** — unauthenticated shows "Get Started Free"; guest shows avatar dropdown with Sign In; signed-in shows full avatar with display name
 - **Landing Page Hero Redesign** — two-column hero with badge, headline, feature checklist, and auth-aware CTAs; resume mock card on the right; trust bar below
 - **Resume Editor Redesign** — 3-column layout with 4-step stepper, icon-based section nav, rich-text form, live preview panel, and collapse toggle
+- **Mobile Editor** — responsive AI tool selector and document tabs on small screens in the editor's AI Enhance and Review & Export steps; Edit/Preview toggle hidden during export step where it has no effect
 
 ### Profile (`/profile`)
 - **Account** — edit display name and upload an avatar; email is read-only with a Verified/Not Verified pill and resend action
@@ -81,11 +82,14 @@
 ```
 User Browser (React + Vite + TypeScript)
     ├── Supabase Client → Auth + PostgreSQL (resumes + cover_letters)
-    └── REST/Stream → FastAPI Backend → Anthropic Claude API
+    └── REST/Stream (+ Supabase JWT) → FastAPI Backend → Anthropic Claude API
 
 Models:
 ├── Haiku 4.5  → validation + parsing (fast, cheap)
 └── Sonnet 4.6 → enrichment + tailoring + cover letters (quality)
+
+Security: AI routes are JWT-secured (PyJWT ES256 + Supabase JWKS); rate-limited via slowapi;
+          server-side quota enforcement returns HTTP 402 when the free tier limit is reached.
 ```
 
 ---
@@ -375,7 +379,7 @@ and `backend` (`pytest -v`) — matching branch protection on `main`.
 - [x] Resume editor redesign — 3-column layout, step stepper, section nav, live preview panel
 - [x] Career stage persona split — Student / Early Career / Experienced selector with auto-detection
 - [x] One Click Package Generation — wizard: JD + role (AI-validated) → resume selection → parallel streaming tailor + cover letter + ATS → result view with export and save
-- [ ] Mobile responsive editor
+- [x] Mobile responsive editor — scrollable AI tool and document tab bars; Edit/Preview toggle scoped correctly per step
 - [ ] Stripe monetization
 - [ ] Resume version history
 - [ ] Generate resume from scratch using Profile work experience
