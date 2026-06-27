@@ -27,10 +27,7 @@ truth for all of that and don't re-list it here.
 
 ## Agent System
 
-All specialist subagents live in `.claude/commands/`. Use `/orchestrator <task>` for any
-feature, fix, or multi-file task — it owns the full Agent Roster, Routing Table, mode selection,
-wave ordering, and closing/PR pipeline. See `.claude/commands/orchestrator.md` for all of that;
-don't duplicate those tables here.
+Specialist subagents are defined in `.claude/agents/`; the orchestrator lives in `.claude/commands/orchestrator.md`. Use `/orchestrator <task>` for any feature, fix, or multi-file task — it owns the full Agent Roster, Routing Table, mode selection, wave ordering, and closing/PR pipeline. See `.claude/commands/orchestrator.md` for all of that; don't duplicate those tables here.
 
 **Subagent rules (applies to all specialists)**
 - Read only files in your scope — do not scan the whole project for simple changes
@@ -42,7 +39,10 @@ don't duplicate those tables here.
 
 ## When to Use /orchestrator vs. Direct Chat
 
-Use direct chat (no `/orchestrator`) for quick one-offs: answering questions, single-file typo/copy/config tweaks, or anything you want to eyeball before deciding if it's PR-worthy. Use `/orchestrator` for anything that should go through the full pipeline — feature work, bug fixes, multi-file changes, and anything that needs tests, README updates, QA, or a PR. You can always start in direct chat and escalate mid-conversation by invoking `/orchestrator` once scope grows.
+The rule is binary — it depends on whether a file is modified, not on the size of the change:
+
+- **Direct chat:** questions, explanations, reading and analyzing code — anything that does NOT modify a file. Direct chat never commits, never creates PRs, and never touches files in `frontend/`, `backend/`, or `supabase/migrations/`.
+- **`/orchestrator`:** ANY modification to a file in `frontend/`, `backend/`, or `supabase/migrations/` — no exceptions for size. A one-line copy fix is still a modification and still goes through `/orchestrator`.
 
 ## PR-Ready Workflow
 
