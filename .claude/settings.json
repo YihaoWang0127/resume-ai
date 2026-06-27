@@ -3,7 +3,29 @@
     "allow": [
       "Bash(lsof -i :5173 -sTCP:LISTEN -t)",
       "Bash(lsof -i :3000 -sTCP:LISTEN -t)",
-      "Bash(curl -s http://localhost:5173 -o /dev/null -w \"%{http_code}\\\\n\")"
+      "Bash(curl -s http://localhost:5173 -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch)",
+      "Bash(git branch --show-current)",
+      "Bash(git add *)",
+      "Bash(git commit*)",
+      "Bash(git checkout -b *)",
+      "Bash(git switch -c *)",
+      "Bash(git push -u origin *)",
+      "Bash(git push)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh pr view*)",
+      "Bash(gh run list*)",
+      "Bash(gh run view*)",
+      "Bash(npm test*)",
+      "Bash(npm run build*)",
+      "Bash(npx tsc --noEmit*)",
+      "Bash(pytest*)",
+      "Bash(python -c *)",
+      "Bash(source venv/bin/activate*)"
     ]
   }
 }
