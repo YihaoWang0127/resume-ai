@@ -134,8 +134,7 @@ parsing. Page-length is a prompt hint, not enforcement. The honesty guardrail is
 ## Phase 6 — Polish & guardrails _(Day 7)_
 - [ ] **Render cold start:** keep-warm cron ping (or paid tier) so first stream isn't broken.
 - [ ] Mobile editor pass — at least make the new selectors usable on phone.
-- [ ] Update `README.md` + `CLAUDE.md` (readme-agent) for new endpoints, `career_stage`,
-      quota behavior, and `applications` table.
+- [ ] Update `README.md` + `CLAUDE.md` (readme-agent) all new change, but not too complicated
 - [ ] Tag **`v2.0`** release. ✅ This is the moment it becomes V2.
 
 ---
