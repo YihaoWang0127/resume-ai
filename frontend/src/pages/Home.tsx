@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, CheckCircle2, Eye, FileText, ClipboardList, BarChart2, X, ArrowLeft, Bookmark, Upload, UserCircle, Loader2 } from 'lucide-react'
+import { Sparkles, CheckCircle2, Eye, FileText, ClipboardList, BarChart2, X, ArrowLeft, Bookmark, Upload, UserCircle, Loader2, ExternalLink, Mail } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/contexts/AuthContext'
 import ResumeUploader from '@/components/ResumeUploader'
@@ -188,7 +188,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#EEF2FF] dark:bg-gray-950 flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       <Navbar />
 
       <main className="flex-1">
@@ -504,15 +504,43 @@ export default function Home() {
       </Modal>
 
       {/* Footer */}
-      <footer className="shrink-0 border-t border-border px-6 py-6">
-        <div className="max-w-2xl mx-auto flex items-center justify-center gap-3 text-xs text-muted-foreground">
-          <p className="flex items-center gap-1.5">
-            <span>© 2026 Yihao Wang. Built with Claude.</span>
-            <span className="text-border">·</span>
-            <a href="mailto:yihaowang0127@gmail.com" className="hover:text-primary transition-colors">
-              yihaowang0127@gmail.com
+      <footer className="shrink-0 border-t border-border bg-background px-6 py-8">
+        <div className="max-w-4xl mx-auto flex flex-col gap-6">
+          {/* Link rows */}
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            <a
+              href="https://github.com/YihaoWang0127"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 min-h-[44px] text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ExternalLink className="size-4 shrink-0" />
+              GitHub
             </a>
-          </p>
+            <a
+              href="https://www.linkedin.com/in/jasewang0127/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 min-h-[44px] text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ExternalLink className="size-4 shrink-0" />
+              LinkedIn
+            </a>
+            <a
+              href="mailto:yihaowang0127@gmail.com"
+              className="inline-flex items-center gap-2 min-h-[44px] text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Mail className="size-4 shrink-0" />
+              Contact
+            </a>
+          </div>
+
+          {/* Copyright bar */}
+          <div className="border-t border-border pt-4">
+            <p className="text-center text-xs text-muted-foreground">
+              © 2026 Yihao Wang. Built with Claude.
+            </p>
+          </div>
         </div>
       </footer>
     </div>

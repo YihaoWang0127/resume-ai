@@ -320,7 +320,13 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
   // Sonnet 4.6 for guests, or if no preference is set, or if the saved default is
   // the guest-restricted Fable model but the current session is a guest).
   useEffect(() => {
-    if (isGuest) return
+    if (isGuest) {
+      // Guests can never use the registered-users-only Fable model. If the
+      // session just transitioned from logged-in to guest, reset off of it
+      // without clobbering any other valid guest selection.
+      setSelectedModel((prev) => (prev === 'claude-fable-5' ? 'claude-sonnet-4-6' : prev))
+      return
+    }
     getPreferences()
       .then((prefs) => {
         const def = prefs?.default_model
