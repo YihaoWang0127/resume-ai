@@ -191,7 +191,7 @@ export default function Home() {
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       <Navbar />
 
-      <main className="flex-1">
+      <main>
         {/* ── Hero Section ─────────────────────────────────────── */}
         <section className="bg-[hsl(var(--hero-bg))]">
           <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-8 lg:gap-12 items-start pt-16 pb-8 px-8 max-w-7xl mx-auto">
