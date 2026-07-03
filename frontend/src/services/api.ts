@@ -174,11 +174,13 @@ export async function enrichResume(
   resume: ResumeSchema,
   tone?: string,
   careerStage?: 'student' | 'early' | 'experienced',
+  model?: string,
 ): Promise<ReadableStream<Uint8Array>> {
   const stream = await fetchStream('/api/enrich', {
     resume: toBackend(resume),
     tone: tone ?? 'professional',
     career_stage: careerStage ?? null,
+    ...(model ? { model } : {}),
   })
   return stream
 }
@@ -187,11 +189,13 @@ export async function tailorResume(
   resume: ResumeSchema,
   jobDescription: string,
   careerStage?: 'student' | 'early' | 'experienced',
+  model?: string,
 ): Promise<ReadableStream<Uint8Array>> {
   const stream = await fetchStream('/api/tailor', {
     resume: toBackend(resume),
     job_description: jobDescription,
     career_stage: careerStage ?? null,
+    ...(model ? { model } : {}),
   })
   return stream
 }
@@ -202,6 +206,7 @@ export async function generateCoverLetter(
   companyName: string,
   tone: 'professional' | 'enthusiastic' | 'concise',
   signal?: AbortSignal,
+  model?: string,
 ): Promise<ReadableStream<Uint8Array>> {
   const res = await fetch(`${BASE}/api/cover-letter`, {
     method: 'POST',
@@ -211,6 +216,7 @@ export async function generateCoverLetter(
       job_description: jobDescription,
       company_name: companyName,
       tone,
+      ...(model ? { model } : {}),
     }),
     signal,
   })
@@ -230,6 +236,7 @@ export async function improveCoverLetter(
     jobDescription?: string
     resume?: ResumeSchema
     tone?: 'professional' | 'enthusiastic' | 'concise'
+    model?: string
   } = {},
 ): Promise<ReadableStream<Uint8Array>> {
   const stream = await fetchStream('/api/cover-letter/improve', {
@@ -238,6 +245,7 @@ export async function improveCoverLetter(
     job_description: options.jobDescription ?? null,
     resume: options.resume ? toBackend(options.resume) : null,
     tone: options.tone ?? 'professional',
+    ...(options.model ? { model: options.model } : {}),
   })
   return stream
 }
@@ -259,11 +267,13 @@ export async function exportCoverLetter(
 export async function scoreATS(
   resume: ResumeSchema,
   jobDescription: string,
+  model?: string,
 ): Promise<ATSScoreResult> {
   try {
     const { data } = await http.post<BackendPayload>('/api/ats-score', {
       resume: toBackend(resume),
       job_description: jobDescription,
+      ...(model ? { model } : {}),
     })
     return {
       overallScore: typeof data.overall_score === 'number' ? data.overall_score : 0,

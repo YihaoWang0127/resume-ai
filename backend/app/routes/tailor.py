@@ -10,7 +10,7 @@ from app.limiter import ai_rate_limit
 from app.models.resume import TailorRequest
 from app.prompts.resume import build_tailor_prompt
 from app.services.career_stage import infer_career_stage
-from app.services.claude import stream_text
+from app.services.claude import FABLE_MODEL, SMART_MODEL, stream_text
 from app.services.quota import check_quota, log_ai_call
 
 router = APIRouter()
@@ -26,15 +26,19 @@ async def tailor_resume(
     if not body.job_description.strip():
         raise HTTPException(status_code=422, detail="job_description must not be empty.")
 
+    if body.model == FABLE_MODEL and auth.is_anonymous:
+        raise HTTPException(403, "Claude Fable 5 requires a registered account.")
+
     await check_quota(auth.user_id, auth.token, auth.is_anonymous)
-    background_tasks.add_task(log_ai_call, auth.user_id, "tailor", "claude-sonnet-4-6", auth.token)
+    used_model = body.model or SMART_MODEL
+    background_tasks.add_task(log_ai_call, auth.user_id, "tailor", used_model, auth.token)
 
     stage = body.career_stage or infer_career_stage(body.resume)
     system, user = build_tailor_prompt(body.resume, body.job_description, stage)
 
     async def generate() -> AsyncIterator[str]:
         try:
-            async for chunk in stream_text(system, user):
+            async for chunk in stream_text(system, user, model=body.model):
                 yield chunk
         except Exception as exc:
             yield f"\n[ERROR] {exc}"

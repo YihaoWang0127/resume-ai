@@ -7,6 +7,7 @@ import { DEFAULT_PREFERENCES } from '@/types/preferences'
 import type { JobLevel, Tone, UserPreferencesInput, WritingStyle } from '@/types/preferences'
 import { getAiUsageStats } from '@/services/aiUsage'
 import type { AiUsageAction, AiUsageStats } from '@/types/aiUsage'
+import { useAuth } from '@/contexts/AuthContext'
 import Navbar from '@/components/Navbar'
 import AccountSidebar from '@/components/AccountSidebar'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
@@ -35,6 +36,14 @@ const JOB_LEVEL_OPTIONS: { value: JobLevel; label: string }[] = [
   { value: 'executive', label: 'Executive' },
 ]
 
+const MODEL_OPTIONS: { value: string; label: string; registeredOnly?: boolean }[] = [
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (Default)' },
+  { value: 'claude-sonnet-5', label: 'Claude Sonnet 5' },
+  { value: 'claude-opus-4-7', label: 'Claude Opus 4.7' },
+  { value: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
+  { value: 'claude-fable-5', label: 'Claude Fable 5', registeredOnly: true },
+]
+
 const MODEL_INFO: { feature: string; model: string; description: string }[] = [
   {
     feature: 'Resume Parsing',
@@ -43,17 +52,17 @@ const MODEL_INFO: { feature: string; model: string; description: string }[] = [
   },
   {
     feature: 'Enrichment & Tailoring',
-    model: 'Claude Sonnet 4.6',
+    model: 'Your Default AI Model',
     description: 'quality rewriting',
   },
   {
     feature: 'Cover Letters',
-    model: 'Claude Sonnet 4.6',
+    model: 'Your Default AI Model',
     description: 'quality writing',
   },
   {
     feature: 'ATS Scoring',
-    model: 'Claude Sonnet 4.6',
+    model: 'Your Default AI Model',
     description: 'keyword & compatibility analysis',
   },
 ]
@@ -69,6 +78,8 @@ const ACTION_LABELS: Record<AiUsageAction, string> = {
 
 export default function AI() {
   const navigate = useNavigate()
+  const { isGuest } = useAuth()
+  const availableModelOptions = MODEL_OPTIONS.filter((opt) => !opt.registeredOnly || !isGuest)
 
   // --- AI Preferences state ---
   const [loading, setLoading] = useState(true)
@@ -98,6 +109,7 @@ export default function AI() {
     getPreferences()
       .then((data) => {
         if (!active) return
+        const loadedModel = data?.default_model ?? DEFAULT_PREFERENCES.default_model
         const next: UserPreferencesInput = data
           ? {
               ...DEFAULT_PREFERENCES,
@@ -108,6 +120,10 @@ export default function AI() {
               ats_mode: data.ats_mode,
               notify_export_complete: data.notify_export_complete,
               notify_product_updates: data.notify_product_updates,
+              // Guests can't use Fable — fall back to the baseline default rather than erroring.
+              default_model: loadedModel === 'claude-fable-5' && isGuest
+                ? DEFAULT_PREFERENCES.default_model
+                : loadedModel,
             }
           : DEFAULT_PREFERENCES
         setInitial(next)
@@ -166,6 +182,7 @@ export default function AI() {
         ats_mode: saved.ats_mode,
         notify_export_complete: saved.notify_export_complete,
         notify_product_updates: saved.notify_product_updates,
+        default_model: saved.default_model ?? DEFAULT_PREFERENCES.default_model,
       }
       setInitial(next)
       setPrefs(next)
@@ -286,6 +303,31 @@ export default function AI() {
                   onCheckedChange={(checked) => update('ats_mode', checked)}
                 />
               </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="default-model">Default AI Model</Label>
+                <p className="text-xs text-muted-foreground">
+                  Used for AI Enhancement, tailoring, cover letters, and ATS scoring unless overridden per task.
+                </p>
+                <Select
+                  value={prefs.default_model ?? DEFAULT_PREFERENCES.default_model}
+                  onValueChange={(value) => update('default_model', value)}
+                >
+                  <SelectTrigger id="default-model" className="w-full min-h-[44px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableModelOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isGuest && (
+                  <p className="text-xs text-muted-foreground">Sign in to unlock Claude Fable 5.</p>
+                )}
+              </div>
             </CardContent>
 
             <CardFooter>
@@ -395,9 +437,9 @@ export default function AI() {
           {techDetailsOpen && (
             <div className="px-5 pb-4 border-t border-border bg-secondary/20">
               <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
-                Resume AI uses Claude Haiku for fast parsing and validation of uploaded resumes, and Claude Sonnet for
-                enrichment, tailoring, cover letter generation, and ATS scoring. Model selection is automatic and
-                optimized for speed and quality per feature.
+                Resume AI uses Claude Haiku for fast parsing and validation of uploaded resumes. For enrichment,
+                tailoring, cover letter generation, and ATS scoring, Resume AI uses your Default AI Model above
+                (or the model you pick on the AI Enhancement stage) — Claude Sonnet 4.6 by default.
               </p>
               <div className="mt-3 space-y-1.5">
                 {MODEL_INFO.map((item) => (

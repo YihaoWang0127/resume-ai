@@ -18,7 +18,7 @@ def test_generate_cover_letter_returns_stream(
     sample_resume: dict,
     mocker,
 ) -> None:
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         yield "I am excited to apply"
         yield " for this opportunity."
 
@@ -43,7 +43,7 @@ def test_whitespace_job_description_returns_200(
     sample_resume: dict,
     mocker,
 ) -> None:
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         yield "Cover letter content."
 
     mocker.patch("app.routes.cover_letter.stream_text", new=fake_stream)
@@ -82,7 +82,7 @@ def test_generate_streams_all_chunks(
 ) -> None:
     chunks = ["First paragraph.", " Second paragraph.", " Third paragraph."]
 
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         for c in chunks:
             yield c
 
@@ -109,7 +109,7 @@ def test_generate_prompt_contains_resume_and_jd(
 ) -> None:
     captured: dict = {}
 
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         captured["system"] = system
         captured["user"] = user
         yield "ok"
@@ -137,7 +137,7 @@ def test_generate_tone_is_forwarded(
 ) -> None:
     captured: dict = {}
 
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         captured["user"] = user
         yield "ok"
 
@@ -241,7 +241,7 @@ SAMPLE_SELECTION = "My experience at Google and Stripe has prepared me well for 
 
 def test_improve_full_text(client: TestClient, mocker) -> None:
     """POST with text only (no selection) returns 200 streaming plain text."""
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         yield "Improved cover letter text."
 
     mocker.patch("app.routes.cover_letter.stream_text", new=fake_stream)
@@ -258,7 +258,7 @@ def test_improve_full_text(client: TestClient, mocker) -> None:
 
 def test_improve_with_selection(client: TestClient, mocker) -> None:
     """POST with text + non-empty selection returns 200 streaming plain text."""
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         yield "My background at Google and Stripe uniquely qualifies me."
 
     mocker.patch("app.routes.cover_letter.stream_text", new=fake_stream)
@@ -275,7 +275,7 @@ def test_improve_with_selection(client: TestClient, mocker) -> None:
 
 def test_improve_with_job_description(client: TestClient, mocker) -> None:
     """POST with text + job_description returns 200 streaming plain text."""
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         yield "Tailored improvement with JD context."
 
     mocker.patch("app.routes.cover_letter.stream_text", new=fake_stream)

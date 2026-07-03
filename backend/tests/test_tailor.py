@@ -11,7 +11,7 @@ def test_tailor_returns_stream(
     sample_resume: dict,
     mocker,
 ) -> None:
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         yield '{"metadata": {"name": "Jane Smith"}}'
 
     mocker.patch("app.routes.tailor.stream_text", new=fake_stream)
@@ -57,7 +57,7 @@ def test_tailor_prompt_contains_jd_and_resume(
 ) -> None:
     captured: dict = {}
 
-    async def fake_stream(system: str, user: str):
+    async def fake_stream(system: str, user: str, model: str | None = None):
         captured["user"] = user
         yield "{}"
 
