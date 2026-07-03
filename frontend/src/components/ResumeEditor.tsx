@@ -2134,8 +2134,8 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
                         <div className="space-y-1">
                           <label className="block text-xs font-medium text-muted-foreground">Description</label>
                           <textarea
-                            rows={3}
-                            className={cn(fieldSm, 'w-full resize-none')}
+                            rows={6}
+                            className={cn(fieldSm, 'w-full min-h-[120px] resize-none')}
                             placeholder="Project or role description…"
                             value={exp.description ?? ''}
                             onChange={(e) => setExp(i, 'description', e.target.value || undefined)}
