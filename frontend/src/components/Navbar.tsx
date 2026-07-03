@@ -17,19 +17,41 @@ type NavLabel = 'Features' | 'Steps' | 'Examples' | 'Pricing'
 
 const NAV_LABELS: NavLabel[] = ['Features', 'Steps', 'Examples', 'Pricing']
 
-const EXAMPLE_PAIRS = [
-  {
-    before: 'Responsible for managing team and handling projects.',
-    after: 'Led a cross-functional team of 8, delivering 3 major product launches ahead of schedule and increasing team velocity by 35%.',
+const RESUME_EXAMPLE = {
+  before: {
+    summary: 'Marketing professional with experience in social media and content creation. Good communicator and team player.',
+    bullets: [
+      'Managed social media accounts.',
+      'Created content for marketing campaigns.',
+      'Worked with the design team on projects.',
+    ],
   },
-  {
-    before: 'Worked on improving website performance.',
-    after: 'Reduced page load time by 60% through code-splitting and lazy-loading, improving conversion rate by 12%.',
+  after: {
+    summary: 'Results-driven Marketing Manager with 5+ years scaling B2B SaaS brands. Grew organic traffic 140% and managed $500K annual ad spend across paid and organic channels.',
+    bullets: [
+      'Grew Instagram following from 2K to 45K in 18 months through a data-driven content strategy, increasing engagement rate by 3.2x.',
+      'Led content strategy for 12 product launches, generating $1.2M in attributed pipeline.',
+      'Partnered with design and product teams to ship 20+ campaign assets on a 2-week sprint cadence.',
+    ],
   },
-  {
-    before: 'Helped with customer support tickets.',
-    after: 'Resolved 200+ customer support tickets monthly with a 98% satisfaction rating, reducing average response time by 40%.',
-  },
+}
+
+const SAMPLE_COVER_LETTER = `Dear Hiring Manager,
+
+I'm excited to apply for the Marketing Manager position at your company. With over five years of experience scaling B2B SaaS brands through data-driven content strategy and paid acquisition, I'm confident I can help your team grow its audience and pipeline.
+
+In my current role, I grew organic traffic by 140% and managed a $500K annual ad budget across paid and organic channels, consistently exceeding quarterly growth targets. I thrive on turning ambiguous goals into measurable campaigns, and I'd love to bring that same rigor to your marketing team.
+
+Thank you for considering my application. I'd welcome the opportunity to discuss how my background aligns with your team's goals.
+
+Sincerely,
+Jordan Avery`
+
+const ATS_SCORE_BREAKDOWN = [
+  { label: 'Keyword Match', value: 90 },
+  { label: 'Formatting', value: 85 },
+  { label: 'Skills Alignment', value: 88 },
+  { label: 'Readability', value: 82 },
 ]
 
 /* ─── Panel content components ─────────────────────────────────── */
@@ -89,39 +111,151 @@ function HowItWorksPanel() {
   )
 }
 
-function ExamplesModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+type ExampleKey = 'Resume' | 'Cover Letter' | 'ATS Score'
+
+const EXAMPLE_ITEMS: { key: ExampleKey; icon: ReactNode; desc: string }[] = [
+  { key: 'Resume', icon: <FileText className="size-4 text-primary" />, desc: 'See a full before & after resume rewrite' },
+  { key: 'Cover Letter', icon: <FileText className="size-4 text-primary" />, desc: 'A sample AI-generated cover letter' },
+  { key: 'ATS Score', icon: <CheckSquare className="size-4 text-primary" />, desc: 'A sample ATS compatibility breakdown' },
+]
+
+function ExamplesPanel({ onSelect }: { onSelect: (key: ExampleKey) => void }) {
+  return (
+    <div className="p-5">
+      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">See sample results</p>
+      <div className="flex flex-col gap-1">
+        {EXAMPLE_ITEMS.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onSelect(item.key)}
+            className="flex items-start gap-3 p-3 rounded-lg hover:bg-secondary/60 transition-colors text-left min-h-[44px]"
+          >
+            <div className="shrink-0 mt-0.5">{item.icon}</div>
+            <div>
+              <p className="text-sm font-semibold text-foreground leading-tight">{item.key}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{item.desc}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ModalCloseButton({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="Close"
+      className="shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] text-muted-foreground hover:text-foreground transition-colors"
+    >
+      <X className="size-5" />
+    </button>
+  )
+}
+
+function ResumeExampleModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Modal open={open} onClose={onClose} className="max-w-3xl rounded-xl">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Examples</p>
+          <h2 className="text-xl font-bold text-foreground">Resume: Before & After</h2>
+          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+            Illustrative example — not real user data.
+          </p>
+        </div>
+        <ModalCloseButton onClose={onClose} />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="border border-border rounded-xl p-4 flex flex-col gap-4">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Before</span>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Summary</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{RESUME_EXAMPLE.before.summary}</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Experience</p>
+            <ul className="flex flex-col gap-1.5 list-disc pl-4">
+              {RESUME_EXAMPLE.before.bullets.map((b, i) => (
+                <li key={i} className="text-sm text-muted-foreground leading-relaxed">{b}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="border border-primary/30 bg-primary/5 rounded-xl p-4 flex flex-col gap-4">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-primary">After</span>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Summary</p>
+            <p className="text-sm font-medium text-foreground leading-relaxed">{RESUME_EXAMPLE.after.summary}</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Experience</p>
+            <ul className="flex flex-col gap-1.5 list-disc pl-4">
+              {RESUME_EXAMPLE.after.bullets.map((b, i) => (
+                <li key={i} className="text-sm font-medium text-foreground leading-relaxed">{b}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function CoverLetterExampleModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Modal open={open} onClose={onClose} className="max-w-2xl rounded-xl">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Examples</p>
-          <h2 className="text-xl font-bold text-foreground">See the Difference</h2>
+          <h2 className="text-xl font-bold text-foreground">Sample Cover Letter</h2>
           <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-            Illustrative examples of how our AI rewrites weak bullet points into strong, quantified accomplishments.
+            Illustrative example — not real user data.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <X className="size-5" />
-        </button>
+        <ModalCloseButton onClose={onClose} />
       </div>
-      <div className="flex flex-col gap-4">
-        {EXAMPLE_PAIRS.map((pair, i) => (
-          <div key={i} className="border border-border rounded-xl p-4 flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Before</span>
-              <p className="text-sm text-muted-foreground leading-relaxed">{pair.before}</p>
+      <div className="border border-border rounded-xl p-4">
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{SAMPLE_COVER_LETTER}</p>
+      </div>
+    </Modal>
+  )
+}
+
+function AtsExampleModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Modal open={open} onClose={onClose} className="max-w-lg rounded-xl">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Examples</p>
+          <h2 className="text-xl font-bold text-foreground">Sample ATS Score</h2>
+          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+            Illustrative example — not real user data.
+          </p>
+        </div>
+        <ModalCloseButton onClose={onClose} />
+      </div>
+      <div className="flex flex-col gap-6">
+        <div className="text-center border border-border rounded-xl py-6">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Overall Score</p>
+          <p className="text-5xl font-bold text-primary">87%</p>
+        </div>
+        <div className="flex flex-col gap-4">
+          {ATS_SCORE_BREAKDOWN.map((item) => (
+            <div key={item.label} className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-foreground">{item.label}</span>
+                <span className="text-sm font-bold text-primary">{item.value}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                <div className="h-full bg-primary rounded-full" style={{ width: `${item.value}%` }} />
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">After</span>
-              <p className="text-sm font-medium text-foreground leading-relaxed">{pair.after}</p>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </Modal>
   )
@@ -157,12 +291,6 @@ function PricingPanel() {
   )
 }
 
-const NAV_PANELS: Partial<Record<NavLabel, ReactNode>> = {
-  Features: <FeaturesPanel />,
-  'Steps': <HowItWorksPanel />,
-  Pricing: <PricingPanel />,
-}
-
 export default function Navbar({ onBack, children }: Props) {
   const { user, loading, isGuest, signOut, openAuthModal } = useAuth()
   const navigate = useNavigate()
@@ -170,7 +298,23 @@ export default function Navbar({ onBack, children }: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeNav, setActiveNav] = useState<NavLabel | null>(null)
   const [packageOpen, setPackageOpen] = useState(false)
-  const [examplesOpen, setExamplesOpen] = useState(false)
+  const [resumeExampleOpen, setResumeExampleOpen] = useState(false)
+  const [coverLetterExampleOpen, setCoverLetterExampleOpen] = useState(false)
+  const [atsExampleOpen, setAtsExampleOpen] = useState(false)
+
+  const handleSelectExample = (key: ExampleKey) => {
+    setActiveNav(null)
+    if (key === 'Resume') setResumeExampleOpen(true)
+    else if (key === 'Cover Letter') setCoverLetterExampleOpen(true)
+    else setAtsExampleOpen(true)
+  }
+
+  const NAV_PANELS: Partial<Record<NavLabel, ReactNode>> = {
+    Features: <FeaturesPanel />,
+    'Steps': <HowItWorksPanel />,
+    Examples: <ExamplesPanel onSelect={handleSelectExample} />,
+    Pricing: <PricingPanel />,
+  }
   const userMenuRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLDivElement>(null)
 
@@ -246,11 +390,7 @@ export default function Navbar({ onBack, children }: Props) {
             <div key={label} className="relative">
               <button
                 type="button"
-                onClick={() =>
-                  label === 'Examples'
-                    ? setExamplesOpen(true)
-                    : setActiveNav(activeNav === label ? null : label)
-                }
+                onClick={() => setActiveNav(activeNav === label ? null : label)}
                 className={cn(
                   'flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
                   activeNav === label
@@ -259,9 +399,7 @@ export default function Navbar({ onBack, children }: Props) {
                 )}
               >
                 {label}
-                {label !== 'Examples' && (
-                  <ChevronDown className={cn('size-3 transition-transform', activeNav === label && 'rotate-180')} />
-                )}
+                <ChevronDown className={cn('size-3 transition-transform', activeNav === label && 'rotate-180')} />
               </button>
               {activeNav === label && NAV_PANELS[label] && (
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-[480px] bg-card border border-border rounded-xl shadow-dropdown animate-in fade-in-0 slide-in-from-top-2 duration-150">
@@ -447,7 +585,9 @@ export default function Navbar({ onBack, children }: Props) {
         )}
       </div>
       <PackageWizard open={packageOpen} onClose={() => setPackageOpen(false)} />
-      <ExamplesModal open={examplesOpen} onClose={() => setExamplesOpen(false)} />
+      <ResumeExampleModal open={resumeExampleOpen} onClose={() => setResumeExampleOpen(false)} />
+      <CoverLetterExampleModal open={coverLetterExampleOpen} onClose={() => setCoverLetterExampleOpen(false)} />
+      <AtsExampleModal open={atsExampleOpen} onClose={() => setAtsExampleOpen(false)} />
     </nav>
   )
 }

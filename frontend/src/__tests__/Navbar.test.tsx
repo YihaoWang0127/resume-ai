@@ -249,26 +249,77 @@ describe('Navbar — nav dropdown panels', () => {
     expect(screen.getByText('Pro')).toBeInTheDocument()
   })
 
-  it('opens the Examples modal showing the before/after comparison content', async () => {
+  it('opens the Examples dropdown showing Resume, Cover Letter, and ATS Score options', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
     await user.click(screen.getByRole('button', { name: /^Examples$/i }))
 
-    expect(screen.getByText('See the Difference')).toBeInTheDocument()
+    expect(screen.getByText('See sample results')).toBeInTheDocument()
+    expect(screen.getByText('Resume')).toBeInTheDocument()
+    expect(screen.getByText('Cover Letter')).toBeInTheDocument()
+    expect(screen.getByText('ATS Score')).toBeInTheDocument()
+    expect(screen.getByText('A sample ATS compatibility breakdown')).toBeInTheDocument()
+  })
+
+  it('closes the Examples dropdown when the "Examples" button is clicked again (toggle)', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /^Examples$/i }))
+    expect(screen.getByText('See sample results')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /^Examples$/i }))
+    expect(screen.queryByText('See sample results')).not.toBeInTheDocument()
+  })
+
+  it('clicking "Resume" in the Examples dropdown closes the dropdown and opens the Resume before/after modal', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /^Examples$/i }))
+    await user.click(screen.getByText('Resume'))
+
+    expect(screen.queryByText('See sample results')).not.toBeInTheDocument()
+    expect(screen.getByText('Resume: Before & After')).toBeInTheDocument()
     expect(screen.getAllByText('Before').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('After').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('closes the Examples modal when the X button is clicked', async () => {
+  it('clicking "Cover Letter" in the Examples dropdown opens the sample cover letter modal', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
     await user.click(screen.getByRole('button', { name: /^Examples$/i }))
-    expect(screen.getByText('See the Difference')).toBeInTheDocument()
+    await user.click(screen.getByText('Cover Letter'))
+
+    expect(screen.getByText('Sample Cover Letter')).toBeInTheDocument()
+    expect(screen.getByText(/Dear Hiring Manager/)).toBeInTheDocument()
+    expect(screen.getByText(/Jordan Avery/)).toBeInTheDocument()
+  })
+
+  it('clicking "ATS Score" in the Examples dropdown opens the sample ATS score modal', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /^Examples$/i }))
+    await user.click(screen.getByText('ATS Score'))
+
+    expect(screen.getByText('Sample ATS Score')).toBeInTheDocument()
+    expect(screen.getByText('87%')).toBeInTheDocument()
+    expect(screen.getByText('Keyword Match')).toBeInTheDocument()
+  })
+
+  it('closes the Resume example modal when the X button is clicked', async () => {
+    const user = userEvent.setup()
+    renderNavbar()
+
+    await user.click(screen.getByRole('button', { name: /^Examples$/i }))
+    await user.click(screen.getByText('Resume'))
+    expect(screen.getByText('Resume: Before & After')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Close/i }))
-    expect(screen.queryByText('See the Difference')).not.toBeInTheDocument()
+    expect(screen.queryByText('Resume: Before & After')).not.toBeInTheDocument()
   })
 
   it('nav panel buttons are not rendered when onBack prop is provided', () => {

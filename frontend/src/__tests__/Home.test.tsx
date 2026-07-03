@@ -79,7 +79,6 @@ describe('Home — hero section', () => {
     expect(screen.getAllByText('ATS Score').length).toBeGreaterThan(0)
     expect(screen.getByText('Job-Specific Keywords')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Create My Resume Package/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Tips/i })).toBeInTheDocument()
   })
 })
 
@@ -327,52 +326,5 @@ describe('Home — picker modal close behavior', () => {
     renderHome()
     expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
     expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
-  })
-})
-
-// ── "Tips" button ──────────────────────────────────────────────────────────────
-
-describe('Home — "Tips" button', () => {
-  it('is rendered as an enabled button', () => {
-    renderHome()
-    const btn = screen.getByRole('button', { name: /Tips/i })
-    expect(btn).not.toBeDisabled()
-  })
-
-  it('opens the tips modal showing the 3 workflow steps when clicked', async () => {
-    setupAuth({ user: null, isGuest: false, loading: false })
-    const user = userEvent.setup()
-    renderHome()
-
-    expect(screen.queryByRole('heading', { name: /New Here\? Here's How It Works/i })).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /Tips/i }))
-
-    expect(screen.getByRole('heading', { name: /New Here\? Here's How It Works/i })).toBeInTheDocument()
-    expect(screen.getAllByText('Upload Your Resume').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Paste a Job Description').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Get Resume + Cover Letter + ATS Score').length).toBeGreaterThanOrEqual(1)
-    expect(openAuthModal).not.toHaveBeenCalled()
-    expect(mockNavigate).not.toHaveBeenCalled()
-  })
-
-  it('closes the tips modal when the X button is clicked', async () => {
-    setupAuth({
-      user: { id: 'anon1', is_anonymous: true } as any,
-      isGuest: true,
-      loading: false,
-    })
-    const user = userEvent.setup()
-    renderHome()
-
-    await user.click(screen.getByRole('button', { name: /Tips/i }))
-    expect(screen.getByRole('heading', { name: /New Here\? Here's How It Works/i })).toBeInTheDocument()
-
-    // The X close button is the only button sibling of the heading in the modal header.
-    const heading = screen.getByRole('heading', { name: /New Here\? Here's How It Works/i })
-    const closeButton = heading.parentElement!.querySelector('button')!
-    await user.click(closeButton)
-
-    expect(screen.queryByRole('heading', { name: /New Here\? Here's How It Works/i })).not.toBeInTheDocument()
   })
 })
