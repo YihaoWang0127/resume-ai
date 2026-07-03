@@ -20,6 +20,7 @@ class ExperienceItem(BaseModel):
     location: Optional[str] = None
     start_date: str = ""
     end_date: Optional[str] = None  # None means "Present"
+    description: Optional[str] = None
     bullets: list[str] = Field(default_factory=list)
 
 

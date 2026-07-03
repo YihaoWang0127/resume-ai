@@ -55,6 +55,35 @@ def test_experience_item_present_when_no_end_date() -> None:
     assert exp.bullets == []
 
 
+def test_experience_item_description_defaults_to_none() -> None:
+    exp = ExperienceItem(company="Corp", title="Dev", start_date="Jan 2022")
+    assert exp.description is None
+
+
+def test_experience_item_accepts_description() -> None:
+    exp = ExperienceItem(
+        company="Corp",
+        title="Dev",
+        start_date="Jan 2022",
+        description="Led the platform team building the internal billing system.",
+        bullets=["Shipped feature X"],
+    )
+    assert exp.description == "Led the platform team building the internal billing system."
+    dumped = exp.model_dump()
+    assert dumped["description"] == "Led the platform team building the internal billing system."
+
+
+def test_experience_item_description_round_trips_through_resume_schema(sample_resume: dict) -> None:
+    payload = {
+        **sample_resume,
+        "experience": [
+            {**sample_resume["experience"][0], "description": "Owned the payments integration."},
+        ],
+    }
+    r = ResumeSchema.model_validate(payload)
+    assert r.experience[0].description == "Owned the payments integration."
+
+
 def test_education_item_optional_fields() -> None:
     edu = EducationItem(school="MIT", degree="B.S.")
     assert edu.field is None

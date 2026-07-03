@@ -57,6 +57,7 @@ export function fromBackend(raw: unknown): ResumeSchema {
       title: str(e.title),
       startDate: str(e.start_date),
       endDate: optStr(e.end_date),
+      description: optStr(e.description),
       current: !e.end_date,
       bullets: strArr(e.bullets),
     })),
@@ -97,6 +98,7 @@ function toBackend(resume: ResumeSchema): object {
       title: e.title,
       start_date: e.startDate,
       end_date: e.current ? null : (e.endDate ?? null),
+      description: e.description ?? null,
       bullets: e.bullets,
     })),
     education: resume.education.map((e) => ({

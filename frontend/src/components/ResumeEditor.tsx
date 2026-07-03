@@ -40,7 +40,7 @@ import Modal from '@/components/Modal'
 import { cn, getInitials } from '@/lib/utils'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import type { ATSScoreResult, EducationItem, ExperienceItem, ResumeSchema, SkillCategory } from '@/types/resume'
-import { enrichResume, exportResume, fromBackend, generateCoverLetter, QuotaExceededError, scoreATS, tailorResume, validateJobDescription } from '@/services/api'
+import { enrichResume, exportCoverLetter, exportResume, fromBackend, generateCoverLetter, QuotaExceededError, scoreATS, tailorResume, validateJobDescription } from '@/services/api'
 import { saveResume, updateResume, type AtsMetadata } from '@/services/resumes'
 import { saveCoverLetter, updateCoverLetter, deleteCoverLetter } from '@/services/coverLetters'
 import { useAuth } from '@/contexts/AuthContext'
@@ -167,6 +167,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
   const [atsResumeSnapshot, setAtsResumeSnapshot] = useState<string | null>(null)
   const [, setAtsResultSaved] = useState<boolean | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [isExportingCoverLetter, setIsExportingCoverLetter] = useState(false)
   const [streamLoading, setStreamLoading] = useState(false)
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [panelHeight, setPanelHeight] = useState(200)
@@ -812,6 +813,48 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
       showToast('Export failed. Please try again.', false)
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  const handleExportCoverLetter = async (format: 'pdf' | 'docx') => {
+    if (!clStreamContent.trim()) return
+    setIsExportingCoverLetter(true)
+    const showToast = (text: string, ok: boolean) => {
+      setSaveToast({ text, ok })
+      setTimeout(() => setSaveToast(null), 3000)
+    }
+    try {
+      const blob = await exportCoverLetter(clStreamContent, clCompany || 'cover_letter', format)
+      const slug = (clCompany || 'cover_letter').replace(/\W+/g, '_').toLowerCase()
+      const filename = `${slug}_cover_letter.${format}`
+      const picker = (window as any).showSaveFilePicker as ((o: object) => Promise<any>) | undefined
+      if (picker) {
+        const mimeType =
+          format === 'pdf'
+            ? 'application/pdf'
+            : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        const handle = await picker({
+          suggestedName: filename,
+          types: [{ description: format === 'pdf' ? 'PDF Document' : 'Word Document', accept: { [mimeType]: [`.${format}`] } }],
+        })
+        const writable = await handle.createWritable()
+        await writable.write(blob)
+        await writable.close()
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+      showToast('File saved successfully!', true)
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      console.error(err)
+      showToast('Export failed. Please try again.', false)
+    } finally {
+      setIsExportingCoverLetter(false)
     }
   }
 
@@ -2087,6 +2130,18 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
                           Currently working here
                         </label>
                       </div>
+                      {exp.description != null && (
+                        <div className="space-y-1">
+                          <label className="block text-xs font-medium text-muted-foreground">Description</label>
+                          <textarea
+                            rows={3}
+                            className={cn(fieldSm, 'w-full resize-none')}
+                            placeholder="Project or role description…"
+                            value={exp.description ?? ''}
+                            onChange={(e) => setExp(i, 'description', e.target.value || undefined)}
+                          />
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-muted-foreground">Achievements / Bullets</p>
                         {exp.bullets.map((b, bi) => (
@@ -2845,16 +2900,18 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
                     <div className="h-px bg-border mx-2 my-1" />
                     <button
                       type="button"
-                      onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Cover Letter PDF export coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                      onClick={() => { setPrimaryExportOpen(false); handleExportCoverLetter('pdf') }}
+                      disabled={isExportingCoverLetter || !clStreamContent}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left disabled:opacity-50"
                     >
                       <Mail className="size-3.5 shrink-0" />
                       Cover Letter PDF
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setPrimaryExportOpen(false); setSaveToast({ text: 'Cover Letter DOCX export coming soon', ok: true }); setTimeout(() => setSaveToast(null), 3000) }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                      onClick={() => { setPrimaryExportOpen(false); handleExportCoverLetter('docx') }}
+                      disabled={isExportingCoverLetter || !clStreamContent}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left disabled:opacity-50"
                     >
                       <Mail className="size-3.5 shrink-0" />
                       Cover Letter DOCX

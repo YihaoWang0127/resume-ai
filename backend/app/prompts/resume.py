@@ -11,18 +11,21 @@ Enhance the resume to highlight projects, internships, coursework, leadership, t
 Show GPA and honors prominently if present.
 Use strong action verbs. Write in a way that is honest and authentic.
 CRITICAL: Do NOT invent or fabricate any numbers, percentages, dollar amounts, team sizes, or metrics the candidate cannot verify. If a metric isn't in the original, omit it.
+Each experience entry may have a `description` field — an introductory prose paragraph describing the project or scope, separate from the `bullets`. Preserve this field as-is or lightly polish its wording; never delete it, never merge it into `bullets`, and never convert it into a bullet.
 Target: 1 page. Return the improved resume as a complete JSON object with the same structure as the input.""",
 
     'early': """You are a professional resume writer specializing in early-career professionals (1–4 years experience).
 Enhance bullet points to be achievement-oriented using strong action verbs. Highlight genuine accomplishments and growth.
 Include real metrics only where they are clearly present in the original — do not invent numbers.
 Show expanding scope and impact. Target: 1 page.
+Each experience entry may have a `description` field — an introductory prose paragraph describing the project or scope, separate from the `bullets`. Preserve this field as-is or lightly polish its wording; never delete it, never merge it into `bullets`, and never convert it into a bullet.
 Return the improved resume as a complete JSON object with the same structure as the input.""",
 
     'experienced': """You are a professional resume writer specializing in senior and experienced professionals.
 Enhance bullet points to be results-first and quantified — use the STAR method (Situation, Task, Action, Result).
 Emphasize leadership, scope, scale, team size, budget, and measurable business impact where present in the original.
 Use strong achievement verbs. Lead with the most impressive outcomes. 2 pages OK for 10+ years.
+Each experience entry may have a `description` field — an introductory prose paragraph describing the project or scope, separate from the `bullets`. Preserve this field as-is or lightly polish its wording; never delete it, never merge it into `bullets`, and never convert it into a bullet.
 Return the improved resume as a complete JSON object with the same structure as the input.""",
 }
 
@@ -31,16 +34,19 @@ TAILOR_SYSTEM_BY_STAGE: dict[str, str] = {
 Mirror keywords and terminology from the job description. Highlight the most relevant projects, coursework, and internships.
 Adjust the summary to speak directly to this role.
 CRITICAL: Do NOT invent or fabricate any numbers, percentages, or metrics. Only use information present in the original.
+Each experience entry may have a `description` field — an introductory prose paragraph describing the project or scope, separate from the `bullets`. Preserve this field as-is or lightly polish its wording; never delete it, never merge it into `bullets`, and never convert it into a bullet.
 Return the tailored resume as a complete JSON object with the same structure as the input.""",
 
     'early': """You are an expert resume writer tailoring an early-career resume for a specific job posting.
 Mirror keywords and terminology from the job description. Reorder bullets to lead with most relevant accomplishments.
 Highlight transferable skills and genuine growth. Do not invent metrics not present in the original.
+Each experience entry may have a `description` field — an introductory prose paragraph describing the project or scope, separate from the `bullets`. Preserve this field as-is or lightly polish its wording; never delete it, never merge it into `bullets`, and never convert it into a bullet.
 Return the tailored resume as a complete JSON object with the same structure as the input.""",
 
     'experienced': """You are an expert resume writer specializing in tailoring senior-level resumes for specific job postings.
 Mirror keywords and terminology from the job description. Lead with quantified impact, leadership, and scope.
 Reorder bullet points to lead with the most relevant accomplishments. Adjust the summary to speak directly to this role.
+Each experience entry may have a `description` field — an introductory prose paragraph describing the project or scope, separate from the `bullets`. Preserve this field as-is or lightly polish its wording; never delete it, never merge it into `bullets`, and never convert it into a bullet.
 Return the tailored resume as a complete JSON object with the same structure as the input.""",
 }
 
@@ -72,6 +78,7 @@ RESUME_JSON_SCHEMA = """{
       "location": "string or null",
       "start_date": "string (e.g. Jan 2022)",
       "end_date": "string or null (null means Present)",
+      "description": "string or null",
       "bullets": ["string"]
     }
   ],
@@ -123,7 +130,9 @@ def build_parse_prompt(raw_text: str) -> tuple[str, str]:
     """Returns (system_prompt, user_message) for parse."""
     user = f"""Extract this resume into JSON. Return ONLY valid JSON, no markdown, no explanation.
 
-Fields: metadata(name,email,phone,location,linkedin,github,website), summary, experience(company,title,location,start_date,end_date,bullets[]), education(school,degree,field,start_date,end_date,gpa,honors), skills(category,items[]), projects(name,description,technologies[],url,bullets[]), detected_industry
+Fields: metadata(name,email,phone,location,linkedin,github,website), summary, experience(company,title,location,start_date,end_date,description,bullets[]), education(school,degree,field,start_date,end_date,gpa,honors), skills(category,items[]), projects(name,description,technologies[],url,bullets[]), detected_industry
+
+For each experience entry, if there is an introductory prose paragraph (one or more full sentences describing what the project/team/system does or the scope of the role), written BEFORE a "Responsibilities:"-style bullet list, extract that paragraph into the `description` field. Do NOT include it as one of the `bullets`, and do NOT drop it.
 
 Use null for missing fields, empty list [] for missing arrays.
 For detected_industry: infer the industry from job titles, employers, skills, and keywords. Return exactly one of: tech | finance | creative | healthcare | general
@@ -150,6 +159,8 @@ Writing tone: {tone} — {tone_note}
 
 CURRENT RESUME:
 {resume_json}
+
+If an experience entry has a `description` field, preserve it in the output (verbatim or lightly polished) — do not delete it or fold it into `bullets`.
 
 Return ONLY the improved resume as valid JSON matching the exact same schema. No markdown fences, no explanation."""
     return system, user
@@ -243,6 +254,8 @@ JOB DESCRIPTION:
 
 CURRENT RESUME:
 {resume_json}
+
+If an experience entry has a `description` field, preserve it in the output (verbatim or lightly polished) — do not delete it or fold it into `bullets`.
 
 Return ONLY the tailored resume as valid JSON matching the exact same schema. No markdown fences, no explanation."""
     return system, user

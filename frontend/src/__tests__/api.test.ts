@@ -571,3 +571,144 @@ describe('toBackend (via enrichResume) — projects serialisation', () => {
     expect(Array.isArray(resumeBody.projects)).toBe(true)
   })
 })
+
+// ── fromBackend / toBackend — experience.description round-trip ──────────────
+
+describe('fromBackend — experience description mapping', () => {
+  it('maps experience.description from the backend payload', () => {
+    const raw = {
+      metadata: { name: 'Jane Smith', email: 'jane@example.com' },
+      summary: null,
+      experience: [
+        {
+          company: 'Acme Corp',
+          title: 'Engineer',
+          start_date: 'Jan 2020',
+          end_date: null,
+          description: 'Led the platform team building the internal billing system.',
+          bullets: ['Shipped feature X'],
+        },
+      ],
+      education: [],
+      skills: [],
+      projects: [],
+      detected_industry: 'tech',
+    }
+
+    const result = fromBackend(raw)
+
+    expect(result.experience).toHaveLength(1)
+    expect(result.experience[0].description).toBe(
+      'Led the platform team building the internal billing system.',
+    )
+  })
+
+  it('maps experience.description to undefined when the backend value is null', () => {
+    const raw = {
+      metadata: { name: 'Jane Smith', email: 'jane@example.com' },
+      summary: null,
+      experience: [
+        {
+          company: 'Acme Corp',
+          title: 'Engineer',
+          start_date: 'Jan 2020',
+          end_date: null,
+          description: null,
+          bullets: [],
+        },
+      ],
+      education: [],
+      skills: [],
+      projects: [],
+      detected_industry: 'tech',
+    }
+
+    const result = fromBackend(raw)
+
+    expect(result.experience[0].description).toBeUndefined()
+  })
+
+  it('maps experience.description to undefined when the backend field is missing', () => {
+    const raw = {
+      metadata: { name: 'Jane Smith', email: 'jane@example.com' },
+      summary: null,
+      experience: [
+        { company: 'Acme Corp', title: 'Engineer', start_date: 'Jan 2020', end_date: null, bullets: [] },
+      ],
+      education: [],
+      skills: [],
+      projects: [],
+      detected_industry: 'tech',
+    }
+
+    const result = fromBackend(raw)
+
+    expect(result.experience[0].description).toBeUndefined()
+  })
+})
+
+describe('toBackend (via enrichResume) — experience description serialisation', () => {
+  function stubEnrich(capturedBody: Record<string, unknown>) {
+    server.use(
+      http.post(`${BASE}/api/enrich`, async ({ request }) => {
+        Object.assign(capturedBody, await request.json())
+        return new HttpResponse('{}', {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' },
+        })
+      }),
+    )
+  }
+
+  it('serialises experience.description into the request body', async () => {
+    const body: Record<string, unknown> = {}
+    stubEnrich(body)
+
+    const resumeWithDescription = {
+      ...mockResume,
+      experience: [
+        {
+          company: 'Acme Corp',
+          title: 'Engineer',
+          startDate: 'Jan 2020',
+          description: 'Led the platform team building the internal billing system.',
+          current: true,
+          bullets: ['Shipped feature X'],
+        },
+      ],
+    }
+
+    await enrichResume(resumeWithDescription)
+
+    const resumeBody = body.resume as Record<string, unknown>
+    const experience = resumeBody.experience as Array<Record<string, unknown>>
+    expect(experience).toHaveLength(1)
+    expect(experience[0].description).toBe(
+      'Led the platform team building the internal billing system.',
+    )
+  })
+
+  it('serialises experience.description as null when undefined', async () => {
+    const body: Record<string, unknown> = {}
+    stubEnrich(body)
+
+    const resumeWithoutDescription = {
+      ...mockResume,
+      experience: [
+        {
+          company: 'Acme Corp',
+          title: 'Engineer',
+          startDate: 'Jan 2020',
+          current: true,
+          bullets: [],
+        },
+      ],
+    }
+
+    await enrichResume(resumeWithoutDescription)
+
+    const resumeBody = body.resume as Record<string, unknown>
+    const experience = resumeBody.experience as Array<Record<string, unknown>>
+    expect(experience[0].description).toBeNull()
+  })
+})
