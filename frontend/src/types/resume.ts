@@ -12,6 +12,7 @@ export interface ExperienceItem {
   title: string
   startDate: string
   endDate?: string
+  description?: string | null
   current: boolean
   bullets: string[]
 }

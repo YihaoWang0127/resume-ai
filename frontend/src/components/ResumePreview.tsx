@@ -187,6 +187,11 @@ export default function ResumePreview({
                   <p className="text-gray-600" style={{ fontSize: '9.5pt' }}>
                     {exp.company}
                   </p>
+                  {exp.description && (
+                    <p className="text-gray-700 mt-1" style={{ fontSize: '9.5pt' }}>
+                      {exp.description}
+                    </p>
+                  )}
                   {exp.bullets.filter(Boolean).length > 0 && (
                     <ul className="list-disc list-outside ml-4 mt-1 space-y-0.5">
                       {exp.bullets.filter(Boolean).map((b: string, j: number) => {

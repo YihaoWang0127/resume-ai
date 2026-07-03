@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.models.resume import ResumeSchema
-from app.prompts.resume import build_enrich_prompt, build_tailor_prompt
+from app.prompts.resume import build_enrich_prompt, build_parse_prompt, build_tailor_prompt
 
 # ---------------------------------------------------------------------------
 # Shared fixture
@@ -87,3 +87,38 @@ def test_tailor_jd_appears_in_user_message(minimal_resume: ResumeSchema) -> None
     jd = "We need a Python backend engineer."
     _, user = build_tailor_prompt(minimal_resume, jd, "early")
     assert jd in user
+
+
+# ---------------------------------------------------------------------------
+# build_parse_prompt — experience `description` field extraction
+# ---------------------------------------------------------------------------
+
+def test_parse_prompt_field_list_includes_experience_description() -> None:
+    """The schema field list for experience entries must include `description`."""
+    _, user = build_parse_prompt("Some resume raw text")
+    assert "experience(company,title,location,start_date,end_date,description,bullets[])" in user
+
+
+def test_parse_prompt_instructs_extracting_intro_paragraph_into_description() -> None:
+    """The prompt must instruct the model to extract the prose intro paragraph
+    before 'Responsibilities:' bullets into `description`, not drop or merge it."""
+    _, user = build_parse_prompt("Some resume raw text")
+    assert "description" in user
+    assert "Responsibilities" in user
+    assert "do NOT drop it" in user or "do not drop it" in user.lower()
+
+
+# ---------------------------------------------------------------------------
+# build_enrich_prompt / build_tailor_prompt — experience `description` preservation
+# ---------------------------------------------------------------------------
+
+def test_enrich_user_message_instructs_preserving_description(minimal_resume: ResumeSchema) -> None:
+    _, user = build_enrich_prompt(minimal_resume, "professional", "early")
+    assert "description" in user
+    assert "do not delete it or fold it into" in user.lower() or "preserve it in the output" in user.lower()
+
+
+def test_tailor_user_message_instructs_preserving_description(minimal_resume: ResumeSchema) -> None:
+    _, user = build_tailor_prompt(minimal_resume, "Some JD text", "early")
+    assert "description" in user
+    assert "do not delete it or fold it into" in user.lower() or "preserve it in the output" in user.lower()
