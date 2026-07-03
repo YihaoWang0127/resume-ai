@@ -51,7 +51,7 @@
 - **Error Pages** — custom 404/500 with ErrorBoundary
 - **Enrich with AI — Review & Compare** — loading overlay with progress bar, then split/unified diff view; accept or discard changes; cancel stream mid-flight
 - **Persistent Account Sidebar** — route-aware sidebar for Dashboard, Profile, AI, and Settings; collapses to a horizontal tab bar on mobile
-- **Navbar Desktop Links** — center nav with interactive dropdown panels for Features, How It Works, Pricing, Examples, and Blog
+- **Navbar Desktop Links** — center nav with interactive dropdown panels for Features, How It Works, and Pricing; Examples opens a "See the Difference" modal with 3 before/after resume-bullet comparisons
 - **Three-State Navbar Auth Area** — unauthenticated shows "Get Started Free"; guest shows avatar dropdown with Sign In; signed-in shows full avatar with display name
 - **Landing Page Hero Redesign** — two-column hero with badge, headline, feature checklist, and auth-aware CTAs; resume mock card on the right; trust bar below
 - **Resume Editor Redesign** — 3-column layout with 4-step stepper, icon-based section nav, rich-text form, live preview panel, and collapse toggle

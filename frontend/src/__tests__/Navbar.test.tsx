@@ -130,18 +130,22 @@ describe('Navbar — anonymous guest session (isGuest: true)', () => {
 })
 
 describe('Navbar — center nav links', () => {
-  it('renders all five nav links when no onBack or children props are present', () => {
+  it('renders all four nav links when no onBack or children props are present', () => {
     renderNavbar()
     expect(screen.getByText('Features')).toBeInTheDocument()
     expect(screen.getByText('Steps')).toBeInTheDocument()
     expect(screen.getByText('Examples')).toBeInTheDocument()
     expect(screen.getByText('Pricing')).toBeInTheDocument()
-    expect(screen.getByText('Blog')).toBeInTheDocument()
   })
 
   it('does not render the removed "Templates" link', () => {
     renderNavbar()
     expect(screen.queryByText('Templates')).not.toBeInTheDocument()
+  })
+
+  it('does not render the removed "Blog" link', () => {
+    renderNavbar()
+    expect(screen.queryByText('Blog')).not.toBeInTheDocument()
   })
 
   it('hides center nav links when onBack prop is provided', () => {
@@ -150,7 +154,6 @@ describe('Navbar — center nav links', () => {
     expect(screen.queryByText('Steps')).not.toBeInTheDocument()
     expect(screen.queryByText('Examples')).not.toBeInTheDocument()
     expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
-    expect(screen.queryByText('Blog')).not.toBeInTheDocument()
   })
 
   it('hides center nav links when children are provided', () => {
@@ -164,7 +167,6 @@ describe('Navbar — center nav links', () => {
     expect(screen.queryByText('Steps')).not.toBeInTheDocument()
     expect(screen.queryByText('Examples')).not.toBeInTheDocument()
     expect(screen.queryByText('Pricing')).not.toBeInTheDocument()
-    expect(screen.queryByText('Blog')).not.toBeInTheDocument()
   })
 })
 
@@ -247,26 +249,26 @@ describe('Navbar — nav dropdown panels', () => {
     expect(screen.getByText('Pro')).toBeInTheDocument()
   })
 
-  it('opens the Examples panel showing "Coming Soon"', async () => {
+  it('opens the Examples modal showing the before/after comparison content', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
     await user.click(screen.getByRole('button', { name: /^Examples$/i }))
 
-    // ExamplesPanel renders "Coming Soon" text
-    const comingSoonEls = screen.getAllByText('Coming Soon')
-    expect(comingSoonEls.length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('See the Difference')).toBeInTheDocument()
+    expect(screen.getAllByText('Before').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('After').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('opens the Blog panel showing "Coming Soon"', async () => {
+  it('closes the Examples modal when the X button is clicked', async () => {
     const user = userEvent.setup()
     renderNavbar()
 
-    await user.click(screen.getByRole('button', { name: /^Blog$/i }))
+    await user.click(screen.getByRole('button', { name: /^Examples$/i }))
+    expect(screen.getByText('See the Difference')).toBeInTheDocument()
 
-    const comingSoonEls = screen.getAllByText('Coming Soon')
-    expect(comingSoonEls.length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText(/Tips, guides, and industry insights/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Close/i }))
+    expect(screen.queryByText('See the Difference')).not.toBeInTheDocument()
   })
 
   it('nav panel buttons are not rendered when onBack prop is provided', () => {

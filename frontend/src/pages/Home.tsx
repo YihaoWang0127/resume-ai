@@ -124,6 +124,7 @@ export default function Home() {
   const [savedResumes, setSavedResumes] = useState<SavedResume[]>([])
   const [loadingResumes, setLoadingResumes] = useState(false)
   const [loadingProfile, setLoadingProfile] = useState(false)
+  const [tipsOpen, setTipsOpen] = useState(false)
 
   const handleEnhance = () => {
     if (loading) return
@@ -244,10 +245,10 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  disabled
-                  className="inline-flex items-center gap-2 border border-primary text-primary bg-transparent rounded-lg px-6 py-3 font-semibold text-sm min-h-[44px] opacity-50 cursor-not-allowed hover:bg-primary/10 transition-colors"
+                  onClick={() => setTipsOpen(true)}
+                  className="inline-flex items-center gap-2 border border-primary text-primary bg-transparent rounded-lg px-6 py-3 font-semibold text-sm min-h-[44px] hover:bg-primary/10 transition-colors"
                 >
-                  See Example
+                  Tips
                   <Eye className="size-4 shrink-0" />
                 </button>
               </div>
@@ -501,6 +502,50 @@ export default function Home() {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Tips / getting started modal */}
+      <Modal
+        open={tipsOpen}
+        onClose={() => setTipsOpen(false)}
+        overlayClassName="p-4"
+        className="rounded-2xl max-w-2xl p-0"
+      >
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+          <h2 className="text-base font-bold text-foreground">New Here? Here&apos;s How It Works</h2>
+          <button
+            onClick={() => setTipsOpen(false)}
+            className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="p-6 flex flex-col gap-5">
+          {WORKFLOW_STEPS.map(({ step, icon: Icon, title, description }) => (
+            <div key={step} className="flex items-start gap-4">
+              <div className="shrink-0 flex flex-col items-center gap-1">
+                <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Icon className="size-5 text-primary" />
+                </div>
+                <span className="text-[10px] font-bold text-primary/60 tracking-widest">STEP {step}</span>
+              </div>
+              <div className="flex flex-col gap-1 pt-1">
+                <p className="text-sm font-semibold text-foreground leading-tight">{title}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+              </div>
+            </div>
+          ))}
+
+          <div className="border-t border-border pt-4 flex flex-col gap-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">A few tips</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              You can try the whole flow as a guest — sign up later to save your resumes and cover letters.
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              We support PDF, DOCX, and plain text uploads for your existing resume.
+            </p>
+          </div>
+        </div>
       </Modal>
 
       {/* Footer */}

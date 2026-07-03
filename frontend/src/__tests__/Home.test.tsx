@@ -79,7 +79,7 @@ describe('Home — hero section', () => {
     expect(screen.getAllByText('ATS Score').length).toBeGreaterThan(0)
     expect(screen.getByText('Job-Specific Keywords')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Create My Resume Package/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /See Example/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Tips/i })).toBeInTheDocument()
   })
 })
 
@@ -330,44 +330,33 @@ describe('Home — picker modal close behavior', () => {
   })
 })
 
-// ── "See Example" button ──────────────────────────────────────────────────────
+// ── "Tips" button ──────────────────────────────────────────────────────────────
 
-describe('Home — "See Example" button (disabled)', () => {
-  it('is rendered as a disabled button with cursor-not-allowed and opacity-50 classes', () => {
+describe('Home — "Tips" button', () => {
+  it('is rendered as an enabled button', () => {
     renderHome()
-    const btn = screen.getByRole('button', { name: /See Example/i })
-    expect(btn).toBeDisabled()
-    expect(btn.className).toContain('cursor-not-allowed')
-    expect(btn.className).toContain('opacity-50')
+    const btn = screen.getByRole('button', { name: /Tips/i })
+    expect(btn).not.toBeDisabled()
   })
 
-  it('does not call openAuthModal when clicked while disabled (no session)', async () => {
+  it('opens the tips modal showing the 3 workflow steps when clicked', async () => {
     setupAuth({ user: null, isGuest: false, loading: false })
     const user = userEvent.setup()
     renderHome()
 
-    await user.click(screen.getByRole('button', { name: /See Example/i }))
+    expect(screen.queryByRole('heading', { name: /New Here\? Here's How It Works/i })).not.toBeInTheDocument()
 
+    await user.click(screen.getByRole('button', { name: /Tips/i }))
+
+    expect(screen.getByRole('heading', { name: /New Here\? Here's How It Works/i })).toBeInTheDocument()
+    expect(screen.getAllByText('Upload Your Resume').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Paste a Job Description').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Get Resume + Cover Letter + ATS Score').length).toBeGreaterThanOrEqual(1)
     expect(openAuthModal).not.toHaveBeenCalled()
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
-  it('does not navigate or open modals when clicked while disabled (authenticated)', async () => {
-    setupAuth({
-      user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
-      isGuest: false,
-      loading: false,
-    })
-    const user = userEvent.setup()
-    renderHome()
-
-    await user.click(screen.getByRole('button', { name: /See Example/i }))
-
-    expect(mockNavigate).not.toHaveBeenCalled()
-    expect(openAuthModal).not.toHaveBeenCalled()
-  })
-
-  it('does not open the picker modal when clicked while disabled (guest)', async () => {
+  it('closes the tips modal when the X button is clicked', async () => {
     setupAuth({
       user: { id: 'anon1', is_anonymous: true } as any,
       isGuest: true,
@@ -376,10 +365,14 @@ describe('Home — "See Example" button (disabled)', () => {
     const user = userEvent.setup()
     renderHome()
 
-    await user.click(screen.getByRole('button', { name: /See Example/i }))
+    await user.click(screen.getByRole('button', { name: /Tips/i }))
+    expect(screen.getByRole('heading', { name: /New Here\? Here's How It Works/i })).toBeInTheDocument()
 
-    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
-    expect(mockNavigate).not.toHaveBeenCalled()
-    expect(openAuthModal).not.toHaveBeenCalled()
+    // The X close button is the only button sibling of the heading in the modal header.
+    const heading = screen.getByRole('heading', { name: /New Here\? Here's How It Works/i })
+    const closeButton = heading.parentElement!.querySelector('button')!
+    await user.click(closeButton)
+
+    expect(screen.queryByRole('heading', { name: /New Here\? Here's How It Works/i })).not.toBeInTheDocument()
   })
 })

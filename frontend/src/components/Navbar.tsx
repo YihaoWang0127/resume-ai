@@ -1,20 +1,36 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings, Menu, X, Sparkles, Zap, CheckSquare, FileText, Download, Upload, BookOpen, Package } from 'lucide-react'
+import { ChevronDown, LayoutDashboard, LogOut, ArrowLeft, User, Settings, Menu, X, Sparkles, Zap, CheckSquare, FileText, Download, Upload, Package } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { cn, getInitials } from '@/lib/utils'
 import PackageWizard from '@/components/PackageWizard'
+import Modal from '@/components/Modal'
 
 interface Props {
   onBack?: () => void
   children?: ReactNode
 }
 
-type NavLabel = 'Features' | 'Steps' | 'Examples' | 'Pricing' | 'Blog'
+type NavLabel = 'Features' | 'Steps' | 'Examples' | 'Pricing'
 
-const NAV_LABELS: NavLabel[] = ['Features', 'Steps', 'Examples', 'Pricing', 'Blog']
+const NAV_LABELS: NavLabel[] = ['Features', 'Steps', 'Examples', 'Pricing']
+
+const EXAMPLE_PAIRS = [
+  {
+    before: 'Responsible for managing team and handling projects.',
+    after: 'Led a cross-functional team of 8, delivering 3 major product launches ahead of schedule and increasing team velocity by 35%.',
+  },
+  {
+    before: 'Worked on improving website performance.',
+    after: 'Reduced page load time by 60% through code-splitting and lazy-loading, improving conversion rate by 12%.',
+  },
+  {
+    before: 'Helped with customer support tickets.',
+    after: 'Resolved 200+ customer support tickets monthly with a 98% satisfaction rating, reducing average response time by 40%.',
+  },
+]
 
 /* ─── Panel content components ─────────────────────────────────── */
 
@@ -73,21 +89,41 @@ function HowItWorksPanel() {
   )
 }
 
-function ExamplesPanel() {
+function ExamplesModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <div className="p-5">
-      <div className="flex flex-col items-center text-center gap-4 py-4">
-        <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Sparkles className="size-6 text-primary" />
-        </div>
+    <Modal open={open} onClose={onClose} className="max-w-2xl rounded-xl">
+      <div className="flex items-start justify-between gap-4 mb-4">
         <div>
-          <p className="text-sm font-bold text-foreground">Coming Soon</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-xs leading-relaxed">
-            We&apos;re putting together real before/after examples. Check back soon!
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Examples</p>
+          <h2 className="text-xl font-bold text-foreground">See the Difference</h2>
+          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+            Illustrative examples of how our AI rewrites weak bullet points into strong, quantified accomplishments.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <X className="size-5" />
+        </button>
       </div>
-    </div>
+      <div className="flex flex-col gap-4">
+        {EXAMPLE_PAIRS.map((pair, i) => (
+          <div key={i} className="border border-border rounded-xl p-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Before</span>
+              <p className="text-sm text-muted-foreground leading-relaxed">{pair.before}</p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">After</span>
+              <p className="text-sm font-medium text-foreground leading-relaxed">{pair.after}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Modal>
   )
 }
 
@@ -121,30 +157,10 @@ function PricingPanel() {
   )
 }
 
-function BlogPanel() {
-  return (
-    <div className="p-5">
-      <div className="flex flex-col items-center text-center gap-4 py-4">
-        <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <BookOpen className="size-6 text-primary" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-foreground">Coming Soon</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-xs leading-relaxed">
-            Tips, guides, and industry insights for your job search journey. Coming soon!
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const NAV_PANELS: Record<NavLabel, ReactNode> = {
+const NAV_PANELS: Partial<Record<NavLabel, ReactNode>> = {
   Features: <FeaturesPanel />,
   'Steps': <HowItWorksPanel />,
-  Examples: <ExamplesPanel />,
   Pricing: <PricingPanel />,
-  Blog: <BlogPanel />,
 }
 
 export default function Navbar({ onBack, children }: Props) {
@@ -154,6 +170,7 @@ export default function Navbar({ onBack, children }: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeNav, setActiveNav] = useState<NavLabel | null>(null)
   const [packageOpen, setPackageOpen] = useState(false)
+  const [examplesOpen, setExamplesOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLDivElement>(null)
 
@@ -229,7 +246,11 @@ export default function Navbar({ onBack, children }: Props) {
             <div key={label} className="relative">
               <button
                 type="button"
-                onClick={() => setActiveNav(activeNav === label ? null : label)}
+                onClick={() =>
+                  label === 'Examples'
+                    ? setExamplesOpen(true)
+                    : setActiveNav(activeNav === label ? null : label)
+                }
                 className={cn(
                   'flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
                   activeNav === label
@@ -238,9 +259,11 @@ export default function Navbar({ onBack, children }: Props) {
                 )}
               >
                 {label}
-                <ChevronDown className={cn('size-3 transition-transform', activeNav === label && 'rotate-180')} />
+                {label !== 'Examples' && (
+                  <ChevronDown className={cn('size-3 transition-transform', activeNav === label && 'rotate-180')} />
+                )}
               </button>
-              {activeNav === label && (
+              {activeNav === label && NAV_PANELS[label] && (
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-[480px] bg-card border border-border rounded-xl shadow-dropdown animate-in fade-in-0 slide-in-from-top-2 duration-150">
                   {NAV_PANELS[label]}
                 </div>
@@ -424,6 +447,7 @@ export default function Navbar({ onBack, children }: Props) {
         )}
       </div>
       <PackageWizard open={packageOpen} onClose={() => setPackageOpen(false)} />
+      <ExamplesModal open={examplesOpen} onClose={() => setExamplesOpen(false)} />
     </nav>
   )
 }
