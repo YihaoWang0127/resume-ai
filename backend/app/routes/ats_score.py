@@ -8,7 +8,7 @@ from app.auth import AuthUser, get_current_user
 from app.limiter import ai_rate_limit
 from app.models.resume import ATSScoreRequest, ATSScoreResponse
 from app.prompts.resume import build_ats_score_prompt
-from app.services.claude import complete_smart
+from app.services.claude import FABLE_MODEL, SMART_MODEL, complete_smart
 from app.services.quota import check_quota, log_ai_call
 
 router = APIRouter()
@@ -24,11 +24,15 @@ async def ats_score(
     if not body.job_description.strip():
         raise HTTPException(status_code=422, detail="job_description must not be empty.")
 
+    if body.model == FABLE_MODEL and auth.is_anonymous:
+        raise HTTPException(403, "Claude Fable 5 requires a registered account.")
+
     await check_quota(auth.user_id, auth.token, auth.is_anonymous)
-    background_tasks.add_task(log_ai_call, auth.user_id, "ats_score", "claude-sonnet-4-6", auth.token)
+    used_model = body.model or SMART_MODEL
+    background_tasks.add_task(log_ai_call, auth.user_id, "ats_score", used_model, auth.token)
 
     system, user = build_ats_score_prompt(body.resume, body.job_description)
-    raw = complete_smart(system, user)
+    raw = complete_smart(system, user, model=body.model)
     raw = raw.strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()

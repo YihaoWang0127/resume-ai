@@ -51,7 +51,7 @@
 - **Error Pages** — custom 404/500 with ErrorBoundary
 - **Enrich with AI — Review & Compare** — loading overlay with progress bar, then split/unified diff view; accept or discard changes; cancel stream mid-flight
 - **Persistent Account Sidebar** — route-aware sidebar for Dashboard, Profile, AI, and Settings; collapses to a horizontal tab bar on mobile
-- **Navbar Desktop Links** — center nav with interactive dropdown panels for Features, How It Works, Pricing, Examples, and Blog
+- **Navbar Desktop Links** — center nav with interactive dropdown panels for Features, How It Works, Pricing, and Examples; the Examples panel lists Resume, Cover Letter, and ATS Score, each opening its own sample modal (before/after comparison, sample cover letter, or mock score breakdown)
 - **Three-State Navbar Auth Area** — unauthenticated shows "Get Started Free"; guest shows avatar dropdown with Sign In; signed-in shows full avatar with display name
 - **Landing Page Hero Redesign** — two-column hero with badge, headline, feature checklist, and auth-aware CTAs; resume mock card on the right; trust bar below
 - **Resume Editor Redesign** — 3-column layout with 4-step stepper, icon-based section nav, rich-text form, live preview panel, and collapse toggle
@@ -65,7 +65,7 @@
 
 ### AI (`/ai`)
 - **AI Preferences** — tone, writing style, industry, job level, and ATS mode persisted to `user_preferences` and applied to all AI prompts
-- **Models** — read-only info card showing which Claude model powers parsing (Haiku 4.5) vs. enrichment/tailoring/cover letters/ATS scoring (Sonnet 4.6)
+- **Models** — info card showing Haiku 4.5 stays fixed for parsing; enrichment/tailoring/cover letters/ATS scoring use a user-selectable model, with a "Default AI Model" setting here as the fallback when no per-screen override is chosen
 - **AI Usage** — total AI calls, calls this month, breakdown by action type, and recent activity, backed by `ai_usage_log`
 
 ### Settings & Personalization
@@ -110,15 +110,17 @@ Security: AI routes are JWT-secured (PyJWT ES256 + Supabase JWKS); rate-limited 
 | Method | Path | Purpose |
 |---|---|---|
 | POST | /api/parse | Upload PDF/DOCX → validated + parsed resume JSON |
-| POST | /api/enrich | Stream-enriched resume; optional `tone` field: `'professional'` (default) \| `'concise'` \| `'assertive'`; optional `career_stage` field: `'student'` \| `'early'` \| `'experienced'` \| `null` (auto-detect) |
-| POST | /api/tailor | Stream-tailored resume to job description; optional `career_stage` field: `'student'` \| `'early'` \| `'experienced'` \| `null` (auto-detect) |
+| POST | /api/enrich | Stream-enriched resume; optional `tone` field: `'professional'` (default) \| `'concise'` \| `'assertive'`; optional `career_stage` field: `'student'` \| `'early'` \| `'experienced'` \| `null` (auto-detect); optional `model` field (see below) |
+| POST | /api/tailor | Stream-tailored resume to job description; optional `career_stage` field: `'student'` \| `'early'` \| `'experienced'` \| `null` (auto-detect); optional `model` field (see below) |
 | POST | /api/export | Export resume as PDF or DOCX |
-| POST | /api/cover-letter | Stream-generated cover letter |
+| POST | /api/cover-letter | Stream-generated cover letter; optional `model` field (see below) |
 | POST | /api/cover-letter/export | Export cover letter as PDF/DOCX/TXT |
-| POST | /api/ats-score | Score resume against a job description (keyword match, gaps, suggestions) |
+| POST | /api/ats-score | Score resume against a job description (keyword match, gaps, suggestions); optional `model` field (see below) |
 | POST | /api/validate-jd | Validate that input text is a real job description; returns `{ valid, reason }` |
 | POST | /api/validate-role | Validate that input text is a real position/role name; returns `{ valid, reason }` |
 | GET | /health | Health check |
+
+`model` field (optional, on `/api/enrich`, `/api/tailor`, `/api/cover-letter`, `/api/cover-letter/improve`, `/api/ats-score`): `"claude-sonnet-4-6"` (default, unchanged behavior if omitted) \| `"claude-sonnet-5"` \| `"claude-opus-4-7"` \| `"claude-opus-4-8"` \| `"claude-fable-5"` (registered users only — anonymous/guest sessions requesting this get HTTP 403).
 
 AI routes (`/api/parse`, `/api/enrich`, `/api/tailor`, `/api/cover-letter`, `/api/cover-letter/improve`, `/api/ats-score`) return HTTP 402 with `{"detail": "Monthly AI limit of 30 calls reached. Upgrade to continue."}` when a user's free quota is exhausted.
 
@@ -173,6 +175,8 @@ CREATE TABLE user_preferences (
   ats_mode BOOLEAN NOT NULL DEFAULT false,
   notify_export_complete BOOLEAN NOT NULL DEFAULT true,
   notify_product_updates BOOLEAN NOT NULL DEFAULT false,
+  default_model TEXT NOT NULL DEFAULT 'claude-sonnet-4-6'
+    CHECK (default_model IN ('claude-sonnet-4-6', 'claude-sonnet-5', 'claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5')),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 -- RLS enabled — users can only read/write their own row
@@ -206,8 +210,9 @@ CREATE TABLE ai_usage_log (
 
 **RPC:** `delete_user_account()` — `SECURITY DEFINER` function called from Settings → Security → Delete Account. Cascades through `cover_letters`, `resumes`, `user_preferences`, `profiles`, and `ai_usage_log`, then removes the `auth.users` row.
 
-See `supabase/migrations/20260611_user_preferences.sql` and
-`supabase/migrations/20260613_profile_and_ai_usage.sql` for the full migrations.
+See `supabase/migrations/20260611_user_preferences.sql`,
+`supabase/migrations/20260613_profile_and_ai_usage.sql`, and
+`supabase/migrations/20260703_default_ai_model.sql` (adds `default_model` to `user_preferences`) for the full migrations.
 
 ---
 
@@ -380,6 +385,7 @@ and `backend` (`pytest -v`) — matching branch protection on `main`.
 - [x] Career stage persona split — Student / Early Career / Experienced selector with auto-detection
 - [x] One Click Package Generation — wizard: JD + role (AI-validated) → resume selection → parallel streaming tailor + cover letter + ATS → result view with export and save
 - [x] Mobile responsive editor — scrollable AI tool and document tab bars; Edit/Preview toggle scoped correctly per step
+- [x] User-selectable AI model — per-screen model selector on the AI Enhance step and a default model preference on `/ai`
 - [ ] Stripe monetization
 - [ ] Resume version history
 - [ ] Generate resume from scratch using Profile work experience

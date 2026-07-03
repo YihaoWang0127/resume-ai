@@ -1,7 +1,15 @@
 from __future__ import annotations
 
 from typing import Literal, Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from app.services.claude import ALLOWED_SMART_MODELS
+
+
+def _validate_smart_model(value: Optional[str]) -> Optional[str]:
+    if value is not None and value not in ALLOWED_SMART_MODELS:
+        raise ValueError(f"Unsupported model: {value}")
+    return value
 
 
 class Metadata(BaseModel):
@@ -61,17 +69,26 @@ class TailorRequest(BaseModel):
     resume: ResumeSchema
     job_description: str
     career_stage: Optional[Literal['student', 'early', 'experienced']] = None
+    model: Optional[str] = None
+
+    _validate_model = field_validator("model")(_validate_smart_model)
 
 
 class EnrichRequest(BaseModel):
     resume: ResumeSchema
     tone: Optional[Literal['professional', 'concise', 'assertive']] = 'professional'
     career_stage: Optional[Literal['student', 'early', 'experienced']] = None
+    model: Optional[str] = None
+
+    _validate_model = field_validator("model")(_validate_smart_model)
 
 
 class ATSScoreRequest(BaseModel):
     resume: ResumeSchema
     job_description: str
+    model: Optional[str] = None
+
+    _validate_model = field_validator("model")(_validate_smart_model)
 
 
 class ATSScoreResponse(BaseModel):

@@ -4,12 +4,15 @@ import pytest
 from pydantic import ValidationError
 
 from app.models.resume import (
+    ATSScoreRequest,
     EducationItem,
+    EnrichRequest,
     ExperienceItem,
     Metadata,
     ProjectItem,
     ResumeSchema,
     SkillCategory,
+    TailorRequest,
 )
 
 
@@ -108,3 +111,42 @@ def test_metadata_all_optional_except_name() -> None:
     assert m.email is None
     assert m.phone is None
     assert m.location is None
+
+
+# ── model field validation (Claude model switcher) ────────────────────────────
+
+
+def test_enrich_request_model_defaults_to_none(sample_resume: dict) -> None:
+    req = EnrichRequest(resume=sample_resume)
+    assert req.model is None
+
+
+@pytest.mark.parametrize("model", ["claude-sonnet-5", "claude-opus-4-8", "claude-fable-5"])
+def test_enrich_request_accepts_allowed_model(sample_resume: dict, model: str) -> None:
+    req = EnrichRequest(resume=sample_resume, model=model)
+    assert req.model == model
+
+
+def test_enrich_request_rejects_unsupported_model(sample_resume: dict) -> None:
+    with pytest.raises(ValidationError):
+        EnrichRequest(resume=sample_resume, model="claude-not-a-real-model")
+
+
+def test_tailor_request_rejects_unsupported_model(sample_resume: dict) -> None:
+    with pytest.raises(ValidationError):
+        TailorRequest(resume=sample_resume, job_description="Software engineer role", model="claude-not-a-real-model")
+
+
+def test_tailor_request_accepts_allowed_model(sample_resume: dict) -> None:
+    req = TailorRequest(resume=sample_resume, job_description="Software engineer role", model="claude-opus-4-7")
+    assert req.model == "claude-opus-4-7"
+
+
+def test_ats_score_request_rejects_unsupported_model(sample_resume: dict) -> None:
+    with pytest.raises(ValidationError):
+        ATSScoreRequest(resume=sample_resume, job_description="Software engineer role", model="claude-not-a-real-model")
+
+
+def test_ats_score_request_accepts_allowed_model(sample_resume: dict) -> None:
+    req = ATSScoreRequest(resume=sample_resume, job_description="Software engineer role", model="claude-sonnet-4-6")
+    assert req.model == "claude-sonnet-4-6"

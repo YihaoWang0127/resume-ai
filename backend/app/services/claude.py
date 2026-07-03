@@ -27,6 +27,27 @@ MAX_TOKENS = 8192  # for enrich/tailor
 PARSE_MAX_TOKENS = 4096  # faster for parse
 ATS_SCORE_MAX_TOKENS = 2048  # smaller — ATS score response is compact JSON
 
+FABLE_MODEL = "claude-fable-5"  # registered users only — gated in routes via auth.is_anonymous
+
+# Models the user may opt into for enrich/tailor/cover-letter/ATS ("smart") calls.
+# SMART_MODEL is always the default/fallback and is always allowed.
+ALLOWED_SMART_MODELS = {
+    SMART_MODEL,
+    "claude-sonnet-5",
+    "claude-opus-4-7",
+    "claude-opus-4-8",
+    FABLE_MODEL,
+}
+
+
+def resolve_smart_model(model: str | None) -> str:
+    """Validate an optional user-selected smart model, falling back to SMART_MODEL."""
+    if model is None:
+        return SMART_MODEL
+    if model not in ALLOWED_SMART_MODELS:
+        raise ValueError(f"Unsupported model: {model}")
+    return model
+
 
 def validate_resume(text: str) -> dict:
     """Fast validation using Haiku — returns {"is_resume": bool, "reason": str}"""
@@ -58,11 +79,13 @@ def complete(system: str, user: str) -> str:
     return message.content[0].text
 
 
-def complete_smart(system: str, user: str, max_tokens: int = ATS_SCORE_MAX_TOKENS) -> str:
-    """Blocking completion using SMART_MODEL — used for quality semantic analysis (e.g. ATS scoring)."""
+def complete_smart(
+    system: str, user: str, max_tokens: int = ATS_SCORE_MAX_TOKENS, model: str | None = None
+) -> str:
+    """Blocking completion using the smart model — used for quality semantic analysis (e.g. ATS scoring)."""
     client = get_client()
     message = client.messages.create(
-        model=SMART_MODEL,
+        model=resolve_smart_model(model),
         max_tokens=max_tokens,
         system=system,
         messages=[{"role": "user", "content": user}],
@@ -70,11 +93,11 @@ def complete_smart(system: str, user: str, max_tokens: int = ATS_SCORE_MAX_TOKEN
     return message.content[0].text
 
 
-async def stream_text(system: str, user: str) -> AsyncIterator[str]:
+async def stream_text(system: str, user: str, model: str | None = None) -> AsyncIterator[str]:
     """Async generator that yields text chunks from a streaming response."""
     client = get_client()
     with client.messages.stream(
-        model=SMART_MODEL,
+        model=resolve_smart_model(model),
         max_tokens=MAX_TOKENS,
         system=system,
         messages=[{"role": "user", "content": user}],

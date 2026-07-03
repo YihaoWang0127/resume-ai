@@ -79,7 +79,6 @@ describe('Home — hero section', () => {
     expect(screen.getAllByText('ATS Score').length).toBeGreaterThan(0)
     expect(screen.getByText('Job-Specific Keywords')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Create My Resume Package/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /See Example/i })).toBeInTheDocument()
   })
 })
 
@@ -327,59 +326,5 @@ describe('Home — picker modal close behavior', () => {
     renderHome()
     expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
     expect(screen.queryByTestId('resume-uploader')).not.toBeInTheDocument()
-  })
-})
-
-// ── "See Example" button ──────────────────────────────────────────────────────
-
-describe('Home — "See Example" button (disabled)', () => {
-  it('is rendered as a disabled button with cursor-not-allowed and opacity-50 classes', () => {
-    renderHome()
-    const btn = screen.getByRole('button', { name: /See Example/i })
-    expect(btn).toBeDisabled()
-    expect(btn.className).toContain('cursor-not-allowed')
-    expect(btn.className).toContain('opacity-50')
-  })
-
-  it('does not call openAuthModal when clicked while disabled (no session)', async () => {
-    setupAuth({ user: null, isGuest: false, loading: false })
-    const user = userEvent.setup()
-    renderHome()
-
-    await user.click(screen.getByRole('button', { name: /See Example/i }))
-
-    expect(openAuthModal).not.toHaveBeenCalled()
-    expect(mockNavigate).not.toHaveBeenCalled()
-  })
-
-  it('does not navigate or open modals when clicked while disabled (authenticated)', async () => {
-    setupAuth({
-      user: { id: 'u1', email: 'jane@example.com', user_metadata: {} } as any,
-      isGuest: false,
-      loading: false,
-    })
-    const user = userEvent.setup()
-    renderHome()
-
-    await user.click(screen.getByRole('button', { name: /See Example/i }))
-
-    expect(mockNavigate).not.toHaveBeenCalled()
-    expect(openAuthModal).not.toHaveBeenCalled()
-  })
-
-  it('does not open the picker modal when clicked while disabled (guest)', async () => {
-    setupAuth({
-      user: { id: 'anon1', is_anonymous: true } as any,
-      isGuest: true,
-      loading: false,
-    })
-    const user = userEvent.setup()
-    renderHome()
-
-    await user.click(screen.getByRole('button', { name: /See Example/i }))
-
-    expect(screen.queryByRole('heading', { name: /Create Your Resume Package/i })).not.toBeInTheDocument()
-    expect(mockNavigate).not.toHaveBeenCalled()
-    expect(openAuthModal).not.toHaveBeenCalled()
   })
 })

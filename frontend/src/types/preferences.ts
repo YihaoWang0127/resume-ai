@@ -11,6 +11,7 @@ export interface UserPreferences {
   ats_mode: boolean
   notify_export_complete: boolean
   notify_product_updates: boolean
+  default_model?: string
   updated_at: string
 }
 
@@ -24,4 +25,5 @@ export const DEFAULT_PREFERENCES: UserPreferencesInput = {
   ats_mode: false,
   notify_export_complete: true,
   notify_product_updates: false,
+  default_model: 'claude-sonnet-4-6',
 }

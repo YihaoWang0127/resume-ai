@@ -104,7 +104,7 @@ def test_ats_score_prompt_contains_jd_and_resume(
 ) -> None:
     captured: dict = {}
 
-    def fake_complete_smart(system: str, user: str) -> str:
+    def fake_complete_smart(system: str, user: str, model: str | None = None) -> str:
         captured["system"] = system
         captured["user"] = user
         return json.dumps(ATS_RESPONSE)
@@ -119,3 +119,17 @@ def test_ats_score_prompt_contains_jd_and_resume(
     assert JOB_DESC in captured.get("user", "")
     assert "Jane Smith" in captured.get("user", "")
     assert "ATS" in captured.get("system", "")
+
+
+# ── model switcher (Claude model selection validation) ────────────────────────
+
+
+def test_ats_score_with_invalid_model_returns_422(
+    client: TestClient,
+    sample_resume: dict,
+) -> None:
+    resp = client.post(
+        "/api/ats-score",
+        json={"resume": sample_resume, "job_description": JOB_DESC, "model": "not-a-real-model"},
+    )
+    assert resp.status_code == 422

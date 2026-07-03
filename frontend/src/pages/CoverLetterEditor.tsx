@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar'
 import ExportMenu from '@/components/ExportMenu'
 import { generateCoverLetter, exportCoverLetter, improveCoverLetter, QuotaExceededError } from '@/services/api'
 import { saveCoverLetter, updateCoverLetter, getCoverLetter } from '@/services/coverLetters'
+import { getPreferences } from '@/services/preferences'
 import { getResume, listResumes } from '@/services/resumes'
 import type { SavedResume } from '@/services/resumes'
 import ResumePreview from '@/components/ResumePreview'
@@ -71,6 +72,7 @@ export default function CoverLetterEditor() {
   const [pendingResumeId, setPendingResumeId] = useState<string | null>(null)
   const [showChangeWarning, setShowChangeWarning] = useState(false)
   const [showQuotaModal, setShowQuotaModal] = useState(false)
+  const [aiModel, setAiModel] = useState<string>('claude-sonnet-4-6')
   const exportRef = useRef<HTMLDivElement>(null)
   const autoGenRef = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -112,7 +114,7 @@ export default function CoverLetterEditor() {
     setRegenerating(true)
     setContent('')
     console.log('[CoverLetterEditor] auto-generation starting')
-    generateCoverLetter(state.resume, state.jobDescription, state.companyName, (state.tone as Tone) ?? 'professional')
+    generateCoverLetter(state.resume, state.jobDescription, state.companyName, (state.tone as Tone) ?? 'professional', undefined, aiModel)
       .then(async (stream) => {
         console.log('[CoverLetterEditor] stream opened')
         const reader = stream.getReader()
@@ -131,6 +133,16 @@ export default function CoverLetterEditor() {
       .catch(console.error)
       .finally(() => setRegenerating(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load the user's default AI model preference (this page is not reachable by guests —
+  // see the isGuest redirect below — so no guest-restriction check is needed here).
+  useEffect(() => {
+    getPreferences()
+      .then((prefs) => {
+        if (prefs?.default_model) setAiModel(prefs.default_model)
+      })
+      .catch(() => {})
+  }, [])
 
   // Close export dropdown on outside click
   useEffect(() => {
@@ -191,7 +203,7 @@ export default function CoverLetterEditor() {
     setRegenerating(true)
     setContent('')
     try {
-      const stream = await generateCoverLetter(resume, jobDescription, companyName, tone)
+      const stream = await generateCoverLetter(resume, jobDescription, companyName, tone, undefined, aiModel)
       const reader = stream.getReader()
       const decoder = new TextDecoder()
       let accumulated = ''
@@ -226,6 +238,7 @@ export default function CoverLetterEditor() {
         jobDescription: jobDescription || undefined,
         resume: resume || undefined,
         tone,
+        model: aiModel,
       })
       const reader = stream.getReader()
       const decoder = new TextDecoder()

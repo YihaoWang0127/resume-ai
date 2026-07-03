@@ -44,6 +44,7 @@ import { enrichResume, exportCoverLetter, exportResume, fromBackend, generateCov
 import { saveResume, updateResume, type AtsMetadata } from '@/services/resumes'
 import { saveCoverLetter, updateCoverLetter, deleteCoverLetter } from '@/services/coverLetters'
 import { useAuth } from '@/contexts/AuthContext'
+import { getPreferences } from '@/services/preferences'
 import ComparisonView from './ComparisonView'
 import ResumePreview from './ResumePreview'
 import StreamingOutput from './StreamingOutput'
@@ -127,6 +128,14 @@ const AI_TOOL_DEFS: Array<{ id: AiTool; label: string; description: string; Icon
   { id: 'ats',         label: 'ATS Score',      description: 'Check resume match against a job description',   Icon: Target },
 ]
 
+const MODEL_OPTIONS: Array<{ value: string; label: string; guestRestricted?: boolean }> = [
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (Default)' },
+  { value: 'claude-sonnet-5', label: 'Claude Sonnet 5' },
+  { value: 'claude-opus-4-7', label: 'Claude Opus 4.7' },
+  { value: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
+  { value: 'claude-fable-5', label: 'Claude Fable 5', guestRestricted: true },
+]
+
 type CoverLetterTone = 'professional' | 'enthusiastic' | 'concise'
 
 const ZOOM_LEVELS = [75, 90, 100, 110, 125]
@@ -202,6 +211,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
   const [atsSaved, setAtsSaved] = useState(false)
   const [polishInlineMsg, setPolishInlineMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [enrichTone, setEnrichTone] = useState<'professional' | 'concise' | 'assertive'>('professional')
+  const [selectedModel, setSelectedModel] = useState<string>('claude-sonnet-4-6')
   const [careerStage, setCareerStage] = useState<'student' | 'early' | 'experienced' | null>(
     initialCareerStage ?? null
   )
@@ -305,6 +315,27 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [accountMenuOpen])
+
+  // Initialize AI model selection from the user's saved preference (falls back to
+  // Sonnet 4.6 for guests, or if no preference is set, or if the saved default is
+  // the guest-restricted Fable model but the current session is a guest).
+  useEffect(() => {
+    if (isGuest) {
+      // Guests can never use the registered-users-only Fable model. If the
+      // session just transitioned from logged-in to guest, reset off of it
+      // without clobbering any other valid guest selection.
+      setSelectedModel((prev) => (prev === 'claude-fable-5' ? 'claude-sonnet-4-6' : prev))
+      return
+    }
+    getPreferences()
+      .then((prefs) => {
+        const def = prefs?.default_model
+        if (def && !(def === 'claude-fable-5' && isGuest)) {
+          setSelectedModel(def)
+        }
+      })
+      .catch(() => {})
+  }, [isGuest])
 
   // Autosave interval: when autosaveOn and currentResumeId exists, auto-update every 30s
   useEffect(() => {
@@ -555,7 +586,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
   const startEnrich = () => {
     setOriginalResume(resume)
     setEnrichmentState('loading')
-    runStream(() => enrichResume(resume, enrichTone, careerStage ?? undefined))
+    runStream(() => enrichResume(resume, enrichTone, careerStage ?? undefined, selectedModel))
     // Enrich's loading/comparison UI lives in the right (preview) panel —
     // switch mobile view there so the user sees it (overrides runStream's
     // setMobileViewTab('edit') for the Tailor flow).
@@ -618,7 +649,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
 
   const handleTailor = () => {
     setTailorOpen(false)
-    runStream(() => tailorResume(resume, jobDesc, careerStage ?? undefined))
+    runStream(() => tailorResume(resume, jobDesc, careerStage ?? undefined, selectedModel))
   }
 
   const handleGenerateCoverLetterInline = async () => {
@@ -633,7 +664,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
     setClSavedContent(null)
     setClIsStreaming(true)
     try {
-      const stream = await generateCoverLetter(resume, clJobDesc, clCompany, clTone)
+      const stream = await generateCoverLetter(resume, clJobDesc, clCompany, clTone, undefined, selectedModel)
       const reader = stream.getReader()
       clStreamReaderRef.current = reader
       const decoder = new TextDecoder()
@@ -700,7 +731,7 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
     setAtsResult(null)
     setAtsSaved(false)
     try {
-      const result = await scoreATS(resume, atsJobDesc)
+      const result = await scoreATS(resume, atsJobDesc, selectedModel)
       setAtsResult(result)
       setAtsResumeSnapshot(JSON.stringify(resume))
       setAtsResultSaved(false)
@@ -1306,6 +1337,31 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
         </div>
       )}
 
+      {/* Mobile AI Model Selector — step 2 only, mobile only */}
+      {currentStep === 2 && (
+        <div className="lg:hidden shrink-0 border-b border-border bg-card px-4 py-2 flex items-center gap-2">
+          <label htmlFor="ai-model-select-mobile" className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest shrink-0">
+            AI Model
+          </label>
+          <select
+            id="ai-model-select-mobile"
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="flex-1 min-h-[44px] px-3 py-2 text-sm bg-background text-foreground border border-border rounded-lg outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-shadow"
+          >
+            {MODEL_OPTIONS.map((opt) => (
+              <option
+                key={opt.value}
+                value={opt.value}
+                disabled={opt.guestRestricted && isGuest}
+              >
+                {opt.label}{opt.guestRestricted && isGuest ? ' (Sign in required)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* ── MAIN ──────────────────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
 
@@ -1342,6 +1398,27 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
                   </button>
                 ))}
               </nav>
+              <div className="px-4 pt-4 pb-2 mt-2 border-t border-border">
+                <label htmlFor="ai-model-select" className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
+                  AI Model
+                </label>
+                <select
+                  id="ai-model-select"
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="w-full min-h-[44px] px-3 py-2 text-sm bg-background text-foreground border border-border rounded-lg outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-shadow"
+                >
+                  {MODEL_OPTIONS.map((opt) => (
+                    <option
+                      key={opt.value}
+                      value={opt.value}
+                      disabled={opt.guestRestricted && isGuest}
+                    >
+                      {opt.label}{opt.guestRestricted && isGuest ? ' (Sign in required)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </>
           ) : currentStep === 3 ? (
             /* ── DOCUMENT SELECTOR (Step 3 only) ────────────────────────────── */
