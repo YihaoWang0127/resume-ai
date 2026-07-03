@@ -25,6 +25,9 @@ vi.mock('@/services/coverLetters', () => ({
   updateCoverLetter: vi.fn(),
   deleteCoverLetter: vi.fn(),
 }))
+vi.mock('@/services/preferences', () => ({
+  getPreferences: vi.fn().mockResolvedValue(null),
+}))
 vi.mock('@/components/ResumePreview', () => ({
   default: (props: { onIndustryChange?: (industry: string) => void }) => (
     <div data-testid="resume-preview">
@@ -1205,6 +1208,8 @@ describe('ResumeEditor — Cover Letter inline streaming', () => {
       expect.any(String),
       'Acme Corp',
       expect.any(String),
+      undefined,
+      'claude-sonnet-4-6',
     )
   })
 
@@ -1302,7 +1307,7 @@ describe('ResumeEditor — Resume Polish tone selector', () => {
       await Promise.resolve()
     })
 
-    expect(mockEnrichResume).toHaveBeenCalledWith(mockResume, 'assertive', undefined)
+    expect(mockEnrichResume).toHaveBeenCalledWith(mockResume, 'assertive', undefined, 'claude-sonnet-4-6')
   })
 })
 
