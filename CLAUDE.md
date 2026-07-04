@@ -21,9 +21,10 @@ generates cover letters, and exports as PDF/DOCX/TXT. Supabase handles auth and 
 - Rate-limited via slowapi; server-side quota enforcement (30 AI calls/month free tier) returns HTTP 402 when the limit is reached
 - Backend remains stateless for CRUD — all Supabase reads/writes go through the frontend client directly
 
-Tech stack, key files, API routes, and database schema are documented once, in `README.md`
-(§Tech Stack, §Project Structure, §API Endpoints, §Database) — treat README as the source of
-truth for all of that and don't re-list it here.
+Tech stack and key files are documented once, in `README.md` (§Tech Stack, §Project Structure).
+Full API routes and database schema live in `doc/api.md` and `doc/database.md`, linked from
+README's API Endpoints / Database sections. Treat these as the source of truth and don't
+re-list them here.
 
 ## Agent System
 
