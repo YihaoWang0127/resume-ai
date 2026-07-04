@@ -20,8 +20,8 @@
 - **ATS Keyword Scoring** — 0-100 keyword-match score with matched/missing chips and AI suggestions; validates job description input; dismissible results panel; tracked per-resume on the Dashboard
 - **AI Usage Tracking** — every AI call logged server-side to `ai_usage_log` (backend writes using the user's JWT); surfaced on `/ai` as total calls, monthly count, and action breakdown
 - **Monthly Quota Enforcement** — free tier capped at 30 AI calls/month; AI routes return HTTP 402 when the limit is reached; a "Monthly Limit Reached" modal surfaces in the UI instead of a generic error
-- **Career Stage Persona Split** — Career Stage selector (Student / Early Career / Experienced) in the AI Enhance step; default is auto-detected from the resume content; enrichment and tailoring prompts are persona-aware based on the selected stage
-- **One Click Package Generation** — “One Click Package” button in the Dashboard navbar (registered users only) launches a two-step wizard: enter Company Name, Position/Role + Job Description (Position and JD both AI-validated in real time via `/api/validate-role` and `/api/validate-jd`) → select a saved resume or upload a new one → streams a tailored resume, cover letter, and ATS score in parallel with live progress bars; results appear in a full-screen view with Resume/Cover Letter tabs on the left and a persistent ATS sidebar on the right; Export Resume (PDF), Export CV (PDF), or Save Application Package (saves tailored resume + cover letter to Supabase)
+- **Career Stage Persona Split** — Student / Early Career / Experienced selector (auto-detected by default) makes enrichment and tailoring prompts persona-aware
+- **One Click Package Generation** — wizard collects company, role, and JD (AI-validated), then streams a tailored resume + cover letter + ATS score in parallel; results view supports PDF export and saving the full package to Supabase (registered users only)
 
 ### Auth & Storage
 - **Sign in with Google** — OAuth via Supabase; failed redirects show a toast and reopen the auth modal
@@ -107,112 +107,21 @@ Security: AI routes are JWT-secured (PyJWT ES256 + Supabase JWKS); rate-limited 
 
 ## API Endpoints
 
-| Method | Path | Purpose |
-|---|---|---|
-| POST | /api/parse | Upload PDF/DOCX → validated + parsed resume JSON |
-| POST | /api/enrich | Stream-enriched resume; optional `tone` field: `'professional'` (default) \| `'concise'` \| `'assertive'`; optional `career_stage` field: `'student'` \| `'early'` \| `'experienced'` \| `null` (auto-detect); optional `model` field (see below) |
-| POST | /api/tailor | Stream-tailored resume to job description; optional `career_stage` field: `'student'` \| `'early'` \| `'experienced'` \| `null` (auto-detect); optional `model` field (see below) |
-| POST | /api/export | Export resume as PDF or DOCX |
-| POST | /api/cover-letter | Stream-generated cover letter; optional `model` field (see below) |
-| POST | /api/cover-letter/export | Export cover letter as PDF/DOCX/TXT |
-| POST | /api/ats-score | Score resume against a job description (keyword match, gaps, suggestions); optional `model` field (see below) |
-| POST | /api/validate-jd | Validate that input text is a real job description; returns `{ valid, reason }` |
-| POST | /api/validate-role | Validate that input text is a real position/role name; returns `{ valid, reason }` |
-| GET | /health | Health check |
+10 REST endpoints under `/api/*` (parse, enrich, tailor, export, cover letter, ATS score,
+JD/role validation) plus `/health`. All AI routes are JWT-secured, support an optional
+`model` override, and return HTTP 402 once the free-tier quota is hit.
 
-`model` field (optional, on `/api/enrich`, `/api/tailor`, `/api/cover-letter`, `/api/cover-letter/improve`, `/api/ats-score`): `"claude-sonnet-4-6"` (default, unchanged behavior if omitted) \| `"claude-sonnet-5"` \| `"claude-opus-4-7"` \| `"claude-opus-4-8"` \| `"claude-fable-5"` (registered users only — anonymous/guest sessions requesting this get HTTP 403).
-
-AI routes (`/api/parse`, `/api/enrich`, `/api/tailor`, `/api/cover-letter`, `/api/cover-letter/improve`, `/api/ats-score`) return HTTP 402 with `{"detail": "Monthly AI limit of 30 calls reached. Upgrade to continue."}` when a user's free quota is exhausted.
-
-Frontend uses Supabase JS directly for all CRUD operations (save/load/list/delete).
+Full endpoint list, request fields, and status codes: [`doc/api.md`](doc/api.md).
 
 ---
 
 ## Database
 
-```sql
--- Resumes table
-CREATE TABLE resumes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  title TEXT NOT NULL,
-  resume_data JSONB NOT NULL,
-  detected_industry TEXT DEFAULT 'general',
-  career_stage TEXT CHECK (career_stage IN ('student', 'early', 'experienced')),
-  ats_score INTEGER,
-  ats_score_updated_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+Supabase Postgres with RLS on every table: `resumes`, `cover_letters`, `user_preferences`,
+`profiles`, and `ai_usage_log`, plus an `avatars` storage bucket and a `delete_user_account()`
+RPC for account deletion.
 
--- Cover Letters table
-CREATE TABLE cover_letters (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  resume_id UUID REFERENCES resumes(id) ON DELETE SET NULL,
-  title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  company_name TEXT,
-  job_description TEXT,
-  tone TEXT DEFAULT 'professional',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Both tables have Row Level Security enabled
--- Users can only access their own data
-
--- User Preferences table (AI page → AI Preferences, Settings → Notifications)
-CREATE TABLE user_preferences (
-  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  tone TEXT NOT NULL DEFAULT 'professional'
-    CHECK (tone IN ('professional', 'conversational', 'executive')),
-  writing_style TEXT NOT NULL DEFAULT 'concise'
-    CHECK (writing_style IN ('concise', 'detailed', 'keyword-optimized')),
-  industry TEXT NOT NULL DEFAULT '',
-  job_level TEXT NOT NULL DEFAULT 'mid'
-    CHECK (job_level IN ('junior', 'mid', 'senior', 'executive')),
-  ats_mode BOOLEAN NOT NULL DEFAULT false,
-  notify_export_complete BOOLEAN NOT NULL DEFAULT true,
-  notify_product_updates BOOLEAN NOT NULL DEFAULT false,
-  default_model TEXT NOT NULL DEFAULT 'claude-sonnet-4-6'
-    CHECK (default_model IN ('claude-sonnet-4-6', 'claude-sonnet-5', 'claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5')),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
--- RLS enabled — users can only read/write their own row
-
--- Profiles table (Profile page → Personal Info + Work Experience)
-CREATE TABLE profiles (
-  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name TEXT NOT NULL DEFAULT '',
-  phone TEXT NOT NULL DEFAULT '',
-  address TEXT NOT NULL DEFAULT '',
-  job_title TEXT NOT NULL DEFAULT '',
-  experience JSONB NOT NULL DEFAULT '[]'::jsonb,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
--- RLS enabled — users can only read/write their own row
-
--- AI Usage Log table (AI page → AI Usage)
-CREATE TABLE ai_usage_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  action TEXT NOT NULL
-    CHECK (action IN ('parse', 'enrich', 'tailor', 'cover_letter', 'ats_score')),
-  model TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
--- RLS enabled — users can only read/write their own rows
--- Indexed on (user_id, created_at DESC) for the AI Usage card
-```
-
-**Storage:** `avatars` bucket (public read, owner-only write/update/delete by `user_id` folder) for Profile → Account avatar uploads.
-
-**RPC:** `delete_user_account()` — `SECURITY DEFINER` function called from Settings → Security → Delete Account. Cascades through `cover_letters`, `resumes`, `user_preferences`, `profiles`, and `ai_usage_log`, then removes the `auth.users` row.
-
-See `supabase/migrations/20260611_user_preferences.sql`,
-`supabase/migrations/20260613_profile_and_ai_usage.sql`, and
-`supabase/migrations/20260703_default_ai_model.sql` (adds `default_model` to `user_preferences`) for the full migrations.
+Full schema, storage, and RPC details: [`doc/database.md`](doc/database.md).
 
 ---
 
@@ -349,43 +258,10 @@ and `backend` (`pytest -v`) — matching branch protection on `main`.
 
 ---
 
-## Cost per User Session
-
-| Action | Model | Cost |
-|---|---|---|
-| Validate | Haiku | ~$0.0005 |
-| Parse | Haiku | ~$0.001 |
-| Enrich | Sonnet | ~$0.01 |
-| Tailor | Sonnet | ~$0.015 |
-| Cover Letter | Sonnet | ~$0.01 |
-| **Full session** | | **~$0.04** |
-
----
-
 ## Roadmap
 
-- [x] AI resume parse, enrich, tailor
-- [x] AI cover letter generator
-- [x] Claude resume validation
-- [x] Industry style detection
-- [x] PDF/DOCX/TXT export
-- [x] Email auth + guest mode
-- [x] Save to database (resumes + cover letters)
-- [x] Dashboard with CRUD
-- [x] Error pages (404/500)
-- [x] User settings — appearance, security, notifications
-- [x] Dark mode (Light/Dark/System) with no-flash reload
-- [x] 400+ automated tests
-- [x] Google OAuth sign-in
-- [x] ATS keyword scoring + Dashboard ATS Score tracking
-- [x] Profile page — personal info & work experience capture
-- [x] AI usage tracking and model transparency (`/ai` page)
-- [x] Server-side quota enforcement — 30 AI calls/month free tier with 402 response + UI modal
-- [x] Resume editor redesign — 3-column layout, step stepper, section nav, live preview panel
-- [x] Career stage persona split — Student / Early Career / Experienced selector with auto-detection
-- [x] One Click Package Generation — wizard: JD + role (AI-validated) → resume selection → parallel streaming tailor + cover letter + ATS → result view with export and save
-- [x] Mobile responsive editor — scrollable AI tool and document tab bars; Edit/Preview toggle scoped correctly per step
-- [x] User-selectable AI model — per-screen model selector on the AI Enhance step and a default model preference on `/ai`
+Shipped capabilities are listed under [Features](#features) above. What's left:
+
 - [ ] Stripe monetization
 - [ ] Resume version history
 - [ ] Generate resume from scratch using Profile work experience
