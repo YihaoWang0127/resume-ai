@@ -113,10 +113,8 @@ export default function CoverLetterEditor() {
     autoGenRef.current = true
     setRegenerating(true)
     setContent('')
-    console.log('[CoverLetterEditor] auto-generation starting')
     generateCoverLetter(state.resume, state.jobDescription, state.companyName, (state.tone as Tone) ?? 'professional', undefined, aiModel)
       .then(async (stream) => {
-        console.log('[CoverLetterEditor] stream opened')
         const reader = stream.getReader()
         const decoder = new TextDecoder()
         let accumulated = ''
@@ -124,11 +122,9 @@ export default function CoverLetterEditor() {
           const { done, value } = await reader.read()
           if (done) break
           const chunk = decoder.decode(value, { stream: true })
-          console.log('[CoverLetterEditor] chunk', chunk.length, 'chars')
           accumulated += chunk
           setContent(accumulated)
         }
-        console.log('[CoverLetterEditor] stream complete — total', accumulated.length, 'chars')
       })
       .catch(console.error)
       .finally(() => setRegenerating(false))

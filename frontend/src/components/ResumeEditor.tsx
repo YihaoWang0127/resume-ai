@@ -550,14 +550,11 @@ export default function ResumeEditor({ initialResume, initialResumeId, initialCa
   const applyStreamed = () => {
     try {
       let text = accumRef.current.trim()
-      console.log('[applyStreamed] raw streamed text:', text)
       if (text.startsWith('```')) {
         text = text.split('\n').slice(1).join('\n').replace(/```\s*$/, '').trim()
       }
       const parsed: unknown = JSON.parse(text)
-      console.log('[applyStreamed] parsed JSON:', parsed)
       const newResume = fromBackend(parsed)
-      console.log('[applyStreamed] mapped ResumeSchema:', newResume)
 
       const changes = new Set<string>()
       if (JSON.stringify(resume.metadata) !== JSON.stringify(newResume.metadata)) changes.add('metadata')
