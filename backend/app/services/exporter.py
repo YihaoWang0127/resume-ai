@@ -241,6 +241,7 @@ def generate_docx(resume: ResumeSchema, industry: str = "general") -> bytes:
     from docx.shared import Pt, RGBColor, Inches
     from docx.oxml.ns import qn
     from docx.oxml import OxmlElement
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
 
     preset = _PRESETS.get(industry, _PRESETS["general"])
     font_name = preset["font_name"]
@@ -261,6 +262,7 @@ def generate_docx(resume: ResumeSchema, industry: str = "general") -> bytes:
     m = resume.metadata
 
     name_p = doc.add_paragraph()
+    name_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     name_run = name_p.add_run(m.name or "")
     name_run.bold = True
     name_run.font.size = Pt(20)
