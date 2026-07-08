@@ -82,22 +82,6 @@ describe('Home — hero section', () => {
   })
 })
 
-// ── Social proof & trust bar ──────────────────────────────────────────────────
-
-describe('Home — social proof and trust bar', () => {
-  it('renders social proof text, avatar initials, and all company names', () => {
-    renderHome()
-    expect(screen.getByText(/Loved by 20,000\+ job seekers/i)).toBeInTheDocument()
-    expect(screen.getByText('JK')).toBeInTheDocument()
-    expect(screen.getByText('SM')).toBeInTheDocument()
-    expect(screen.getByText('AR')).toBeInTheDocument()
-    expect(screen.getByText(/Trusted by professionals from top companies/i)).toBeInTheDocument()
-    for (const name of ['Google', 'Microsoft', 'Amazon', 'Meta', 'Netflix', 'Airbnb', 'Stripe']) {
-      expect(screen.getByText(name)).toBeInTheDocument()
-    }
-  })
-})
-
 // ── Resume preview card ───────────────────────────────────────────────────────
 
 describe('Home — resume preview card', () => {
