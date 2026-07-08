@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { X, FileText, CheckCircle } from 'lucide-react'
+import { X, FileText, CheckCircle, Eye, EyeOff, UserCheck } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import Modal from '@/components/Modal'
 import { cn } from '@/lib/utils'
@@ -8,6 +8,9 @@ import { cn } from '@/lib/utils'
 type Tab = 'signin' | 'signup'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const FOCUS_RING =
+  'outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background'
 
 export default function AuthModal() {
   const {
@@ -23,6 +26,8 @@ export default function AuthModal() {
   const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [emailValidated, setEmailValidated] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [entered, setEntered] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -34,34 +39,60 @@ export default function AuthModal() {
       setPassword('')
       setTab('signin')
       setEmailValidated(false)
+      setShowPassword(false)
       if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [showAuthModal])
+
+  useEffect(() => {
+    if (showAuthModal) {
+      setEntered(false)
+      const id = requestAnimationFrame(() => setEntered(true))
+      return () => cancelAnimationFrame(id)
     }
   }, [showAuthModal])
 
   if (!showAuthModal) return null
 
+  const overlayCls = cn(
+    'bg-black/60 px-4 transition-opacity duration-200 motion-reduce:transition-none',
+    entered ? 'opacity-100' : 'opacity-0',
+  )
+  const contentCls = cn(
+    'max-w-md rounded-xl relative transition-all duration-200 motion-reduce:transition-none',
+    entered ? 'opacity-100 scale-100' : 'opacity-0 scale-95',
+  )
+
   // ── Already authenticated non-guest user ───────────────────────────────────
   if (user && !isGuest) {
     return (
-      <Modal open={showAuthModal} overlayClassName="bg-black/60 px-4" className="max-w-md rounded-xl relative">
-          <Logo />
-          <p className="text-foreground text-lg font-semibold mb-1">You're already signed in</p>
-          <p className="text-sm text-muted-foreground mb-6">{user.email}</p>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={closeAuthModal}
-              className="flex-1 py-3 min-h-[44px] bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Continue
-            </button>
-            <button
-              type="button"
-              onClick={async () => { await signOut(); closeAuthModal() }}
-              className="flex-1 py-3 min-h-[44px] bg-background border border-border text-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-secondary transition-colors"
-            >
-              Sign Out
-            </button>
+      <Modal open={showAuthModal} overlayClassName={overlayCls} className={contentCls}>
+          <div className="flex flex-col items-center text-center py-2">
+            <UserCheck className="size-14 text-primary mb-4" />
+            <p className="text-foreground text-lg font-semibold mb-1">You're already signed in</p>
+            <p className="text-sm text-muted-foreground mb-8 break-all">{user.email}</p>
+            <div className="flex w-full gap-3">
+              <button
+                type="button"
+                onClick={closeAuthModal}
+                className={cn(
+                  'flex-1 py-3 min-h-[44px] bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors cursor-pointer',
+                  FOCUS_RING,
+                )}
+              >
+                Continue
+              </button>
+              <button
+                type="button"
+                onClick={async () => { await signOut(); closeAuthModal() }}
+                className={cn(
+                  'flex-1 py-3 min-h-[44px] bg-background border border-border text-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-secondary transition-colors cursor-pointer',
+                  FOCUS_RING,
+                )}
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
       </Modal>
     )
@@ -144,17 +175,20 @@ export default function AuthModal() {
   )
 
   const passwordInputCls =
-    'w-full px-4 py-3 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors'
+    'w-full px-4 py-3 pr-12 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors'
 
   const submitDisabled = loading || (emailValidated && email !== '' && !emailIsValid)
 
   return (
-    <Modal open={showAuthModal} overlayClassName="bg-black/60 px-4" className="max-w-md rounded-xl relative">
+    <Modal open={showAuthModal} overlayClassName={overlayCls} className={contentCls}>
         {user && (
           <button
             type="button"
             onClick={closeAuthModal}
-            className="absolute top-4 right-4 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className={cn(
+              'absolute top-4 right-4 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer',
+              FOCUS_RING,
+            )}
             aria-label="Close"
           >
             <X className="size-4" />
@@ -176,7 +210,10 @@ export default function AuthModal() {
             <button
               type="button"
               onClick={closeAuthModal}
-              className="w-full py-3 min-h-[44px] bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors"
+              className={cn(
+                'w-full py-3 min-h-[44px] bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors cursor-pointer',
+                FOCUS_RING,
+              )}
             >
               OK, GOT IT
             </button>
@@ -184,22 +221,30 @@ export default function AuthModal() {
         ) : (
           <>
             {/* Tabs */}
-            <div className="flex border-b border-border mb-6">
+            <div className="relative flex border-b border-border mb-6">
               {(['signin', 'signup'] as Tab[]).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => switchTab(t)}
                   className={cn(
-                    'flex-1 py-2.5 min-h-[44px] text-xs font-bold uppercase tracking-widest transition-colors',
+                    'flex-1 py-2.5 min-h-[44px] text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer rounded-t-md',
+                    FOCUS_RING,
                     tab === t
-                      ? 'text-primary border-b-2 border-primary'
+                      ? 'text-primary'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {t === 'signin' ? 'Sign In' : 'Sign Up'}
                 </button>
               ))}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'absolute bottom-0 left-0 h-0.5 w-1/2 bg-primary transition-transform duration-200 ease-out motion-reduce:transition-none',
+                  tab === 'signup' && 'translate-x-full',
+                )}
+              />
             </div>
 
             {/* Form */}
@@ -217,23 +262,41 @@ export default function AuthModal() {
                   <p className="mt-1.5 text-xs text-red-400">Please enter a valid email address</p>
                 )}
               </div>
-              <input
-                type="password"
-                required
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={passwordInputCls}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={passwordInputCls}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className={cn(
+                    'absolute right-0 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-lg',
+                    FOCUS_RING,
+                  )}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
 
               {error && (
-                <p className="text-xs text-red-400 font-medium">{error}</p>
+                <p role="alert" aria-live="polite" className="text-xs text-red-400 font-medium">
+                  {error}
+                </p>
               )}
 
               <button
                 type="submit"
                 disabled={submitDisabled}
-                className="w-full py-3 min-h-[44px] bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className={cn(
+                  'w-full py-3 min-h-[44px] bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer',
+                  FOCUS_RING,
+                )}
               >
                 {loading ? '...' : tab === 'signin' ? 'Sign In' : 'Create Account'}
               </button>
@@ -251,7 +314,10 @@ export default function AuthModal() {
               type="button"
               onClick={handleGoogle}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 py-3 min-h-[44px] bg-background border border-border text-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className={cn(
+                'w-full flex items-center justify-center gap-3 py-3 min-h-[44px] bg-background border border-border text-foreground text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer',
+                FOCUS_RING,
+              )}
             >
               <GoogleIcon className="size-4" />
               Continue with Google
@@ -262,7 +328,10 @@ export default function AuthModal() {
               type="button"
               onClick={handleGuest}
               disabled={loading}
-              className="w-full mt-3 py-3 min-h-[44px] bg-background border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className={cn(
+                'w-full mt-3 py-3 min-h-[44px] bg-background border border-primary text-primary text-sm font-bold uppercase tracking-widest rounded-lg hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer',
+                FOCUS_RING,
+              )}
             >
               Continue as Guest
             </button>

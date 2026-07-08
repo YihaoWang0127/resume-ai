@@ -49,7 +49,7 @@ describe('AuthModal — initial render', () => {
     render(<AuthModal />)
     const signInTab = tabButton('Sign In')
     expect(signInTab).toBeInTheDocument()
-    expect(signInTab.className).toMatch(/border-primary/)
+    expect(signInTab.className).toMatch(/text-primary/)
   })
 
   it('shows both Sign In and Sign Up tabs', () => {
@@ -173,6 +173,36 @@ describe('AuthModal — form submission', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /continue as guest/i })).not.toBeDisabled()
     )
+  })
+})
+
+// ── password visibility toggle ────────────────────────────────────────────────
+
+describe('AuthModal — password visibility toggle', () => {
+  it('starts with the password field masked', () => {
+    render(<AuthModal />)
+    expect(screen.getByPlaceholderText('Password')).toHaveAttribute('type', 'password')
+  })
+
+  it('reveals the password and flips the label when toggled', async () => {
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByLabelText('Show password'))
+
+    expect(screen.getByPlaceholderText('Password')).toHaveAttribute('type', 'text')
+    expect(screen.getByLabelText('Hide password')).toBeInTheDocument()
+  })
+
+  it('re-masks the password when toggled again', async () => {
+    const user = userEvent.setup()
+    render(<AuthModal />)
+
+    await user.click(screen.getByLabelText('Show password'))
+    await user.click(screen.getByLabelText('Hide password'))
+
+    expect(screen.getByPlaceholderText('Password')).toHaveAttribute('type', 'password')
+    expect(screen.getByLabelText('Show password')).toBeInTheDocument()
   })
 })
 
