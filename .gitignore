@@ -21,3 +21,12 @@ frontend/.env.local
 # OS
 .DS_Store
 frontend/tsconfig.tsbuildinfo
+
+# Locally installed skills (not project-specific)
+.claude/skills/banner-design/
+.claude/skills/brand/
+.claude/skills/design-system/
+.claude/skills/design/
+.claude/skills/slides/
+.claude/skills/ui-styling/
+.claude/skills/ui-ux-pro-max/
